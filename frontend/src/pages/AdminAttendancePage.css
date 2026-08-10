@@ -1,0 +1,50 @@
+/* AdminAttendancePage.css */
+.tab-pill-switcher {
+  display: flex;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 3px;
+  border-radius: var(--radius-md);
+  gap: 2px;
+}
+
+.tab-pill-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  padding: var(--space-2) var(--space-4);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.tab-pill-btn:hover {
+  color: var(--color-text);
+}
+
+.tab-pill-btn.active {
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+}
+
+.date-picker-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.date-input {
+  width: auto;
+}
+
+.block {
+  display: block;
+}
+
+.employee-month-modal-body {
+  display: flex;
+  flex-direction: column;
+}

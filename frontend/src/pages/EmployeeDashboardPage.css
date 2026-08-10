@@ -1,0 +1,325 @@
+/* EmployeeDashboardPage.css */
+.employee-app-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--color-bg);
+}
+
+.employee-top-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-3) var(--space-8);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.employee-header-left {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.employee-brand-icon {
+  width: 36px;
+  height: 36px;
+  background: linear-gradient(135deg, var(--color-success), #10b981);
+  border-radius: var(--radius-md);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: #fff;
+}
+
+.employee-brand-text {
+  display: flex;
+  flex-direction: column;
+}
+
+.employee-header-right {
+  display: flex;
+  align-items: center;
+  gap: var(--space-5);
+}
+
+.employee-main-content {
+  flex: 1;
+  max-width: 1200px;
+  width: 100%;
+  margin: 0 auto;
+  padding: var(--space-6) var(--space-8);
+}
+
+/* Section switcher tabs */
+.employee-section-tabs {
+  display: flex;
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  padding: 4px;
+  border-radius: var(--radius-lg);
+  gap: 4px;
+  width: fit-content;
+  margin-bottom: var(--space-2);
+}
+
+.emp-tab-btn {
+  background: transparent;
+  color: var(--color-text-muted);
+  border: none;
+  padding: var(--space-2) var(--space-5);
+  font-size: var(--font-size-sm);
+  font-weight: 500;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.emp-tab-btn:hover {
+  color: var(--color-text);
+}
+
+.emp-tab-btn.active {
+  background-color: var(--color-primary);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+}
+
+/* Today Attendance Hero */
+.today-attendance-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.12) 0%, rgba(34, 197, 94, 0.08) 100%),
+              var(--color-surface);
+  border: 1px solid var(--color-border);
+}
+
+.today-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.today-date-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.today-title {
+  font-size: var(--font-size-2xl);
+  font-weight: 700;
+}
+
+.today-action-box {
+  display: flex;
+  align-items: center;
+}
+
+.today-marked-card {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+}
+
+.mark-quick-options {
+  display: flex;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.non-working-notice {
+  font-size: var(--font-size-sm);
+  color: var(--color-text-muted);
+  font-style: italic;
+}
+
+/* Status colors */
+.status-present {
+  background-color: rgba(34, 197, 94, 0.15);
+  color: var(--color-success);
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.status-half_day {
+  background-color: rgba(245, 158, 11, 0.15);
+  color: var(--color-warning);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.status-travel {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary);
+  border: 1px solid rgba(99, 102, 241, 0.3);
+}
+
+.status-absent {
+  background-color: rgba(239, 68, 68, 0.15);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.status-holiday {
+  background-color: rgba(168, 85, 247, 0.15);
+  color: #c084fc;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.status-weekend {
+  background-color: rgba(255, 255, 255, 0.05);
+  color: var(--color-text-muted);
+  border: 1px solid var(--color-border);
+}
+
+.status-unmarked {
+  background-color: rgba(239, 68, 68, 0.1);
+  color: #f87171;
+  border: 1px dashed rgba(239, 68, 68, 0.4);
+}
+
+.override-badge {
+  background-color: rgba(99, 102, 241, 0.15);
+  color: var(--color-primary);
+  padding: 1px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-weight: 600;
+}
+
+/* Calendar Section */
+.calendar-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin-top: var(--space-2);
+}
+
+.calendar-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+}
+
+.month-selector-group {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.current-month-badge {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-text);
+  padding: var(--space-1) var(--space-4);
+  background-color: var(--color-surface);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--color-border);
+}
+
+.attendance-kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-3);
+}
+
+.row-weekend td {
+  background-color: rgba(255, 255, 255, 0.015);
+  opacity: 0.75;
+}
+
+.row-holiday td {
+  background-color: rgba(168, 85, 247, 0.03);
+}
+
+.calendar-date-cell {
+  color: var(--color-text);
+  font-size: var(--font-size-sm);
+}
+
+.remarks-cell {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+/* Prompt Modal */
+.prompt-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.prompt-options-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.prompt-option-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-md);
+  background-color: var(--color-surface-2);
+  border: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.prompt-option-card:hover {
+  border-color: var(--color-border-focus);
+}
+
+.prompt-option-card.selected {
+  border-color: var(--color-primary);
+  background-color: rgba(99, 102, 241, 0.1);
+}
+
+.prompt-option-card input[type="radio"] {
+  width: auto;
+}
+
+.option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.leaves-section,
+.employee-payslips-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.font-normal {
+  font-weight: 400;
+}
+
+@media (max-width: 768px) {
+  .employee-top-header {
+    padding: var(--space-3) var(--space-4);
+  }
+  .employee-main-content {
+    padding: var(--space-4);
+  }
+  .today-attendance-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .today-marked-card {
+    align-items: flex-start;
+  }
+}

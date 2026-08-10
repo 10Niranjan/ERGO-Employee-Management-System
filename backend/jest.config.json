@@ -1,0 +1,6 @@
+{
+  "testEnvironment": "node",
+  "testMatch": ["**/__tests__/**/*.test.js"],
+  "setupFiles": ["./src/__tests__/setup.js"],
+  "coveragePathIgnorePatterns": ["/node_modules/", "/src/db/migrate.js", "/src/db/seed.js"]
+}
