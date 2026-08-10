@@ -1,1 +1,1 @@
-# ERGO-Employee-Management-Syste
+# ERGO-Employee-Management-System
