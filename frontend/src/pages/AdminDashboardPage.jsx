@@ -1,5 +1,18 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CalendarDays,
+  CheckCircle2,
+  ClipboardCheck,
+  ClipboardList,
+  Clock4,
+  Plane,
+  Tags,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { getTodayAttendance } from '../api/attendanceApi';
 import { getLeaveTypes } from '../api/leaveTypeApi';
@@ -91,7 +104,9 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Total Staff</span>
-              <span className="kpi-icon">👥</span>
+              <span className="icon-chip icon-chip-sm icon-chip-primary">
+                <Users size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value">
               {loading ? <span className="spinner" /> : todayStats.total_active_employees}
@@ -102,7 +117,9 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Present</span>
-              <span className="kpi-icon">🏢</span>
+              <span className="icon-chip icon-chip-sm icon-chip-success">
+                <CheckCircle2 size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value text-success">
               {loading ? <span className="spinner" /> : todayStats.present}
@@ -113,7 +130,9 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Half-Day</span>
-              <span className="kpi-icon">🌗</span>
+              <span className="icon-chip icon-chip-sm icon-chip-warning">
+                <Clock4 size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value text-warning">
               {loading ? <span className="spinner" /> : todayStats.half_day}
@@ -124,7 +143,9 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">On Travel</span>
-              <span className="kpi-icon">✈️</span>
+              <span className="icon-chip icon-chip-sm icon-chip-primary">
+                <Plane size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>
               {loading ? <span className="spinner" /> : todayStats.travel}
@@ -135,7 +156,9 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Not Marked</span>
-              <span className="kpi-icon">⏳</span>
+              <span className="icon-chip icon-chip-sm icon-chip-danger">
+                <AlertTriangle size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value text-danger">
               {loading ? <span className="spinner" /> : todayStats.not_marked + todayStats.absent}
@@ -146,15 +169,17 @@ export default function AdminDashboardPage() {
           <div className="kpi-card card">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Pending Leaves</span>
-              <span className="kpi-icon">📝</span>
+              <span className="icon-chip icon-chip-sm icon-chip-warning">
+                <ClipboardList size={15} aria-hidden="true" />
+              </span>
             </div>
             <div className="kpi-value" style={{ color: stats.pendingLeavesCount > 0 ? 'var(--color-warning)' : 'inherit' }}>
               {loading ? <span className="spinner" /> : stats.pendingLeavesCount}
             </div>
             <span className="kpi-sub text-muted text-xs">
               {stats.pendingLeavesCount > 0 ? (
-                <Link to="/admin/leaves" style={{ color: 'var(--color-primary)', fontWeight: 600 }}>
-                  Review Leaves →
+                <Link to="/admin/leaves" className="kpi-inline-link">
+                  Review Leaves <ArrowRight size={12} aria-hidden="true" />
                 </Link>
               ) : (
                 'All reviewed'
@@ -171,68 +196,92 @@ export default function AdminDashboardPage() {
         </h2>
         <div className="dashboard-modules-grid">
           <Link to="/admin/leaves" className="module-card card">
-            <div className="module-icon-wrap">📝</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <ClipboardCheck size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Leave Applications</h3>
               <p className="text-muted text-sm">
                 Review staff leave requests, approve with balance deduction, or decline with mandatory reason.
               </p>
-              <span className="module-link-arrow">Manage Leave Requests →</span>
+              <span className="module-link-arrow">
+                Manage Leave Requests <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
 
           <Link to="/admin/attendance" className="module-card card">
-            <div className="module-icon-wrap">⏱️</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <Clock4 size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Daily Attendance</h3>
               <p className="text-muted text-sm">
                 View team presence, perform manual overrides with audit logs, and review correction requests.
               </p>
-              <span className="module-link-arrow">Open Attendance Manager →</span>
+              <span className="module-link-arrow">
+                Open Attendance Manager <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
 
           <Link to="/admin/employees" className="module-card card">
-            <div className="module-icon-wrap">👥</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <Users size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Employee Directory</h3>
               <p className="text-muted text-sm">
                 Onboard new employees, view staff records, edit profiles, and deactivate accounts.
               </p>
-              <span className="module-link-arrow">Open Directory →</span>
+              <span className="module-link-arrow">
+                Open Directory <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
 
           <Link to="/admin/leave-types" className="module-card card">
-            <div className="module-icon-wrap">🏖️</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <Tags size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Leave Configuration</h3>
               <p className="text-muted text-sm">
                 Manage leave types (Casual, Sick, Paid, Unpaid) and configure annual quotas.
               </p>
-              <span className="module-link-arrow">Configure Leaves →</span>
+              <span className="module-link-arrow">
+                Configure Leaves <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
 
           <Link to="/admin/holidays" className="module-card card">
-            <div className="module-icon-wrap">📅</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <CalendarDays size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Holiday Calendar</h3>
               <p className="text-muted text-sm">
                 Maintain national and company holidays ({stats.holidaysCount} configured for {new Date().getFullYear()}).
               </p>
-              <span className="module-link-arrow">Manage Holidays →</span>
+              <span className="module-link-arrow">
+                Manage Holidays <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
 
           <Link to="/admin/salaries" className="module-card card">
-            <div className="module-icon-wrap">💰</div>
+            <div className="icon-chip icon-chip-lg icon-chip-primary">
+              <Wallet size={22} aria-hidden="true" />
+            </div>
             <div className="module-details">
               <h3>Salary Rate Management</h3>
               <p className="text-muted text-sm">
                 Set and update employee per-day base salary rates with complete audit logging.
               </p>
-              <span className="module-link-arrow">Manage Salaries →</span>
+              <span className="module-link-arrow">
+                Manage Salaries <ArrowRight size={14} aria-hidden="true" />
+              </span>
             </div>
           </Link>
         </div>

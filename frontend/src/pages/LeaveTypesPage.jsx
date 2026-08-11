@@ -1,5 +1,14 @@
 import { useState, useEffect } from 'react';
 import {
+  AlertTriangle,
+  Info,
+  Lock,
+  Palmtree,
+  Pencil,
+  Plus,
+  Unlock,
+} from 'lucide-react';
+import {
   getLeaveTypes,
   createLeaveType,
   updateLeaveType,
@@ -139,13 +148,13 @@ export default function LeaveTypesPage() {
           className="btn btn-primary"
           onClick={handleOpenAdd}
         >
-          <span>+</span> Add Leave Type
+          <Plus size={15} aria-hidden="true" /> Add Leave Type
         </button>
       </div>
 
       {/* Leave Policy Notice Banner */}
       <div className="policy-banner card">
-        <span className="policy-icon">ℹ️</span>
+        <Info className="policy-icon" size={20} aria-hidden="true" />
         <div className="policy-text">
           <strong>Annual Reset Policy:</strong> Unused leave balances reset annually and do not carry forward. Paid leave types are compensated at 100% per-day rate, while Unpaid Leaves deduct from monthly compensation.
         </div>
@@ -160,7 +169,7 @@ export default function LeaveTypesPage() {
           </div>
         ) : error ? (
           <div className="state-container">
-            <span className="state-icon text-danger">⚠️</span>
+            <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
             <p className="text-danger">{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={fetchTypes}>
               Try Again
@@ -168,7 +177,7 @@ export default function LeaveTypesPage() {
           </div>
         ) : leaveTypes.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">🏖️</span>
+            <Palmtree className="state-icon" size={40} aria-hidden="true" />
             <h3>No leave types configured</h3>
             <p className="text-muted text-sm">
               Click "+ Add Leave Type" to set up your first leave category.
@@ -215,7 +224,7 @@ export default function LeaveTypesPage() {
                           title="Edit Quota & Settings"
                           onClick={() => handleOpenEdit(lt)}
                         >
-                          ✏️
+                          <Pencil size={15} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -223,7 +232,7 @@ export default function LeaveTypesPage() {
                           title={lt.is_active ? 'Deactivate Leave Type' : 'Activate Leave Type'}
                           onClick={() => handleToggleStatus(lt)}
                         >
-                          {lt.is_active ? '🔒' : '🔓'}
+                          {lt.is_active ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
                         </button>
                       </div>
                     </td>

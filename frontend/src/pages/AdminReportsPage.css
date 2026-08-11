@@ -5,10 +5,3 @@
   gap: var(--space-4);
 }
 
-@media (max-width: 768px) {
-  .page-header-row {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: var(--space-3);
-  }
-}

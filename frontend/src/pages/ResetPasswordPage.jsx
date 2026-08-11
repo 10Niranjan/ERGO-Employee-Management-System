@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { AlertCircle, Eye, EyeOff, KeyRound, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { resetPasswordApi } from '../api/authApi';
 import './ResetPasswordPage.css';
@@ -57,7 +58,9 @@ export default function ResetPasswordPage() {
     <div className="full-page-center reset-bg">
       <div className="reset-card card">
         <div className="reset-header">
-          <div className="reset-icon" aria-hidden="true">🔐</div>
+          <div className="reset-icon" aria-hidden="true">
+            <KeyRound size={22} />
+          </div>
           <div>
             <h1 className="reset-title">Set Your Password</h1>
             <p className="text-muted text-sm">
@@ -69,7 +72,8 @@ export default function ResetPasswordPage() {
         <form id="reset-password-form" onSubmit={handleSubmit} noValidate>
           {error && (
             <div id="reset-error-banner" className="alert alert-error" role="alert">
-              {error}
+              <AlertCircle size={16} aria-hidden="true" />
+              <span>{error}</span>
             </div>
           )}
 
@@ -77,7 +81,8 @@ export default function ResetPasswordPage() {
             <label htmlFor="new-password" className="form-label">
               New Password
             </label>
-            <div className="password-wrapper">
+            <div className="input-icon-wrapper">
+              <Lock className="input-icon" size={17} aria-hidden="true" />
               <input
                 id="new-password"
                 type={showNew ? 'text' : 'password'}
@@ -95,7 +100,7 @@ export default function ResetPasswordPage() {
                 onClick={() => setShowNew((v) => !v)}
                 aria-label={showNew ? 'Hide password' : 'Show password'}
               >
-                {showNew ? '🙈' : '👁️'}
+                {showNew ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>
@@ -104,7 +109,8 @@ export default function ResetPasswordPage() {
             <label htmlFor="confirm-password" className="form-label">
               Confirm Password
             </label>
-            <div className="password-wrapper">
+            <div className="input-icon-wrapper">
+              <Lock className="input-icon" size={17} aria-hidden="true" />
               <input
                 id="confirm-password"
                 type={showConfirm ? 'text' : 'password'}
@@ -122,7 +128,7 @@ export default function ResetPasswordPage() {
                 onClick={() => setShowConfirm((v) => !v)}
                 aria-label={showConfirm ? 'Hide password' : 'Show password'}
               >
-                {showConfirm ? '🙈' : '👁️'}
+                {showConfirm ? <EyeOff size={17} /> : <Eye size={17} />}
               </button>
             </div>
           </div>

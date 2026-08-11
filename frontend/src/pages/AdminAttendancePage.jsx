@@ -1,5 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
+  AlertTriangle,
+  CalendarDays,
+  CalendarOff,
+  Check,
+  Hourglass,
+  Info,
+  Palmtree,
+  Search,
+  Users,
+  X,
+  Zap,
+} from 'lucide-react';
+import {
   getTeamAttendance,
   getCorrections,
   reviewCorrection,
@@ -213,14 +226,14 @@ export default function AdminAttendancePage() {
             className={`tab-pill-btn ${activeTab === 'team' ? 'active' : ''}`}
             onClick={() => setActiveTab('team')}
           >
-            👥 Daily Team Status
+            <Users size={14} aria-hidden="true" /> Daily Team Status
           </button>
           <button
             type="button"
             className={`tab-pill-btn ${activeTab === 'corrections' ? 'active' : ''}`}
             onClick={() => setActiveTab('corrections')}
           >
-            ⏳ Correction Requests
+            <Hourglass size={14} aria-hidden="true" /> Correction Requests
           </button>
         </div>
       </div>
@@ -250,7 +263,7 @@ export default function AdminAttendancePage() {
             </div>
 
             <div className="search-box">
-              <span className="search-icon">🔍</span>
+              <Search className="search-icon" size={14} aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search team member..."
@@ -317,7 +330,7 @@ export default function AdminAttendancePage() {
               </div>
             ) : teamError ? (
               <div className="state-container">
-                <span className="state-icon text-danger">⚠️</span>
+                <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
                 <p className="text-danger">{teamError}</p>
                 <button className="btn btn-ghost btn-sm" onClick={fetchTeam}>
                   Try Again
@@ -325,7 +338,7 @@ export default function AdminAttendancePage() {
               </div>
             ) : teamList.length === 0 ? (
               <div className="state-container">
-                <span className="state-icon">👥</span>
+                <Users className="state-icon" size={40} aria-hidden="true" />
                 <h3>No employee attendance records found</h3>
                 <p className="text-muted text-sm">Try clearing your search query or filter.</p>
               </div>
@@ -374,12 +387,12 @@ export default function AdminAttendancePage() {
                           <div className="remarks-cell">
                             {emp.is_admin_override && (
                               <span className="override-badge text-xs" title={emp.override_reason}>
-                                ⚡ Override ({emp.override_reason})
+                                <Zap size={11} aria-hidden="true" /> Override ({emp.override_reason})
                               </span>
                             )}
                             {emp.correction_status === 'pending' && (
                               <span className="status-pill status-unpaid text-xs">
-                                ⏳ Correction: {emp.correction_requested_status}
+                                <Hourglass size={11} aria-hidden="true" /> Correction: {emp.correction_requested_status}
                               </span>
                             )}
                             {!emp.is_admin_override && emp.correction_status === 'none' && '—'}
@@ -393,7 +406,7 @@ export default function AdminAttendancePage() {
                               title="Manual Override"
                               onClick={() => handleOpenOverride(emp)}
                             >
-                              ⚡ Override
+                              <Zap size={13} aria-hidden="true" /> Override
                             </button>
                             <button
                               type="button"
@@ -401,7 +414,7 @@ export default function AdminAttendancePage() {
                               title="View Monthly Calendar"
                               onClick={() => handleOpenCalendarModal(emp)}
                             >
-                              📅 Month
+                              <CalendarDays size={13} aria-hidden="true" /> Month
                             </button>
                           </div>
                         </td>
@@ -443,7 +456,7 @@ export default function AdminAttendancePage() {
               </div>
             ) : corrections.length === 0 ? (
               <div className="state-container">
-                <span className="state-icon">⏳</span>
+                <Hourglass className="state-icon" size={40} aria-hidden="true" />
                 <h3>No correction requests found</h3>
                 <p className="text-muted text-sm">
                   {correctionFilter === 'pending'
@@ -520,14 +533,14 @@ export default function AdminAttendancePage() {
                                 className="btn btn-primary btn-sm"
                                 onClick={() => handleApproveCorrection(item)}
                               >
-                                ✓ Approve
+                                <Check size={13} aria-hidden="true" /> Approve
                               </button>
                               <button
                                 type="button"
                                 className="btn btn-danger btn-sm"
                                 onClick={() => handleOpenDeclineModal(item)}
                               >
-                                ✕ Decline
+                                <X size={13} aria-hidden="true" /> Decline
                               </button>
                             </div>
                           )}
@@ -550,7 +563,8 @@ export default function AdminAttendancePage() {
       >
         <form onSubmit={handleOverrideSubmit} className="modal-form">
           <div className="alert alert-info">
-            Manual overrides are audit-logged with your Admin ID, timestamp, and justification reason.
+            <Info size={16} aria-hidden="true" />
+            <span>Manual overrides are audit-logged with your Admin ID, timestamp, and justification reason.</span>
           </div>
 
           <div className="form-group">
@@ -712,9 +726,13 @@ export default function AdminAttendancePage() {
                       </td>
                       <td>
                         {d.is_holiday ? (
-                          <span className="status-pill status-holiday">🏖️ {d.holiday_name}</span>
+                          <span className="status-pill status-holiday">
+                            <Palmtree size={11} aria-hidden="true" /> {d.holiday_name}
+                          </span>
                         ) : d.is_weekend ? (
-                          <span className="status-pill status-weekend">🌴 Weekend</span>
+                          <span className="status-pill status-weekend">
+                            <CalendarOff size={11} aria-hidden="true" /> Weekend
+                          </span>
                         ) : d.attendance ? (
                           <span className={`status-pill status-${d.attendance.status}`}>
                             {d.attendance.status.toUpperCase()}
@@ -730,7 +748,9 @@ export default function AdminAttendancePage() {
                       </td>
                       <td>
                         {d.attendance?.is_admin_override ? (
-                          <span className="override-badge text-xs">⚡ {d.attendance.override_reason}</span>
+                          <span className="override-badge text-xs">
+                            <Zap size={11} aria-hidden="true" /> {d.attendance.override_reason}
+                          </span>
                         ) : '—'}
                       </td>
                     </tr>

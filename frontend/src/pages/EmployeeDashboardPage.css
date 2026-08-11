@@ -66,6 +66,9 @@
 }
 
 .emp-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
   background: transparent;
   color: var(--color-text-muted);
   border: none;
@@ -108,6 +111,9 @@
 }
 
 .today-date-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--color-primary);
@@ -118,6 +124,12 @@
 .today-title {
   font-size: var(--font-size-2xl);
   font-weight: 700;
+}
+
+.today-title span {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .today-action-box {
@@ -187,7 +199,16 @@
   border: 1px dashed rgba(239, 68, 68, 0.4);
 }
 
+.status-danger {
+  background-color: var(--color-danger-light);
+  color: var(--color-danger);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
 .override-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
   background-color: rgba(99, 102, 241, 0.15);
   color: var(--color-primary);
   padding: 1px var(--space-2);
@@ -251,6 +272,12 @@
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
+}
+
+.modal-title-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 /* Prompt Modal */

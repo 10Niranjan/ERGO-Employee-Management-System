@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { FileBarChart2, FileSpreadsheet, Search } from 'lucide-react';
 import { getSalaryRates } from '../api/salaryApi';
 import { computeSalary, downloadConsolidatedExcel } from '../api/reportApi';
 import { useToast } from '../components/Toast';
@@ -99,7 +100,7 @@ export default function AdminReportsPage() {
           disabled={downloadingExcel || loading}
           onClick={handleDownloadExcel}
         >
-          {downloadingExcel ? <span className="spinner" /> : '📊'}
+          {downloadingExcel ? <span className="spinner" /> : <FileSpreadsheet size={15} aria-hidden="true" />}
           {downloadingExcel ? 'Generating Excel...' : 'Export Consolidated Excel (.xlsx)'}
         </button>
       </div>
@@ -140,7 +141,7 @@ export default function AdminReportsPage() {
         </div>
 
         <div className="search-box" style={{ marginLeft: 'auto' }}>
-          <span className="search-icon">🔍</span>
+          <Search className="search-icon" size={14} aria-hidden="true" />
           <input
             type="text"
             placeholder="Search employees..."
@@ -177,7 +178,7 @@ export default function AdminReportsPage() {
           </div>
         ) : filteredRows.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">📊</span>
+            <FileBarChart2 className="state-icon" size={40} aria-hidden="true" />
             <h3>No records found</h3>
             <p className="text-muted text-sm">No active employees found for this period.</p>
           </div>

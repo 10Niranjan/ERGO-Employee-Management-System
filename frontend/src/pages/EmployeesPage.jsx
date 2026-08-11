@@ -1,4 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  AlertTriangle,
+  CheckCircle2,
+  ChevronLeft,
+  ChevronRight,
+  Copy,
+  Eye,
+  Info,
+  Lock,
+  Pencil,
+  Plus,
+  Search,
+  Unlock,
+  Users,
+} from 'lucide-react';
 import { getUsers, createUser, updateUser, updateStatus } from '../api/userApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -182,14 +197,14 @@ export default function EmployeesPage() {
           className="btn btn-primary"
           onClick={handleOpenAddModal}
         >
-          <span>+</span> Onboard New Employee
+          <Plus size={15} aria-hidden="true" /> Onboard New Employee
         </button>
       </div>
 
       {/* Filter and Search Bar */}
       <div className="page-controls card">
         <div className="search-box">
-          <span className="search-icon">🔍</span>
+          <Search className="search-icon" size={14} aria-hidden="true" />
           <input
             type="text"
             id="employee-search-input"
@@ -230,7 +245,7 @@ export default function EmployeesPage() {
           </div>
         ) : error ? (
           <div className="state-container">
-            <span className="state-icon text-danger">⚠️</span>
+            <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
             <p className="text-danger">{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={() => fetchEmployees(pagination.page)}>
               Try Again
@@ -238,7 +253,7 @@ export default function EmployeesPage() {
           </div>
         ) : employees.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">👥</span>
+            <Users className="state-icon" size={40} aria-hidden="true" />
             <h3>No employees found</h3>
             <p className="text-muted text-sm">
               {search || statusFilter !== 'all'
@@ -302,7 +317,7 @@ export default function EmployeesPage() {
                           title="View Details"
                           onClick={() => handleOpenViewModal(emp)}
                         >
-                          👁️
+                          <Eye size={15} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -310,7 +325,7 @@ export default function EmployeesPage() {
                           title="Edit Details"
                           onClick={() => handleOpenEditModal(emp)}
                         >
-                          ✏️
+                          <Pencil size={15} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -318,7 +333,7 @@ export default function EmployeesPage() {
                           title={emp.status === 'active' ? 'Deactivate Employee' : 'Reactivate Employee'}
                           onClick={() => handleOpenConfirmModal(emp)}
                         >
-                          {emp.status === 'active' ? '🔒' : '🔓'}
+                          {emp.status === 'active' ? <Lock size={15} aria-hidden="true" /> : <Unlock size={15} aria-hidden="true" />}
                         </button>
                       </div>
                     </td>
@@ -343,7 +358,7 @@ export default function EmployeesPage() {
                 disabled={pagination.page <= 1}
                 onClick={() => fetchEmployees(pagination.page - 1)}
               >
-                ← Previous
+                <ChevronLeft size={14} aria-hidden="true" /> Previous
               </button>
               <span className="page-indicator text-sm">
                 Page {pagination.page} of {pagination.pages || 1}
@@ -354,7 +369,7 @@ export default function EmployeesPage() {
                 disabled={pagination.page >= pagination.pages}
                 onClick={() => fetchEmployees(pagination.page + 1)}
               >
-                Next →
+                Next <ChevronRight size={14} aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -649,8 +664,12 @@ export default function EmployeesPage() {
               </div>
               <div className="profile-detail-item">
                 <span className="profile-detail-label">First Login Status</span>
-                <span className="profile-detail-value text-sm">
-                  {selectedEmployee.first_login ? '⚠️ Password Reset Pending' : '✓ Password Initialized'}
+                <span className="profile-detail-value text-sm profile-first-login-status">
+                  {selectedEmployee.first_login ? (
+                    <><AlertTriangle size={13} aria-hidden="true" /> Password Reset Pending</>
+                  ) : (
+                    <><CheckCircle2 size={13} aria-hidden="true" /> Password Initialized</>
+                  )}
                 </span>
               </div>
             </div>
@@ -710,12 +729,17 @@ export default function EmployeesPage() {
       <Modal
         isOpen={Boolean(tempCredentialsModal)}
         onClose={() => setTempCredentialsModal(null)}
-        title="🎉 Employee Onboarded Successfully"
+        title={
+          <span className="modal-title-with-icon">
+            <CheckCircle2 size={18} aria-hidden="true" /> Employee Onboarded Successfully
+          </span>
+        }
       >
         {tempCredentialsModal && (
           <div className="temp-creds-body">
             <div className="alert alert-info">
-              Please share these temporary credentials securely with the employee. They will be forced to change their password upon first login.
+              <Info size={16} aria-hidden="true" />
+              <span>Please share these temporary credentials securely with the employee. They will be forced to change their password upon first login.</span>
             </div>
 
             <div className="creds-box card">
@@ -727,7 +751,7 @@ export default function EmployeesPage() {
                   className="btn btn-ghost btn-sm"
                   onClick={() => copyToClipboard(tempCredentialsModal.user.employee_id, 'Employee ID')}
                 >
-                  📋 Copy
+                  <Copy size={13} aria-hidden="true" /> Copy
                 </button>
               </div>
 
@@ -739,7 +763,7 @@ export default function EmployeesPage() {
                   className="btn btn-ghost btn-sm"
                   onClick={() => copyToClipboard(tempCredentialsModal.user.email, 'Email')}
                 >
-                  📋 Copy
+                  <Copy size={13} aria-hidden="true" /> Copy
                 </button>
               </div>
 
@@ -751,7 +775,7 @@ export default function EmployeesPage() {
                   className="btn btn-ghost btn-sm"
                   onClick={() => copyToClipboard(tempCredentialsModal.temp_password, 'Temporary Password')}
                 >
-                  📋 Copy
+                  <Copy size={13} aria-hidden="true" /> Copy
                 </button>
               </div>
             </div>

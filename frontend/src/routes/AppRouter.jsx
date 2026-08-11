@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '../context/AuthContext';
+import { ThemeProvider } from '../context/ThemeContext';
 import { ToastProvider } from '../components/Toast';
 import {
   GuestOnly,
@@ -28,6 +29,7 @@ import EmployeeDashboardPage from '../pages/EmployeeDashboardPage';
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
           <Routes>
@@ -90,6 +92,7 @@ export default function AppRouter() {
           </Routes>
         </ToastProvider>
       </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 }

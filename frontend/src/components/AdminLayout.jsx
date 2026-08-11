@@ -1,5 +1,18 @@
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import {
+  CalendarDays,
+  ClipboardCheck,
+  Clock4,
+  FileBarChart2,
+  History,
+  LayoutDashboard,
+  LogOut,
+  Tags,
+  Users,
+  Wallet,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
+import ThemeToggle from './ThemeToggle';
 import './AdminLayout.css';
 
 export default function AdminLayout() {
@@ -12,15 +25,15 @@ export default function AdminLayout() {
   }
 
   const navItems = [
-    { to: '/admin/dashboard', label: 'Overview', icon: '📊' },
-    { to: '/admin/reports', label: 'Reports & Payroll', icon: '📈' },
-    { to: '/admin/leaves', label: 'Leave Requests', icon: '📝' },
-    { to: '/admin/attendance', label: 'Attendance', icon: '⏱️' },
-    { to: '/admin/employees', label: 'Employees', icon: '👥' },
-    { to: '/admin/leave-types', label: 'Leave Types', icon: '🏖️' },
-    { to: '/admin/holidays', label: 'Holidays', icon: '📅' },
-    { to: '/admin/salaries', label: 'Salary Rates', icon: '💰' },
-    { to: '/admin/salary-history', label: 'Salary History', icon: '📜' },
+    { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
+    { to: '/admin/reports', label: 'Reports & Payroll', icon: FileBarChart2 },
+    { to: '/admin/leaves', label: 'Leave Requests', icon: ClipboardCheck },
+    { to: '/admin/attendance', label: 'Attendance', icon: Clock4 },
+    { to: '/admin/employees', label: 'Employees', icon: Users },
+    { to: '/admin/leave-types', label: 'Leave Types', icon: Tags },
+    { to: '/admin/holidays', label: 'Holidays', icon: CalendarDays },
+    { to: '/admin/salaries', label: 'Salary Rates', icon: Wallet },
+    { to: '/admin/salary-history', label: 'Salary History', icon: History },
   ];
 
   return (
@@ -36,6 +49,7 @@ export default function AdminLayout() {
         </div>
 
         <div className="admin-header-right">
+          <ThemeToggle />
           <div className="user-profile-badge">
             <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>
             <div className="user-info-text">
@@ -49,6 +63,7 @@ export default function AdminLayout() {
             className="btn btn-ghost btn-sm"
             onClick={handleLogout}
           >
+            <LogOut size={14} aria-hidden="true" />
             Log out
           </button>
         </div>
@@ -65,7 +80,9 @@ export default function AdminLayout() {
                 `admin-nav-tab ${isActive ? 'admin-nav-tab-active' : ''}`
               }
             >
-              <span className="nav-tab-icon">{item.icon}</span>
+              <span className="nav-tab-icon">
+                <item.icon size={16} aria-hidden="true" />
+              </span>
               <span>{item.label}</span>
             </NavLink>
           ))}

@@ -13,6 +13,7 @@
 .policy-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
+  color: var(--color-primary);
 }
 
 .policy-text {

@@ -1,5 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import {
+  AlertTriangle,
+  BarChart3,
+  Check,
+  Info,
+  Palmtree,
+  Search,
+  X,
+} from 'lucide-react';
+import {
   getLeaveApplications,
   reviewLeaveApplication,
   getLeaveBalances,
@@ -174,7 +183,7 @@ export default function AdminLeavesPage() {
       {/* Controls Bar: Search, Status Filter, Type Filter */}
       <div className="page-controls card">
         <div className="search-box">
-          <span className="search-icon">🔍</span>
+          <Search className="search-icon" size={14} aria-hidden="true" />
           <input
             type="text"
             placeholder="Search by employee, ID, or reason..."
@@ -234,7 +243,7 @@ export default function AdminLeavesPage() {
           </div>
         ) : error ? (
           <div className="state-container">
-            <span className="state-icon text-danger">⚠️</span>
+            <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
             <p className="text-danger">{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={fetchApplications}>
               Try Again
@@ -242,7 +251,7 @@ export default function AdminLeavesPage() {
           </div>
         ) : filteredApplications.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">🏖️</span>
+            <Palmtree className="state-icon" size={40} aria-hidden="true" />
             <h3>No leave applications found</h3>
             <p className="text-muted text-sm">
               {statusFilter === 'pending'
@@ -329,7 +338,7 @@ export default function AdminLeavesPage() {
                               title="Approve Leave"
                               onClick={() => handleOpenApprove(app)}
                             >
-                              ✓ Approve
+                              <Check size={13} aria-hidden="true" /> Approve
                             </button>
                             <button
                               type="button"
@@ -337,7 +346,7 @@ export default function AdminLeavesPage() {
                               title="Decline Leave"
                               onClick={() => handleOpenDecline(app)}
                             >
-                              ✕ Decline
+                              <X size={13} aria-hidden="true" /> Decline
                             </button>
                           </>
                         )}
@@ -347,7 +356,7 @@ export default function AdminLeavesPage() {
                           title="View Leave Balances"
                           onClick={() => handleOpenBalances(app)}
                         >
-                          📊 Balances
+                          <BarChart3 size={13} aria-hidden="true" /> Balances
                         </button>
                       </div>
                     </td>
@@ -368,7 +377,10 @@ export default function AdminLeavesPage() {
       >
         <form onSubmit={handleApproveSubmit} className="modal-form">
           <div className="alert alert-info">
-            Approving this request will automatically deduct <strong>{selectedApplication?.working_days_count} day(s)</strong> from the employee's {selectedApplication?.leave_type_name} balance.
+            <Info size={16} aria-hidden="true" />
+            <span>
+              Approving this request will automatically deduct <strong>{selectedApplication?.working_days_count} day(s)</strong> from the employee's {selectedApplication?.leave_type_name} balance.
+            </span>
           </div>
 
           <div className="form-group">

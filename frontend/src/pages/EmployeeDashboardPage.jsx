@@ -1,5 +1,27 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+  AlertTriangle,
+  Building2,
+  CalendarDays,
+  CalendarOff,
+  CheckCircle2,
+  Clock4,
+  Download,
+  FileText,
+  Hourglass,
+  Info,
+  LogOut,
+  Palmtree,
+  Pencil,
+  Plane,
+  Plus,
+  Sunrise,
+  Timer,
+  Wallet,
+  XCircle,
+  Zap,
+} from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import {
   getTodayAttendance,
@@ -19,6 +41,7 @@ import {
 } from '../api/reportApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
+import ThemeToggle from '../components/ThemeToggle';
 import './EmployeeDashboardPage.css';
 
 export default function EmployeeDashboardPage() {
@@ -114,7 +137,7 @@ export default function EmployeeDashboardPage() {
   const fetchBalances = useCallback(async () => {
     setLeaveBalancesLoading(true);
     try {
-      const data = await getLeaveBalances({ year: now.getFullYear() });
+      const data = await getLeaveBalances({ year: new Date().getFullYear() });
       setLeaveBalances(data.balances || []);
       if (data.balances?.length > 0 && !applyFormData.leave_type_id) {
         setApplyFormData((prev) => ({ ...prev, leave_type_id: data.balances[0].leave_type_id }));
@@ -124,7 +147,7 @@ export default function EmployeeDashboardPage() {
     } finally {
       setLeaveBalancesLoading(false);
     }
-  }, [applyFormData.leave_type_id, now]);
+  }, [applyFormData.leave_type_id]);
 
   // Fetch my leave applications
   const fetchMyLeaves = useCallback(async () => {
@@ -297,6 +320,7 @@ export default function EmployeeDashboardPage() {
         </div>
 
         <div className="employee-header-right">
+          <ThemeToggle />
           <div className="user-profile-badge">
             <div className="user-avatar-circle">{user?.name?.charAt(0) || 'E'}</div>
             <div className="user-info-text">
@@ -310,6 +334,7 @@ export default function EmployeeDashboardPage() {
             className="btn btn-ghost btn-sm"
             onClick={handleLogout}
           >
+            <LogOut size={14} aria-hidden="true" />
             Log out
           </button>
         </div>
@@ -325,21 +350,21 @@ export default function EmployeeDashboardPage() {
               className={`emp-tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
               onClick={() => setActiveTab('attendance')}
             >
-              ⏱️ Attendance & Calendar
+              <Clock4 size={15} aria-hidden="true" /> Attendance & Calendar
             </button>
             <button
               type="button"
               className={`emp-tab-btn ${activeTab === 'leaves' ? 'active' : ''}`}
               onClick={() => setActiveTab('leaves')}
             >
-              🏖️ Leave Balances & Requests
+              <Palmtree size={15} aria-hidden="true" /> Leave Balances & Requests
             </button>
             <button
               type="button"
               className={`emp-tab-btn ${activeTab === 'payslips' ? 'active' : ''}`}
               onClick={() => setActiveTab('payslips')}
             >
-              💰 Payslips & Salary Statements
+              <Wallet size={15} aria-hidden="true" /> Payslips & Salary Statements
             </button>
           </div>
 
@@ -349,15 +374,16 @@ export default function EmployeeDashboardPage() {
               <div className="today-attendance-hero card">
                 <div className="today-hero-info">
                   <span className="today-date-badge">
-                    📅 {todayData?.date ? new Date(todayData.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Today'}
+                    <CalendarDays size={13} aria-hidden="true" />
+                    {todayData?.date ? new Date(todayData.date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : 'Today'}
                   </span>
                   <h1 className="today-title">
                     {todayData?.is_holiday ? (
-                      <span>🏖️ Company Holiday: {todayData.holiday_name}</span>
+                      <span><Palmtree size={22} aria-hidden="true" /> Company Holiday: {todayData.holiday_name}</span>
                     ) : todayData?.is_weekend ? (
-                      <span>🌴 Weekend (Non-Working Day)</span>
+                      <span><CalendarOff size={22} aria-hidden="true" /> Weekend (Non-Working Day)</span>
                     ) : todayData?.attendance ? (
-                      <span>✓ Attendance Marked for Today</span>
+                      <span><CheckCircle2 size={22} aria-hidden="true" /> Attendance Marked for Today</span>
                     ) : (
                       <span>Daily Attendance Pending</span>
                     )}
@@ -380,7 +406,9 @@ export default function EmployeeDashboardPage() {
                         Marked at: {new Date(todayData.attendance.marked_at).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' })}
                       </span>
                       {todayData.attendance.is_admin_override && (
-                        <span className="override-badge text-xs">⚡ Admin Override</span>
+                        <span className="override-badge text-xs">
+                          <Zap size={11} aria-hidden="true" /> Admin Override
+                        </span>
                       )}
                     </div>
                   ) : todayData?.is_weekend || todayData?.is_holiday ? (
@@ -395,7 +423,7 @@ export default function EmployeeDashboardPage() {
                         disabled={submittingToday}
                         onClick={() => handleMarkAttendance('present')}
                       >
-                        🏢 Mark Present
+                        <Building2 size={15} aria-hidden="true" /> Mark Present
                       </button>
                       <button
                         type="button"
@@ -403,7 +431,7 @@ export default function EmployeeDashboardPage() {
                         disabled={submittingToday}
                         onClick={() => handleMarkAttendance('half_day')}
                       >
-                        🌗 Half-Day
+                        <Timer size={15} aria-hidden="true" /> Half-Day
                       </button>
                       <button
                         type="button"
@@ -411,7 +439,7 @@ export default function EmployeeDashboardPage() {
                         disabled={submittingToday}
                         onClick={() => handleMarkAttendance('travel')}
                       >
-                        ✈️ On Travel
+                        <Plane size={15} aria-hidden="true" /> On Travel
                       </button>
                     </div>
                   )}
@@ -537,9 +565,13 @@ export default function EmployeeDashboardPage() {
                                 </td>
                                 <td>
                                   {dayItem.is_holiday ? (
-                                    <span className="status-pill status-holiday">🏖️ {dayItem.holiday_name || 'Holiday'}</span>
+                                    <span className="status-pill status-holiday">
+                                      <Palmtree size={11} aria-hidden="true" /> {dayItem.holiday_name || 'Holiday'}
+                                    </span>
                                   ) : dayItem.is_weekend ? (
-                                    <span className="status-pill status-weekend">🌴 Weekend</span>
+                                    <span className="status-pill status-weekend">
+                                      <CalendarOff size={11} aria-hidden="true" /> Weekend
+                                    </span>
                                   ) : hasAttendance ? (
                                     <span className={`status-pill status-${dayItem.attendance.status}`}>
                                       {dayItem.attendance.status.toUpperCase()}
@@ -562,16 +594,18 @@ export default function EmployeeDashboardPage() {
                                 <td>
                                   <div className="remarks-cell">
                                     {dayItem.attendance?.is_admin_override && (
-                                      <span className="override-badge text-xs">⚡ Admin Override</span>
+                                      <span className="override-badge text-xs">
+                                        <Zap size={11} aria-hidden="true" /> Admin Override
+                                      </span>
                                     )}
                                     {isPendingCorrection && (
                                       <span className="status-pill status-unpaid text-xs">
-                                        ⏳ Correction Pending ({dayItem.attendance.correction_requested_status})
+                                        <Hourglass size={11} aria-hidden="true" /> Correction Pending ({dayItem.attendance.correction_requested_status})
                                       </span>
                                     )}
                                     {dayItem.attendance?.correction_status === 'declined' && (
                                       <span className="status-pill status-danger text-xs" title={dayItem.attendance.correction_declined_reason}>
-                                        ✕ Correction Declined
+                                        <XCircle size={11} aria-hidden="true" /> Correction Declined
                                       </span>
                                     )}
                                     {!dayItem.attendance?.is_admin_override && !dayItem.attendance?.correction_status && '—'}
@@ -584,7 +618,7 @@ export default function EmployeeDashboardPage() {
                                       className="btn btn-ghost btn-sm"
                                       onClick={() => handleOpenCorrection(dayItem)}
                                     >
-                                      ✏️ Request Correction
+                                      <Pencil size={12} aria-hidden="true" /> Request Correction
                                     </button>
                                   )}
                                 </td>
@@ -613,7 +647,7 @@ export default function EmployeeDashboardPage() {
                   className="btn btn-primary"
                   onClick={() => setIsApplyLeaveModalOpen(true)}
                 >
-                  <span>+</span> Apply for Leave
+                  <Plus size={15} aria-hidden="true" /> Apply for Leave
                 </button>
               </div>
 
@@ -629,7 +663,9 @@ export default function EmployeeDashboardPage() {
                     <div key={b.id} className="kpi-card card">
                       <div className="kpi-header">
                         <span className="kpi-title text-muted text-xs">{b.name.toUpperCase()}</span>
-                        <span className="kpi-icon">{b.is_paid ? '🏖️' : '⏱️'}</span>
+                        <span className={`icon-chip icon-chip-sm ${b.is_paid ? 'icon-chip-primary' : 'icon-chip-warning'}`}>
+                          {b.is_paid ? <Palmtree size={15} aria-hidden="true" /> : <Clock4 size={15} aria-hidden="true" />}
+                        </span>
                       </div>
                       <div className="kpi-value" style={{ color: b.is_paid ? 'var(--color-primary)' : 'inherit' }}>
                         {b.is_paid ? b.remaining : b.used}
@@ -658,7 +694,7 @@ export default function EmployeeDashboardPage() {
                   </div>
                 ) : myLeaves.length === 0 ? (
                   <div className="state-container">
-                    <span className="state-icon">🏖️</span>
+                    <Palmtree size={40} className="state-icon" aria-hidden="true" />
                     <h3>No leave requests found</h3>
                     <p className="text-muted text-sm">
                       Click "+ Apply for Leave" above to submit a new request.
@@ -902,7 +938,7 @@ export default function EmployeeDashboardPage() {
                   </div>
                 ) : myPayslips.length === 0 ? (
                   <div className="state-container">
-                    <span className="state-icon">📄</span>
+                    <FileText size={40} className="state-icon" aria-hidden="true" />
                     <h3>No archived payslips available yet</h3>
                     <p className="text-muted text-sm">
                       Official payslips generated by Admin will appear here for download.
@@ -954,7 +990,7 @@ export default function EmployeeDashboardPage() {
                                   )
                                 }
                               >
-                                ⬇️ Download PDF
+                                <Download size={13} aria-hidden="true" /> Download PDF
                               </button>
                             </td>
                           </tr>
@@ -973,7 +1009,11 @@ export default function EmployeeDashboardPage() {
       <Modal
         isOpen={showPromptModal}
         onClose={() => {}}
-        title="☀️ Mark Today's Attendance"
+        title={
+          <span className="modal-title-with-icon">
+            <Sunrise size={18} aria-hidden="true" /> Mark Today's Attendance
+          </span>
+        }
         maxWidth="460px"
       >
         <div className="prompt-modal-body">
@@ -990,8 +1030,11 @@ export default function EmployeeDashboardPage() {
                 checked={selectedStatus === 'present'}
                 onChange={() => setSelectedStatus('present')}
               />
+              <span className="icon-chip icon-chip-md icon-chip-primary">
+                <Building2 size={17} aria-hidden="true" />
+              </span>
               <div className="option-text">
-                <strong>🏢 Present (Full Day)</strong>
+                <strong>Present (Full Day)</strong>
                 <span className="text-muted text-xs">Working standard hours (100% day compensation)</span>
               </div>
             </label>
@@ -1004,8 +1047,11 @@ export default function EmployeeDashboardPage() {
                 checked={selectedStatus === 'half_day'}
                 onChange={() => setSelectedStatus('half_day')}
               />
+              <span className="icon-chip icon-chip-md icon-chip-warning">
+                <Timer size={17} aria-hidden="true" />
+              </span>
               <div className="option-text">
-                <strong>🌗 Half-Day</strong>
+                <strong>Half-Day</strong>
                 <span className="text-muted text-xs">Working half shift (50% day compensation)</span>
               </div>
             </label>
@@ -1018,8 +1064,11 @@ export default function EmployeeDashboardPage() {
                 checked={selectedStatus === 'travel'}
                 onChange={() => setSelectedStatus('travel')}
               />
+              <span className="icon-chip icon-chip-md icon-chip-primary">
+                <Plane size={17} aria-hidden="true" />
+              </span>
               <div className="option-text">
-                <strong>✈️ On Duty / Travel</strong>
+                <strong>On Duty / Travel</strong>
                 <span className="text-muted text-xs">Outstation or official company business travel</span>
               </div>
             </label>
@@ -1048,7 +1097,8 @@ export default function EmployeeDashboardPage() {
       >
         <form onSubmit={handleCorrectionSubmit} className="modal-form">
           <div className="alert alert-info">
-            Correction requests are submitted directly to your Admin for verification and manual override.
+            <Info size={16} aria-hidden="true" />
+            <span>Correction requests are submitted directly to your Admin for verification and manual override.</span>
           </div>
 
           <div className="form-group">
@@ -1131,7 +1181,10 @@ export default function EmployeeDashboardPage() {
       >
         <form onSubmit={handleApplyLeaveSubmit} className="modal-form">
           <div className="alert alert-info">
-            <strong>Cutoff Policy:</strong> Same-day leave must be submitted before <strong>9:00 AM IST</strong>. Weekends and public holidays are automatically excluded from balance consumption.
+            <Info size={16} aria-hidden="true" />
+            <span>
+              <strong>Cutoff Policy:</strong> Same-day leave must be submitted before <strong>9:00 AM IST</strong>. Weekends and public holidays are automatically excluded from balance consumption.
+            </span>
           </div>
 
           <div className="form-group">

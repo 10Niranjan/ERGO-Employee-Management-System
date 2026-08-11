@@ -1,6 +1,20 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
+  AlertTriangle,
+  Calculator,
+  Download,
+  FileBarChart2,
+  FileDown,
+  FileText,
+  History,
+  Pencil,
+  RefreshCw,
+  Search,
+  Users,
+  Wallet,
+} from 'lucide-react';
+import {
   getSalaryRates,
   updateSalaryRate,
   getEmployeeSalaryHistory,
@@ -202,10 +216,10 @@ export default function SalaryManagementPage() {
         </div>
         <div className="action-buttons-group">
           <Link to="/admin/salary-history" className="btn btn-ghost">
-            <span>📜</span> View Global Audit Log
+            <History size={15} aria-hidden="true" /> View Global Audit Log
           </Link>
           <Link to="/admin/reports" className="btn btn-primary">
-            <span>📊</span> Consolidated Reports
+            <FileBarChart2 size={15} aria-hidden="true" /> Consolidated Reports
           </Link>
         </div>
       </div>
@@ -217,14 +231,14 @@ export default function SalaryManagementPage() {
           className={`emp-tab-btn ${activeTab === 'rates' ? 'active' : ''}`}
           onClick={() => setActiveTab('rates')}
         >
-          💰 Employee Base Rates
+          <Wallet size={15} aria-hidden="true" /> Employee Base Rates
         </button>
         <button
           type="button"
           className={`emp-tab-btn ${activeTab === 'compute' ? 'active' : ''}`}
           onClick={() => setActiveTab('compute')}
         >
-          🧮 Monthly Calculation & Payslips
+          <Calculator size={15} aria-hidden="true" /> Monthly Calculation & Payslips
         </button>
       </div>
 
@@ -232,7 +246,7 @@ export default function SalaryManagementPage() {
         <>
           {/* Policy Notice */}
           <div className="policy-banner card">
-            <span className="policy-icon">💰</span>
+            <Wallet className="policy-icon" size={20} aria-hidden="true" />
             <div className="policy-text">
               <strong>Per-Day Rate Architecture:</strong> In V1, monthly gross salary is computed strictly from actual attendance and approved leave records: <code>(Per-Day Rate × Days Present) + (Half-Day Rate × Half-Days) + (Per-Day Rate × Paid Leaves)</code>. Weekends and holidays are non-working and excluded.
             </div>
@@ -241,7 +255,7 @@ export default function SalaryManagementPage() {
           {/* Controls */}
           <div className="page-controls card">
             <div className="search-box">
-              <span className="search-icon">🔍</span>
+              <Search className="search-icon" size={14} aria-hidden="true" />
               <input
                 type="text"
                 placeholder="Search by employee name, ID, or designation..."
@@ -268,7 +282,7 @@ export default function SalaryManagementPage() {
               </div>
             ) : error ? (
               <div className="state-container">
-                <span className="state-icon text-danger">⚠️</span>
+                <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
                 <p className="text-danger">{error}</p>
                 <button className="btn btn-ghost btn-sm" onClick={fetchRates}>
                   Try Again
@@ -276,7 +290,7 @@ export default function SalaryManagementPage() {
               </div>
             ) : employees.length === 0 ? (
               <div className="state-container">
-                <span className="state-icon">👥</span>
+                <Users className="state-icon" size={40} aria-hidden="true" />
                 <h3>No employees found</h3>
                 <p className="text-muted text-sm">
                   {search ? 'No matches for your search term.' : 'Onboard employees first in Employee Directory.'}
@@ -334,7 +348,7 @@ export default function SalaryManagementPage() {
                               className="btn btn-primary btn-sm"
                               onClick={() => handleOpenUpdate(emp)}
                             >
-                              ✏️ Update Rate
+                              <Pencil size={13} aria-hidden="true" /> Update Rate
                             </button>
                             <button
                               type="button"
@@ -342,7 +356,7 @@ export default function SalaryManagementPage() {
                               title="View Revision History"
                               onClick={() => handleOpenHistory(emp)}
                             >
-                              📜 History
+                              <History size={13} aria-hidden="true" /> History
                             </button>
                           </div>
                         </td>
@@ -415,7 +429,13 @@ export default function SalaryManagementPage() {
               disabled={calcLoading || !calcUserId}
               onClick={handleComputeSalary}
             >
-              {calcLoading ? <span className="spinner" /> : '🔄 Preview Calculation'}
+              {calcLoading ? (
+                <span className="spinner" />
+              ) : (
+                <>
+                  <RefreshCw size={14} aria-hidden="true" /> Preview Calculation
+                </>
+              )}
             </button>
 
             <button
@@ -424,7 +444,13 @@ export default function SalaryManagementPage() {
               disabled={generatingPayslip || !calcResult}
               onClick={handleGeneratePayslip}
             >
-              {generatingPayslip ? <span className="spinner" /> : '📄 Generate & Download Payslip (PDF)'}
+              {generatingPayslip ? (
+                <span className="spinner" />
+              ) : (
+                <>
+                  <FileDown size={14} aria-hidden="true" /> Generate & Download Payslip (PDF)
+                </>
+              )}
             </button>
           </div>
 
@@ -546,7 +572,7 @@ export default function SalaryManagementPage() {
               </div>
             ) : savedPayslips.length === 0 ? (
               <div className="state-container">
-                <span className="state-icon">📄</span>
+                <FileText className="state-icon" size={40} aria-hidden="true" />
                 <h3>No payslips generated for this period</h3>
                 <p className="text-muted text-sm">
                   Click "Generate & Download Payslip (PDF)" above to generate an official snapshot.
@@ -598,7 +624,7 @@ export default function SalaryManagementPage() {
                               downloadPayslipPDF(p.id, `Payslip_${p.employee_id}_${monthNames[calcMonth - 1]}_${calcYear}.pdf`)
                             }
                           >
-                            ⬇️ Download PDF
+                            <Download size={13} aria-hidden="true" /> Download PDF
                           </button>
                         </td>
                       </tr>
@@ -696,7 +722,7 @@ export default function SalaryManagementPage() {
           </div>
         ) : empHistory.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">📜</span>
+            <History className="state-icon" size={40} aria-hidden="true" />
             <p className="text-muted">No rate revisions recorded yet for this employee.</p>
           </div>
         ) : (

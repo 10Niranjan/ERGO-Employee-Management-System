@@ -138,7 +138,8 @@
 }
 
 .nav-tab-icon {
-  font-size: var(--font-size-sm);
+  display: flex;
+  align-items: center;
 }
 
 /* Content Container */
@@ -162,6 +163,8 @@
   }
   .admin-nav-bar {
     padding: 0 var(--space-4);
+    -webkit-mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
+    mask-image: linear-gradient(to right, black calc(100% - 28px), transparent 100%);
   }
   .admin-content-container {
     padding: var(--space-4);

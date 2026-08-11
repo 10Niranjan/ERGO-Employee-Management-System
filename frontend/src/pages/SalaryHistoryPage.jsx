@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
+import { AlertTriangle, ArrowLeft, ChevronLeft, ChevronRight, History } from 'lucide-react';
 import { getSalaryHistory } from '../api/salaryApi';
 import './SalaryManagementPage.css';
 
@@ -38,7 +39,7 @@ export default function SalaryHistoryPage() {
           </p>
         </div>
         <Link to="/admin/salaries" className="btn btn-ghost">
-          ← Back to Salary Rates
+          <ArrowLeft size={15} aria-hidden="true" /> Back to Salary Rates
         </Link>
       </div>
 
@@ -51,7 +52,7 @@ export default function SalaryHistoryPage() {
           </div>
         ) : error ? (
           <div className="state-container">
-            <span className="state-icon text-danger">⚠️</span>
+            <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
             <p className="text-danger">{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={() => fetchGlobalHistory(pagination.page)}>
               Try Again
@@ -59,7 +60,7 @@ export default function SalaryHistoryPage() {
           </div>
         ) : history.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">📜</span>
+            <History className="state-icon" size={40} aria-hidden="true" />
             <h3>No salary revisions recorded</h3>
             <p className="text-muted text-sm">
               Any future salary rate modifications will automatically be recorded here.
@@ -159,7 +160,7 @@ export default function SalaryHistoryPage() {
                 disabled={pagination.page <= 1}
                 onClick={() => fetchGlobalHistory(pagination.page - 1)}
               >
-                ← Previous
+                <ChevronLeft size={14} aria-hidden="true" /> Previous
               </button>
               <span className="page-indicator text-sm">
                 Page {pagination.page} of {pagination.pages || 1}
@@ -170,7 +171,7 @@ export default function SalaryHistoryPage() {
                 disabled={pagination.page >= pagination.pages}
                 onClick={() => fetchGlobalHistory(pagination.page + 1)}
               >
-                Next →
+                Next <ChevronRight size={14} aria-hidden="true" />
               </button>
             </div>
           </div>

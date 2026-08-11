@@ -1,4 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import {
+  AlertTriangle,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  Pencil,
+  Plus,
+  Trash2,
+} from 'lucide-react';
 import { getHolidays, createHoliday, updateHoliday, deleteHoliday } from '../api/holidayApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
@@ -148,7 +157,7 @@ export default function HolidaysPage() {
           className="btn btn-primary"
           onClick={handleOpenAdd}
         >
-          <span>+</span> Add Holiday
+          <Plus size={15} aria-hidden="true" /> Add Holiday
         </button>
       </div>
 
@@ -160,7 +169,7 @@ export default function HolidaysPage() {
             className="btn btn-ghost btn-sm"
             onClick={() => setSelectedYear((y) => y - 1)}
           >
-            ← {selectedYear - 1}
+            <ChevronLeft size={14} aria-hidden="true" /> {selectedYear - 1}
           </button>
           <span className="selected-year-badge">Calendar Year {selectedYear}</span>
           <button
@@ -168,7 +177,7 @@ export default function HolidaysPage() {
             className="btn btn-ghost btn-sm"
             onClick={() => setSelectedYear((y) => y + 1)}
           >
-            {selectedYear + 1} →
+            {selectedYear + 1} <ChevronRight size={14} aria-hidden="true" />
           </button>
         </div>
 
@@ -186,7 +195,7 @@ export default function HolidaysPage() {
           </div>
         ) : error ? (
           <div className="state-container">
-            <span className="state-icon text-danger">⚠️</span>
+            <AlertTriangle className="state-icon text-danger" size={40} aria-hidden="true" />
             <p className="text-danger">{error}</p>
             <button className="btn btn-ghost btn-sm" onClick={() => fetchHolidayList(selectedYear)}>
               Try Again
@@ -194,7 +203,7 @@ export default function HolidaysPage() {
           </div>
         ) : holidays.length === 0 ? (
           <div className="state-container">
-            <span className="state-icon">📅</span>
+            <CalendarDays className="state-icon" size={40} aria-hidden="true" />
             <h3>No holidays added for {selectedYear}</h3>
             <p className="text-muted text-sm">
               Click "+ Add Holiday" to add official holidays to this year's calendar.
@@ -235,7 +244,7 @@ export default function HolidaysPage() {
                           title="Edit Holiday"
                           onClick={() => handleOpenEdit(h)}
                         >
-                          ✏️
+                          <Pencil size={15} aria-hidden="true" />
                         </button>
                         <button
                           type="button"
@@ -243,7 +252,7 @@ export default function HolidaysPage() {
                           title="Delete Holiday"
                           onClick={() => handleOpenDelete(h)}
                         >
-                          🗑️
+                          <Trash2 size={15} aria-hidden="true" />
                         </button>
                       </div>
                     </td>
