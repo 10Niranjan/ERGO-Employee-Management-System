@@ -1,4 +1,5 @@
-import { NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import {
   CalendarDays,
   ClipboardCheck,
@@ -7,9 +8,11 @@ import {
   History,
   LayoutDashboard,
   LogOut,
+  Menu,
   Tags,
   Users,
   Wallet,
+  X,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
@@ -18,6 +21,24 @@ import './AdminLayout.css';
 export default function AdminLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close mobile sidebar on route change
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  // Close on Escape key press
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
 
   function handleLogout() {
     logout();
@@ -38,61 +59,119 @@ export default function AdminLayout() {
 
   return (
     <div className="admin-app-layout">
-      {/* Top Header */}
-      <header className="admin-top-header">
-        <div className="admin-header-left">
-          <div className="admin-brand-icon">E</div>
-          <div className="admin-brand-text">
-            <span className="brand-name">Ergo Management</span>
-            <span className="brand-sub">Admin Portal</span>
-          </div>
-        </div>
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="admin-sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
 
-        <div className="admin-header-right">
-          <ThemeToggle />
-          <div className="user-profile-badge">
-            <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>
-            <div className="user-info-text">
-              <span className="user-name">{user?.name}</span>
-              <span className="user-meta">{user?.employee_id} • Administrator</span>
+      {/* Left Vertical Sidebar */}
+      <aside
+        className={`admin-sidebar ${sidebarOpen ? 'admin-sidebar-open' : ''}`}
+        aria-label="Admin Navigation"
+      >
+        {/* Sidebar Brand Header */}
+        <div className="admin-sidebar-header">
+          <div className="admin-brand-left">
+            <div className="admin-brand-icon">E</div>
+            <div className="admin-brand-text">
+              <span className="brand-name">Ergo Management</span>
+              <span className="brand-sub">Admin Portal</span>
             </div>
           </div>
+
           <button
             type="button"
-            id="admin-logout-btn"
-            className="btn btn-ghost btn-sm"
-            onClick={handleLogout}
+            className="admin-sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar navigation"
           >
-            <LogOut size={14} aria-hidden="true" />
-            Log out
+            <X size={18} aria-hidden="true" />
           </button>
         </div>
-      </header>
 
-      {/* Navigation Bar */}
-      <nav className="admin-nav-bar">
-        <div className="admin-nav-container">
+        {/* Sidebar Navigation Items */}
+        <nav className="admin-sidebar-nav">
+          <div className="admin-nav-section-title">Navigation</div>
           {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               className={({ isActive }) =>
-                `admin-nav-tab ${isActive ? 'admin-nav-tab-active' : ''}`
+                `admin-sidebar-link ${isActive ? 'admin-sidebar-link-active' : ''}`
               }
+              onClick={() => setSidebarOpen(false)}
             >
-              <span className="nav-tab-icon">
-                <item.icon size={16} aria-hidden="true" />
+              <span className="sidebar-link-icon">
+                <item.icon size={18} aria-hidden="true" />
               </span>
-              <span>{item.label}</span>
+              <span className="sidebar-link-label">{item.label}</span>
             </NavLink>
           ))}
-        </div>
-      </nav>
+        </nav>
 
-      {/* Main Content Area */}
-      <main className="admin-content-container">
-        <Outlet />
-      </main>
+        {/* Sidebar Footer */}
+        <div className="admin-sidebar-footer">
+          <div className="sidebar-user-brief">
+            <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>
+            <div className="user-info-text">
+              <span className="user-name">{user?.name}</span>
+              <span className="user-meta">{user?.employee_id} • Admin</span>
+            </div>
+          </div>
+        </div>
+      </aside>
+
+      {/* Main Content Area (Right of fixed sidebar) */}
+      <div className="admin-main-wrapper">
+        {/* Top Header */}
+        <header className="admin-top-header">
+          <div className="admin-header-left">
+            <button
+              type="button"
+              className="admin-mobile-menu-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar navigation"
+              aria-expanded={sidebarOpen}
+            >
+              <Menu size={20} aria-hidden="true" />
+            </button>
+            <div className="admin-header-brand-mobile">
+              <div className="admin-brand-icon-sm">E</div>
+              <span className="brand-name-sm">Ergo Admin</span>
+            </div>
+          </div>
+
+          <div className="admin-header-right">
+            <ThemeToggle />
+            <div className="user-profile-badge">
+              <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>
+              <div className="user-info-text">
+                <span className="user-name">{user?.name}</span>
+                <span className="user-meta">{user?.employee_id} • Administrator</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="admin-logout-btn"
+              className="btn btn-ghost btn-sm"
+              onClick={handleLogout}
+            >
+              <LogOut size={14} aria-hidden="true" />
+              <span className="logout-btn-label">Log out</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Routed Page Content */}
+        <main className="admin-content-container">
+          <Outlet />
+        </main>
+      </div>
     </div>
   );
 }
+

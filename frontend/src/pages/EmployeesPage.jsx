@@ -82,6 +82,7 @@ export default function EmployeesPage() {
       designation: '',
       date_of_joining: new Date().toISOString().slice(0, 10),
       per_day_salary: '',
+      leaves_this_year: '6',
     });
     setIsAddModalOpen(true);
   }
@@ -95,6 +96,7 @@ export default function EmployeesPage() {
       designation: emp.designation || '',
       date_of_joining: emp.date_of_joining ? emp.date_of_joining.slice(0, 10) : '',
       per_day_salary: emp.per_day_salary || '',
+      leaves_this_year: '',
     });
     setIsEditModalOpen(true);
   }
@@ -120,6 +122,7 @@ export default function EmployeesPage() {
       const res = await createUser({
         ...formData,
         per_day_salary: formData.per_day_salary ? parseFloat(formData.per_day_salary) : 0,
+        leaves_this_year: formData.leaves_this_year !== '' ? parseInt(formData.leaves_this_year, 10) : undefined,
       });
       showToast('Employee created successfully!', 'success');
       setIsAddModalOpen(false);
@@ -475,6 +478,24 @@ export default function EmployeesPage() {
                 placeholder="e.g. 1500"
                 value={formData.per_day_salary}
                 onChange={(e) => setFormData({ ...formData, per_day_salary: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-leaves">
+                Leaves This Year (Days)
+              </label>
+              <input
+                id="add-leaves"
+                type="number"
+                min="0"
+                step="1"
+                placeholder="e.g. 6"
+                value={formData.leaves_this_year}
+                onChange={(e) => setFormData({ ...formData, leaves_this_year: e.target.value })}
                 disabled={submitting}
               />
             </div>

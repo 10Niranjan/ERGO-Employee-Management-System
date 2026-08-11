@@ -51,6 +51,10 @@ router.post(
       .optional()
       .isFloat({ min: 0 })
       .withMessage('Per-day salary must be a non-negative number.'),
+    body('leaves_this_year')
+      .optional({ nullable: true })
+      .isInt({ min: 0 })
+      .withMessage('Leaves this year must be a non-negative integer.'),
   ],
   validate,
   createUser

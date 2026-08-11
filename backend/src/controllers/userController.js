@@ -145,16 +145,34 @@ async function createUser(req, res, next) {
 
     // Initialize leave balances for the current year (IST — server TZ is set)
     const currentYear = new Date().getFullYear();
+    const customLeaves =
+      req.body.leaves_this_year !== undefined &&
+      req.body.leaves_this_year !== '' &&
+      req.body.leaves_this_year !== null
+        ? parseInt(req.body.leaves_this_year, 10)
+        : null;
+
     const { rows: leaveTypes } = await client.query(
-      'SELECT id, yearly_quota FROM leave_types WHERE is_active = TRUE'
+      'SELECT id, name, is_paid, yearly_quota FROM leave_types WHERE is_active = TRUE'
     );
 
     for (const lt of leaveTypes) {
+      let allotted = lt.yearly_quota;
+      if (customLeaves !== null) {
+        if (lt.name === 'Paid Leave' || lt.name === 'Annual Leave') {
+          allotted = customLeaves;
+        } else if (lt.is_paid && !leaveTypes.some((t) => t.is_paid && (t.name === 'Paid Leave' || t.name === 'Annual Leave'))) {
+          if (lt.id === leaveTypes.find((t) => t.is_paid)?.id) {
+            allotted = customLeaves;
+          }
+        }
+      }
+
       await client.query(
         `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted, used)
          VALUES ($1, $2, $3, $4, 0)
          ON CONFLICT (user_id, leave_type_id, year) DO NOTHING`,
-        [newUser.id, lt.id, currentYear, lt.yearly_quota]
+        [newUser.id, lt.id, currentYear, allotted]
       );
     }
 
