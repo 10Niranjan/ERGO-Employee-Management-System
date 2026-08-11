@@ -12,6 +12,7 @@ An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Managem
 - **🧮 Deterministic Salary Computation Engine**: Per-day rate calculation evaluating actual attendance, approved leaves, and company holidays. Mid-month historical salary rate revisions are automatically resolved day-by-day.
 - **📄 Official PDF Payslips & Consolidated Excel Reports**: One-click immutable payslip generation with vector PDF downloads (`pdfkit`) and styled company-wide payroll exports (`exceljs`).
 - **🕒 Asia/Kolkata (IST) Timezone Enforcement**: Every date check, attendance cutoff, and holiday evaluation strictly runs in `Asia/Kolkata`.
+- **🎨 Themeable, Icon-Driven UI**: Consistent dark/light theme (toggle in every header) built on CSS custom properties, with a `lucide-react` icon system and shared `icon-chip` / status-pill design tokens across all admin and employee screens.
 
 ---
 
@@ -19,7 +20,7 @@ An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Managem
 
 | Layer | Technologies / Libraries |
 |---|---|
-| **Frontend** | React 18, Vite, React Router 6, Axios, Vanilla CSS Design System |
+| **Frontend** | React 18, Vite, React Router 6, Axios, `lucide-react` icons, Vanilla CSS Design System with dark/light theming |
 | **Backend** | Node.js (>=18), Express, Helmet, CORS, Express-Validator, Express-Rate-Limit |
 | **Database** | PostgreSQL (>=14), `pg` connection pool, SQL migration runner |
 | **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, Rate Limiting, HTTP security headers |
@@ -53,8 +54,8 @@ employee_managment_system/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/              # Axios API clients
-│   │   ├── components/       # Layouts, Modal, Toast notifications
-│   │   ├── context/          # Auth context and session management
+│   │   ├── components/       # Layouts, Modal, Toast, Theme Toggle
+│   │   ├── context/          # Auth & Theme context, session management
 │   │   ├── pages/            # Admin & Employee portal pages
 │   │   ├── routes/           # Protected routes & App router
 │   │   ├── index.css         # Global design tokens and utilities
