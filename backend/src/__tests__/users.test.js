@@ -155,6 +155,35 @@ describe('POST /api/users', () => {
     expect(res.body.user.password_hash).toBeUndefined();
   });
 
+  test('creates employee with custom leaves_this_year', async () => {
+    setupCreateMocks();
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        name: 'Test Employee 2',
+        email: 'test2@ergo.com',
+        designation: 'Designer',
+        per_day_salary: 1200,
+        leaves_this_year: 20,
+      });
+    expect(res.status).toBe(201);
+    expect(res.body.user).toBeDefined();
+    expect(res.body.temp_password).toBeDefined();
+  });
+
+  test('returns 400 if leaves_this_year is negative', async () => {
+    const res = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        name: 'Test',
+        email: 'test@ergo.com',
+        leaves_this_year: -5,
+      });
+    expect(res.status).toBe(400);
+  });
+
   test('returns 400 if name is missing', async () => {
     const res = await request(app)
       .post('/api/users')

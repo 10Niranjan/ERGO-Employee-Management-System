@@ -12,6 +12,7 @@ import {
   Hourglass,
   Info,
   LogOut,
+  Menu,
   Palmtree,
   Pencil,
   Plane,
@@ -19,6 +20,7 @@ import {
   Sunrise,
   Timer,
   Wallet,
+  X,
   XCircle,
   Zap,
 } from 'lucide-react';
@@ -51,6 +53,18 @@ export default function EmployeeDashboardPage() {
 
   // Active section tab: 'attendance' | 'leaves' | 'payslips'
   const [activeTab, setActiveTab] = useState('attendance');
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Close on Escape key press
+  useEffect(() => {
+    function handleKeyDown(e) {
+      if (e.key === 'Escape' && sidebarOpen) {
+        setSidebarOpen(false);
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sidebarOpen]);
 
   // Today attendance state
   const [todayData, setTodayData] = useState(null);
@@ -307,69 +321,128 @@ export default function EmployeeDashboardPage() {
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
+  const employeeNavItems = [
+    { id: 'attendance', label: 'Attendance & Calendar', icon: Clock4 },
+    { id: 'leaves', label: 'Leave Balances & Requests', icon: Palmtree },
+    { id: 'payslips', label: 'Salary & Payslips', icon: Wallet },
+  ];
+
   return (
     <div className="employee-app-layout">
-      {/* Top Header */}
-      <header className="employee-top-header">
-        <div className="employee-header-left">
-          <div className="employee-brand-icon">E</div>
-          <div className="employee-brand-text">
-            <span className="brand-name">Ergo Management</span>
-            <span className="brand-sub">Employee Self-Service</span>
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen && (
+        <div
+          className="employee-sidebar-backdrop"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      )}
+
+      {/* Left Vertical Sidebar */}
+      <aside
+        className={`employee-sidebar ${sidebarOpen ? 'employee-sidebar-open' : ''}`}
+        aria-label="Employee Navigation"
+      >
+        {/* Sidebar Brand Header */}
+        <div className="employee-sidebar-header">
+          <div className="employee-brand-left">
+            <div className="employee-brand-icon">E</div>
+            <div className="employee-brand-text">
+              <span className="brand-name">Ergo Management</span>
+              <span className="brand-sub">Employee Portal</span>
+            </div>
           </div>
+
+          <button
+            type="button"
+            className="employee-sidebar-close-btn"
+            onClick={() => setSidebarOpen(false)}
+            aria-label="Close sidebar navigation"
+          >
+            <X size={18} aria-hidden="true" />
+          </button>
         </div>
 
-        <div className="employee-header-right">
-          <ThemeToggle />
-          <div className="user-profile-badge">
+        {/* Sidebar Navigation Items */}
+        <nav className="employee-sidebar-nav">
+          <div className="employee-nav-section-title">Navigation</div>
+          {employeeNavItems.map((item) => (
+            <button
+              key={item.id}
+              type="button"
+              className={`employee-sidebar-link ${activeTab === item.id ? 'employee-sidebar-link-active' : ''}`}
+              onClick={() => {
+                setActiveTab(item.id);
+                setSidebarOpen(false);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <span className="sidebar-link-icon">
+                <item.icon size={18} aria-hidden="true" />
+              </span>
+              <span className="sidebar-link-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
+        {/* Sidebar Footer */}
+        <div className="employee-sidebar-footer">
+          <div className="sidebar-user-brief">
             <div className="user-avatar-circle">{user?.name?.charAt(0) || 'E'}</div>
             <div className="user-info-text">
               <span className="user-name">{user?.name}</span>
               <span className="user-meta">{user?.employee_id} • {user?.designation || 'Staff'}</span>
             </div>
           </div>
-          <button
-            type="button"
-            id="employee-logout-btn"
-            className="btn btn-ghost btn-sm"
-            onClick={handleLogout}
-          >
-            <LogOut size={14} aria-hidden="true" />
-            Log out
-          </button>
         </div>
-      </header>
+      </aside>
 
-      {/* Main Employee Content */}
-      <main className="employee-main-content">
-        <div className="page-wrapper">
-          {/* Section Navigation Tabs */}
-          <div className="employee-section-tabs">
+      {/* Main Content Wrapper (Right of fixed sidebar) */}
+      <div className="employee-main-wrapper">
+        {/* Top Header */}
+        <header className="employee-top-header">
+          <div className="employee-header-left">
             <button
               type="button"
-              className={`emp-tab-btn ${activeTab === 'attendance' ? 'active' : ''}`}
-              onClick={() => setActiveTab('attendance')}
+              className="employee-mobile-menu-btn"
+              onClick={() => setSidebarOpen(true)}
+              aria-label="Open sidebar navigation"
+              aria-expanded={sidebarOpen}
             >
-              <Clock4 size={15} aria-hidden="true" /> Attendance & Calendar
+              <Menu size={20} aria-hidden="true" />
             </button>
-            <button
-              type="button"
-              className={`emp-tab-btn ${activeTab === 'leaves' ? 'active' : ''}`}
-              onClick={() => setActiveTab('leaves')}
-            >
-              <Palmtree size={15} aria-hidden="true" /> Leave Balances & Requests
-            </button>
-            <button
-              type="button"
-              className={`emp-tab-btn ${activeTab === 'payslips' ? 'active' : ''}`}
-              onClick={() => setActiveTab('payslips')}
-            >
-              <Wallet size={15} aria-hidden="true" /> Payslips & Salary Statements
-            </button>
+            <div className="employee-header-brand-mobile">
+              <div className="employee-brand-icon-sm">E</div>
+              <span className="brand-name-sm">Ergo Self-Service</span>
+            </div>
           </div>
 
-          {activeTab === 'attendance' ? (
-            <>
+          <div className="employee-header-right">
+            <ThemeToggle />
+            <div className="user-profile-badge">
+              <div className="user-avatar-circle">{user?.name?.charAt(0) || 'E'}</div>
+              <div className="user-info-text">
+                <span className="user-name">{user?.name}</span>
+                <span className="user-meta">{user?.employee_id} • {user?.designation || 'Staff'}</span>
+              </div>
+            </div>
+            <button
+              type="button"
+              id="employee-logout-btn"
+              className="btn btn-ghost btn-sm"
+              onClick={handleLogout}
+            >
+              <LogOut size={14} aria-hidden="true" />
+              <span className="logout-btn-label">Log out</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Main Employee Content */}
+        <main className="employee-main-content">
+          <div className="page-wrapper">
+            {activeTab === 'attendance' ? (
+              <>
               {/* Today Attendance Action Card */}
               <div className="today-attendance-hero card">
                 <div className="today-hero-info">
@@ -1004,6 +1077,7 @@ export default function EmployeeDashboardPage() {
           )}
         </div>
       </main>
+    </div>
 
       {/* ─── Mandatory Daily Attendance Modal ────────────────────────────── */}
       <Modal
