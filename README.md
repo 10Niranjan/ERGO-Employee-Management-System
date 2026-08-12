@@ -1,4 +1,4 @@
-# Ergo Employee Management System (HRMS)
+﻿# Ergo Employee Management System (HRMS)
 
 An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Management System built with Node.js, Express, PostgreSQL, and React + Vite.
 
@@ -16,6 +16,121 @@ An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Managem
 
 ---
 
+## 🆕 Sprint 2 Updates — 12 Aug 2026
+
+Four things landed this sprint: a brand-new payroll-adjacent feature, a fuller employee profile, a critical correctness fix in the calculation engine, and a hardening pass across the codebase. Here's the story of each.
+
+```mermaid
+flowchart LR
+    A["🧾 Richer Onboarding<br/>Gender · DOB · Address<br/>Bank Details · Emergency Contact"] --> E["Sprint 2"]
+    B["🎯 Attendance-Based<br/>Leave Accrual Engine"] --> E
+    C["🐛 Critical Fix<br/>Date-shift bug in<br/>salary & attendance"] --> E
+    D["🔒 Hardening<br/>Input validation ·<br/>Session error handling"] --> E
+    E --> F(["147/147 tests passing<br/>both modules re-audited live"])
+```
+
+### 1. 🎯 Attendance-Based Leave Accrual Engine
+
+The headline feature. Every employee now **automatically earns bonus paid leave** for consistent attendance — evaluated independently, month after month, with a fully auditable trail of *why* a balance is what it is.
+
+**The rule:** at the end of every month, if an employee's attendance was **≥ 70%**, they earn **+1 paid leave**, credited on the 1st of the following month. Leaves taken and bonuses earned are two independent adjustments to the same running balance.
+
+```mermaid
+flowchart TD
+    Start(["Month Ends"]) --> Joined{"Employee joined<br/>during this month?"}
+    Joined -- Yes --> SkipJoin["⏭️ Skip — joining month<br/>(logged for audit)"]
+    Joined -- No --> Processed{"Already evaluated<br/>for this period?"}
+    Processed -- Yes --> SkipIdem["⏭️ Skip — idempotent,<br/>no double-credit"]
+    Processed -- No --> Calc["Calculate attendance %<br/>(present + travel + 0.5 × half-day) ÷ working days"]
+    Calc --> Threshold{"Attendance ≥ 70%?"}
+    Threshold -- Yes --> Award["✅ +1 Paid Leave<br/>credited 1st of next month"]
+    Threshold -- No --> Deny["❌ No bonus this cycle"]
+    Award --> Ledger[("📒 Ledger entry:<br/>ATTENDANCE_BONUS")]
+    Deny --> Run[("📋 Accrual run recorded<br/>for auditability")]
+    Ledger --> Run
+```
+
+**Worked example — the balance nets out correctly, every time:**
+
+| Scenario | Leaves Taken | Attendance | Bonus? | Balance |
+|---|:---:|:---:|:---:|:---:|
+| Perfect month | 0 | 100% | ✅ +1 | 6 → **7** |
+| One day off, still qualifies | 1 | 95% | ✅ +1 | 6 → 5 → **6** (nets out) |
+| Attendance dips | 0 | 45% | ❌ | 6 → **6** (unchanged) |
+| 3 qualifying months in a row | 0 each | ≥70% each | ✅ each | 6 → 7 → 8 → **9** |
+
+**The data model** — a proper ledger, not just a mutable number:
+
+```mermaid
+erDiagram
+    USERS ||--o{ LEAVE_LEDGER : owns
+    LEAVE_TYPES ||--o{ LEAVE_LEDGER : categorizes
+    USERS ||--o{ ATTENDANCE_ACCRUAL_RUNS : "evaluated in"
+
+    LEAVE_LEDGER {
+        varchar entry_type "INITIAL_ALLOCATION / LEAVE_TAKEN / ATTENDANCE_BONUS"
+        int amount
+        int resulting_balance
+        varchar period "nullable, e.g. 2026-06"
+        text note
+    }
+    ATTENDANCE_ACCRUAL_RUNS {
+        varchar period "YYYY-MM, unique per user"
+        numeric attendance_pct
+        boolean bonus_awarded
+        varchar skip_reason "joining_month / already_processed / etc."
+    }
+```
+
+**What's included:**
+- Idempotent daily scheduler (`node-cron`, 1 AM IST) with a startup catch-up run — safe to re-run, self-heals if the server was down
+- Admin **manual trigger** (`POST /api/leaves/accrual/run`) for backfill/reprocessing any month, reusing the exact same logic as the scheduled job
+- Full ledger visible in the **Employee Dashboard** ("Leave Balance History") and the **Admin Leave Requests** page (per-employee ledger + a month-picker to run/re-run accrual)
+- Year-end carry-forward: unused balance rolls into the new year on top of a fresh base allocation
+
+### 2. 🧾 Expanded Employee Onboarding
+
+The "Onboard New Employee" form now captures a complete profile — **Gender, Date of Birth, Address, Bank Name, Bank Account No., IFSC Code, Emergency Contact Name & Phone** — with the per-day salary field moved out to the dedicated Salary Rates screen where it belongs. Name and phone-type fields are now validated live (letters-only / digits-only) on both the browser and the API.
+
+### 3. 🐛 Critical Fix: A Silent One-Day Date Shift
+
+While stress-testing the new accrual engine with real attendance data, an employee marked "present" on every single working day showed only **77% attendance instead of 100%**. The root cause turned out to be much bigger than the new feature:
+
+```mermaid
+sequenceDiagram
+    participant DB as PostgreSQL
+    participant PG as pg driver
+    participant App as Application logic
+
+    rect rgb(255, 235, 235)
+    Note over DB,App: ❌ Before — under TZ=Asia/Kolkata (UTC+5:30)
+    DB->>PG: DATE "2026-06-01" (no time, no timezone)
+    PG->>App: JS Date built at *local* midnight IST
+    App->>App: .toISOString() forces UTC conversion
+    App-->>App: "2026-05-31T18:30:00Z" → sliced to "2026-05-31" ⚠️
+    end
+
+    rect rgb(230, 250, 235)
+    Note over DB,App: ✅ After — fixed once, at the driver level
+    DB->>PG: DATE "2026-06-01"
+    PG->>App: Plain string "2026-06-01" — nothing to misinterpret
+    App-->>App: Correct, every time
+    end
+```
+
+Every `DATE` column read from Postgres — attendance dates, holiday dates, leave ranges, `date_of_joining` — was silently landing on the wrong calendar day whenever matched against another date. That logic sits at the heart of **payroll calculation**, not just the new feature, so this had likely been subtly under- or over-paying attendance-linked salary components for a while. Fixed with a single line at the `pg` driver level (`db/pool.js`), correcting all 13 affected call sites at once — with a regression test guarding against it ever coming back.
+
+### 4. 🔒 Hardening
+
+- A stale login session (e.g. a deleted/deactivated account) used to leak a raw PostgreSQL error straight into the UI. Now translated into a clean, actionable "please log in again."
+- Fixed the Salary Rates page's tab navigation, which was rendering with no styling at all.
+
+### ✅ Quality Bar
+
+Both the **Salary** and **Attendance** modules were independently re-audited end-to-end after these changes — live functional tests through the real API (mixed attendance types, mid-month rate revisions, the full correction workflow, RBAC boundaries) confirmed every number and every permission check comes out correct. See the [Automated Testing](#-automated-testing--production-build) section below.
+
+---
+
 ## 🏗️ Architecture & Technology Stack
 
 | Layer | Technologies / Libraries |
@@ -25,7 +140,8 @@ An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Managem
 | **Database** | PostgreSQL (>=14), `pg` connection pool, SQL migration runner |
 | **Security & Auth** | JWT (`jsonwebtoken`), `bcryptjs`, Rate Limiting, HTTP security headers |
 | **Document Generation** | `pdfkit` (PDF Payslips), `exceljs` (Excel Payroll Workbooks) |
-| **Testing** | Jest, Supertest (127 automated test cases passing) |
+| **Testing** | Jest, Supertest (147 automated test cases passing) |
+| **Scheduling** | `node-cron` (monthly leave accrual, idempotent daily job) |
 
 ---
 
@@ -38,13 +154,14 @@ employee_managment_system/
 │   │   ├── __tests__/        # Automated test suites (auth, users, attendance, leaves, salary)
 │   │   ├── controllers/      # API controller handlers
 │   │   ├── db/
-│   │   │   ├── migrations/   # Sequential SQL migrations (001 to 008)
+│   │   │   ├── migrations/   # Sequential SQL migrations (001 to 010)
 │   │   │   ├── migrate.js    # Migration runner
 │   │   │   ├── pool.js       # PostgreSQL connection pool with health check
 │   │   │   └── seed.js       # Database seeder (Initial Admin)
+│   │   ├── jobs/              # Scheduled jobs (monthly leave accrual)
 │   │   ├── middleware/       # JWT Auth, RBAC, Error Handler
 │   │   ├── routes/           # Express router endpoints
-│   │   ├── services/         # Salary computation engine & PDF/Excel report generators
+│   │   ├── services/         # Salary engine, leave accrual engine, PDF/Excel report generators
 │   │   ├── utils/            # IST time utilities, token signing, ID generation
 │   │   ├── app.js            # Express app configuration
 │   │   └── server.js         # HTTP server entry point
@@ -137,7 +254,7 @@ After running `npm run seed`:
 cd backend
 npm test
 ```
-*Result: 127/127 tests pass across 6 suites (`auth`, `users`, `phase2`, `attendance`, `leaves`, `salary`).*
+*Result: 147/147 tests pass across 9 suites (`auth`, `users`, `phase2`, `attendance`, `leaves`, `salary`, `leaveAccrual`, `errorHandler`, `datePool`).*
 
 ### Building Frontend Production Bundle
 ```bash
@@ -174,7 +291,7 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 
 1. **Database Provisioning**:
    - Create a PostgreSQL database instance.
-   - Run `npm run migrate` to apply all 8 migrations sequentially.
+   - Run `npm run migrate` to apply all 10 migrations sequentially.
    - Run `npm run seed` once to create the root Administrator.
 2. **Environment Variables**:
    - Provide high-entropy `JWT_SECRET` (`openssl rand -hex 32`).
