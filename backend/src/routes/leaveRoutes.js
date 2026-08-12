@@ -8,6 +8,9 @@ const {
   applyLeave,
   getLeaveApplications,
   reviewLeaveApplication,
+  getLeaveLedger,
+  getAccrualRuns,
+  runAccrualManually,
 } = require('../controllers/leaveController');
 
 const router = Router();
@@ -72,6 +75,38 @@ router.put(
   ],
   validate,
   reviewLeaveApplication
+);
+
+// ─── Attendance-Based Accrual: Ledger & History ──────────────────────────────
+// GET /api/leaves/ledger — full transaction history behind a balance
+router.get(
+  '/ledger',
+  [
+    qv('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.'),
+    qv('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Invalid year.'),
+  ],
+  validate,
+  getLeaveLedger
+);
+
+// GET /api/leaves/accrual/runs — month-by-month attendance-bonus evaluation history
+router.get(
+  '/accrual/runs',
+  [qv('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.')],
+  validate,
+  getAccrualRuns
+);
+
+// POST /api/leaves/accrual/run — Admin only — manual trigger / backfill
+router.post(
+  '/accrual/run',
+  authorizeAdmin,
+  [
+    body('period').optional().matches(/^\d{4}-(0[1-9]|1[0-2])$/).withMessage('Period must be in YYYY-MM format.'),
+    body('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.'),
+  ],
+  validate,
+  runAccrualManually
 );
 
 module.exports = router;

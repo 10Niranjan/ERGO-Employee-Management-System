@@ -7,10 +7,17 @@ const {
   getDateRange,
   isPastSameDayLeaveCutoff,
 } = require('../utils/time');
+const {
+  applyLedgerEntry, recordInitialAllocation,
+  evaluateEmployeeForPeriod, runAccrualForPeriod,
+} = require('../services/leaveAccrualService');
+const { getMostRecentlyCompletedPeriod } = require('../utils/time');
 
 /**
  * Ensures that leave balances exist for a user in the given year.
  * Safe & idempotent: inserts defaults if missing.
+ * Logs an INITIAL_ALLOCATION ledger entry only for rows genuinely created here
+ * (ON CONFLICT DO NOTHING + RETURNING means pre-existing rows return no id).
  */
 async function ensureUserLeaveBalances(dbOrClient, userId, year) {
   const { rows: activeLeaveTypes } = await dbOrClient.query(
@@ -18,12 +25,19 @@ async function ensureUserLeaveBalances(dbOrClient, userId, year) {
   );
 
   for (const lt of activeLeaveTypes) {
-    await dbOrClient.query(
+    const { rows: inserted } = await dbOrClient.query(
       `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted, used)
        VALUES ($1, $2, $3, $4, 0)
-       ON CONFLICT (user_id, leave_type_id, year) DO NOTHING`,
+       ON CONFLICT (user_id, leave_type_id, year) DO NOTHING
+       RETURNING id`,
       [userId, lt.id, year, lt.yearly_quota]
     );
+    if (inserted.length) {
+      await recordInitialAllocation(dbOrClient, {
+        userId, leaveTypeId: lt.id, year, allotted: lt.yearly_quota,
+        note: `Base allocation ${lt.yearly_quota}`,
+      });
+    }
   }
 }
 
@@ -337,13 +351,16 @@ async function reviewLeaveApplication(req, res, next) {
           });
         }
 
-        // Deduct balance by incrementing used
-        await client.query(
-          `UPDATE leave_balances
-           SET used = used + $1, updated_at = NOW()
-           WHERE id = $2`,
-          [application.working_days_count, balance.id]
-        );
+        // Deduct balance by incrementing used, with a matching ledger entry
+        await applyLedgerEntry(client, {
+          userId: application.user_id,
+          leaveTypeId: application.leave_type_id,
+          year: leaveYear,
+          entryType: 'LEAVE_TAKEN',
+          amount: application.working_days_count,
+          note: `${application.leave_type_name}: ${new Date(application.start_date).toISOString().slice(0, 10)} to ${new Date(application.end_date).toISOString().slice(0, 10)}`,
+          createdBy: req.user.id,
+        });
       }
 
       const { rows } = await client.query(
@@ -396,6 +413,128 @@ async function reviewLeaveApplication(req, res, next) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/leaves/ledger
+// Full auditable transaction history behind a user's leave balance.
+// ─────────────────────────────────────────────────────────────────────────────
+async function getLeaveLedger(req, res, next) {
+  try {
+    let targetUserId = req.user.id;
+    if (req.user.role === 'admin' && req.query.user_id) {
+      targetUserId = parseInt(req.query.user_id, 10);
+    } else if (req.user.role !== 'admin' && req.query.user_id) {
+      if (parseInt(req.query.user_id, 10) !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied. You can only view your own leave ledger.' });
+      }
+    }
+
+    const conditions = ['ll.user_id = $1'];
+    const params = [targetUserId];
+    if (req.query.year) {
+      params.push(parseInt(req.query.year, 10));
+      conditions.push(`ll.year = $${params.length}`);
+    }
+
+    const { rows } = await query(
+      `SELECT ll.id, ll.user_id, ll.leave_type_id, lt.name AS leave_type_name, ll.year,
+              ll.entry_type, ll.amount, ll.resulting_balance, ll.period, ll.note,
+              ll.created_by, ll.created_at
+       FROM leave_ledger ll
+       JOIN leave_types lt ON lt.id = ll.leave_type_id
+       WHERE ${conditions.join(' AND ')}
+       ORDER BY ll.created_at DESC`,
+      params
+    );
+
+    return res.status(200).json({ user_id: targetUserId, ledger: rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/leaves/accrual/runs
+// Month-by-month attendance-bonus evaluation history, including skipped months
+// (for auditability even when no balance change occurred).
+// ─────────────────────────────────────────────────────────────────────────────
+async function getAccrualRuns(req, res, next) {
+  try {
+    let targetUserId = req.user.id;
+    if (req.user.role === 'admin' && req.query.user_id) {
+      targetUserId = parseInt(req.query.user_id, 10);
+    } else if (req.user.role !== 'admin' && req.query.user_id) {
+      if (parseInt(req.query.user_id, 10) !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied. You can only view your own accrual history.' });
+      }
+    }
+
+    const { rows } = await query(
+      `SELECT id, user_id, period, working_days, present_equivalent_days, attendance_pct,
+              bonus_awarded, skip_reason, leave_ledger_id, processed_at
+       FROM attendance_accrual_runs
+       WHERE user_id = $1
+       ORDER BY period DESC`,
+      [targetUserId]
+    );
+
+    return res.status(200).json({ user_id: targetUserId, runs: rows });
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// POST /api/leaves/accrual/run
+// Admin only — manually (re)run the attendance-bonus accrual for a given month,
+// either for one employee or every active employee. Idempotent: reuses the exact
+// same evaluation path as the scheduled job, so it's safe for backfill/reprocessing.
+// ─────────────────────────────────────────────────────────────────────────────
+async function runAccrualManually(req, res, next) {
+  try {
+    const targetPeriod = req.body.period || getMostRecentlyCompletedPeriod();
+
+    if (req.body.user_id) {
+      const { rows: userRows } = await query(
+        `SELECT id, date_of_joining FROM users WHERE id = $1 AND role = 'employee' AND status = 'active'`,
+        [req.body.user_id]
+      );
+      if (!userRows.length) {
+        return res.status(404).json({ message: 'Active employee not found.' });
+      }
+
+      const client = await getClient();
+      try {
+        await client.query('BEGIN');
+        const result = await evaluateEmployeeForPeriod(client, {
+          userId: userRows[0].id,
+          dateOfJoining: userRows[0].date_of_joining
+            ? new Date(userRows[0].date_of_joining).toISOString().slice(0, 10)
+            : null,
+          period: targetPeriod,
+          createdBy: req.user.id,
+        });
+        await client.query('COMMIT');
+        return res.status(200).json({
+          period: targetPeriod,
+          evaluated: 1,
+          bonusesAwarded: result.bonusAwarded ? 1 : 0,
+          results: [{ userId: userRows[0].id, ...result }],
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    const summary = await runAccrualForPeriod(targetPeriod, { createdBy: req.user.id });
+    return res.status(200).json(summary);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   ensureUserLeaveBalances,
   calculateWorkingDays,
@@ -403,4 +542,7 @@ module.exports = {
   applyLeave,
   getLeaveApplications,
   reviewLeaveApplication,
+  getLeaveLedger,
+  getAccrualRuns,
+  runAccrualManually,
 };

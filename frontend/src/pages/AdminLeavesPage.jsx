@@ -2,9 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   AlertTriangle,
   BarChart3,
+  Calculator,
   Check,
+  History,
   Info,
   Palmtree,
+  PlayCircle,
   Search,
   X,
 } from 'lucide-react';
@@ -12,6 +15,8 @@ import {
   getLeaveApplications,
   reviewLeaveApplication,
   getLeaveBalances,
+  getLeaveLedger,
+  runAccrual,
 } from '../api/leaveApi';
 import { getLeaveTypes } from '../api/leaveTypeApi';
 import { useToast } from '../components/Toast';
@@ -44,7 +49,14 @@ export default function AdminLeavesPage() {
 
   // Employee balances modal data
   const [employeeBalances, setEmployeeBalances] = useState([]);
+  const [employeeLedger, setEmployeeLedger] = useState([]);
   const [balancesLoading, setBalancesLoading] = useState(false);
+
+  // Attendance Accrual modal state
+  const [isAccrualModalOpen, setIsAccrualModalOpen] = useState(false);
+  const [accrualPeriod, setAccrualPeriod] = useState('');
+  const [accrualRunning, setAccrualRunning] = useState(false);
+  const [accrualResult, setAccrualResult] = useState(null);
 
   const fetchApplications = useCallback(async () => {
     setLoading(true);
@@ -102,15 +114,42 @@ export default function AdminLeavesPage() {
     setIsBalancesModalOpen(true);
     setBalancesLoading(true);
     try {
-      const data = await getLeaveBalances({
-        user_id: app.user_id,
-        year: new Date(app.start_date).getFullYear(),
-      });
-      setEmployeeBalances(data.balances || []);
+      const year = new Date(app.start_date).getFullYear();
+      const [balancesData, ledgerData] = await Promise.all([
+        getLeaveBalances({ user_id: app.user_id, year }),
+        getLeaveLedger({ user_id: app.user_id, year }),
+      ]);
+      setEmployeeBalances(balancesData.balances || []);
+      setEmployeeLedger(ledgerData.ledger || []);
     } catch (err) {
       showToast(err.response?.data?.message || 'Failed to load employee balances', 'error');
     } finally {
       setBalancesLoading(false);
+    }
+  }
+
+  // Open Attendance Accrual Modal
+  function handleOpenAccrualModal() {
+    setAccrualResult(null);
+    setAccrualPeriod('');
+    setIsAccrualModalOpen(true);
+  }
+
+  // Run monthly accrual for all active employees (or defaults to most recently completed month)
+  async function handleRunAccrual() {
+    setAccrualRunning(true);
+    setAccrualResult(null);
+    try {
+      const data = await runAccrual(accrualPeriod ? { period: accrualPeriod } : {});
+      setAccrualResult(data);
+      showToast(
+        `Accrual run complete for ${data.period}: ${data.bonusesAwarded} bonus(es) awarded across ${data.evaluated} employee(s).`,
+        'success'
+      );
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Failed to run attendance accrual', 'error');
+    } finally {
+      setAccrualRunning(false);
     }
   }
 
@@ -178,6 +217,13 @@ export default function AdminLeavesPage() {
             Review and adjudicate staff leave applications. Approved paid leaves automatically deduct from employee balances.
           </p>
         </div>
+        <button
+          type="button"
+          className="btn btn-primary"
+          onClick={handleOpenAccrualModal}
+        >
+          <Calculator size={15} aria-hidden="true" /> Attendance Accrual
+        </button>
       </div>
 
       {/* Controls Bar: Search, Status Filter, Type Filter */}
@@ -513,6 +559,66 @@ export default function AdminLeavesPage() {
                 </tbody>
               </table>
             </div>
+
+            {/* Ledger History — why the balance is what it is */}
+            <h3 className="section-title" style={{ fontSize: 'var(--font-size-md)', marginTop: 'var(--space-6)' }}>
+              <History size={15} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 'var(--space-2)' }} />
+              Balance History
+            </h3>
+            {employeeLedger.length === 0 ? (
+              <p className="text-muted text-sm">No ledger entries for this year yet.</p>
+            ) : (
+              <div className="table-responsive">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Date</th>
+                      <th>Leave Type</th>
+                      <th>Transaction</th>
+                      <th>Amount</th>
+                      <th>Balance</th>
+                      <th>Note</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {employeeLedger.map((entry) => (
+                      <tr key={entry.id}>
+                        <td>
+                          <span className="text-sm">{new Date(entry.created_at).toLocaleDateString('en-IN')}</span>
+                        </td>
+                        <td>
+                          <span className="text-sm">{entry.leave_type_name}</span>
+                        </td>
+                        <td>
+                          <span
+                            className={`status-pill ${
+                              entry.entry_type === 'ATTENDANCE_BONUS'
+                                ? 'status-active'
+                                : entry.entry_type === 'LEAVE_TAKEN'
+                                ? 'status-unpaid'
+                                : 'status-weekend'
+                            }`}
+                          >
+                            {entry.entry_type.replace('_', ' ')}
+                          </span>
+                        </td>
+                        <td>
+                          <strong className={entry.entry_type === 'LEAVE_TAKEN' ? 'text-danger' : 'text-success'}>
+                            {entry.entry_type === 'LEAVE_TAKEN' ? '−' : '+'}{entry.amount}
+                          </strong>
+                        </td>
+                        <td>
+                          <strong className="salary-rate-text">{entry.resulting_balance}</strong>
+                        </td>
+                        <td>
+                          <span className="text-muted text-xs">{entry.note || '—'}</span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         )}
 
@@ -520,6 +626,109 @@ export default function AdminLeavesPage() {
           <button type="button" className="btn btn-ghost" onClick={() => setIsBalancesModalOpen(false)}>
             Close
           </button>
+        </div>
+      </Modal>
+
+      {/* ─── Modal: Attendance Accrual — Manual Trigger / Backfill ────────── */}
+      <Modal
+        isOpen={isAccrualModalOpen}
+        onClose={() => !accrualRunning && setIsAccrualModalOpen(false)}
+        title={
+          <span className="modal-title-with-icon">
+            <Calculator size={18} aria-hidden="true" /> Attendance-Based Leave Accrual
+          </span>
+        }
+        maxWidth="600px"
+      >
+        <div className="modal-form">
+          <div className="alert alert-info">
+            <Info size={16} aria-hidden="true" />
+            <span>
+              Every active employee is evaluated for the selected month: <strong>&ge;70% attendance</strong> earns
+              +1 paid leave, credited the 1st of the following month. This runs automatically every night, so use
+              this only to backfill a missed run or reprocess a specific month. Safe to re-run — already-processed
+              months are skipped.
+            </span>
+          </div>
+
+          <div className="form-group">
+            <label className="form-label" htmlFor="accrual-period-input">
+              Month to Evaluate (defaults to the most recently completed month)
+            </label>
+            <input
+              id="accrual-period-input"
+              type="month"
+              value={accrualPeriod}
+              onChange={(e) => setAccrualPeriod(e.target.value)}
+              disabled={accrualRunning}
+            />
+          </div>
+
+          <div className="modal-actions-row" style={{ borderTop: 'none', paddingTop: 0 }}>
+            <button
+              type="button"
+              className="btn btn-primary"
+              onClick={handleRunAccrual}
+              disabled={accrualRunning}
+            >
+              {accrualRunning ? <span className="spinner" /> : <PlayCircle size={15} aria-hidden="true" />}
+              {accrualRunning ? 'Running...' : 'Run Accrual'}
+            </button>
+          </div>
+
+          {accrualResult && (
+            <div className="employee-balances-modal-body">
+              <div className="alert alert-info">
+                <Info size={16} aria-hidden="true" />
+                <span>
+                  <strong>{accrualResult.period}</strong>: evaluated {accrualResult.evaluated} employee(s),
+                  awarded <strong>{accrualResult.bonusesAwarded}</strong> bonus(es).
+                </span>
+              </div>
+
+              {accrualResult.results?.length > 0 && (
+                <div className="table-responsive">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th>Employee ID</th>
+                        <th>Outcome</th>
+                        <th>Attendance %</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {accrualResult.results.map((r) => (
+                        <tr key={r.userId}>
+                          <td>{r.userId}</td>
+                          <td>
+                            {r.bonusAwarded ? (
+                              <span className="status-pill status-active">Bonus Awarded</span>
+                            ) : r.skipped ? (
+                              <span className="status-pill status-weekend">Skipped: {r.reason}</span>
+                            ) : (
+                              <span className="status-pill status-unpaid">No Bonus</span>
+                            )}
+                          </td>
+                          <td>{r.attendancePct != null ? `${r.attendancePct}%` : '—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
+
+          <div className="modal-actions-row">
+            <button
+              type="button"
+              className="btn btn-ghost"
+              onClick={() => setIsAccrualModalOpen(false)}
+              disabled={accrualRunning}
+            >
+              Close
+            </button>
+          </div>
         </div>
       </Modal>
     </div>

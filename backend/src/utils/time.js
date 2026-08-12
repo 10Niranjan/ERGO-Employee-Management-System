@@ -108,6 +108,25 @@ function getMonthDates(year, month) {
   return dates;
 }
 
+/**
+ * Returns the 'YYYY-MM' immediately after the given 'YYYY-MM' period.
+ * @param {string} period - 'YYYY-MM'
+ */
+function getNextPeriod(period) {
+  const [year, month] = period.split('-').map(Number);
+  if (month === 12) return `${year + 1}-01`;
+  return `${year}-${String(month + 1).padStart(2, '0')}`;
+}
+
+/**
+ * Returns the most recently fully-completed calendar month, as 'YYYY-MM', relative to now in IST.
+ */
+function getMostRecentlyCompletedPeriod() {
+  const [year, month] = getTodayIST().split('-').map(Number);
+  if (month === 1) return `${year - 1}-12`;
+  return `${year}-${String(month - 1).padStart(2, '0')}`;
+}
+
 module.exports = {
   TIMEZONE,
   getTodayIST,
@@ -117,4 +136,6 @@ module.exports = {
   getDayOfWeek,
   getDateRange,
   getMonthDates,
+  getNextPeriod,
+  getMostRecentlyCompletedPeriod,
 };

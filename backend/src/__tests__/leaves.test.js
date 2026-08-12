@@ -67,7 +67,7 @@ describe('GET /api/leaves/balances', () => {
   test('employee views own leave balances', async () => {
     query
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // active types for ensure
-      .mockResolvedValueOnce({}) // insert default if missing
+      .mockResolvedValueOnce({ rows: [] }) // insert default if missing (row already exists)
       .mockResolvedValueOnce({
         rows: [{
           id: 1,
@@ -102,7 +102,7 @@ describe('GET /api/leaves/balances', () => {
   test('admin can view any employee balances', async () => {
     query
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] })
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: 1,
@@ -137,7 +137,7 @@ describe('POST /api/leaves', () => {
       .mockResolvedValueOnce({ rows: [] }) // holidays check
       .mockResolvedValueOnce({ rows: [] }) // overlap check
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // ensure balances
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ remaining: 10, allotted: 12, used: 2 }] }) // balance check
       .mockResolvedValueOnce({ rows: [SAMPLE_APPLICATION] }); // INSERT
 
@@ -239,7 +239,7 @@ describe('POST /api/leaves', () => {
       .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [] }) // no overlaps
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] })
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({ rows: [{ remaining: 1, allotted: 12, used: 11 }] }); // only 1 day remaining, requested 2
 
     const res = await request(app)
@@ -332,7 +332,7 @@ describe('PUT /api/leaves/:id/status', () => {
         }],
       }) // SELECT application FOR UPDATE
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // ensure balances
-      .mockResolvedValueOnce({})
+      .mockResolvedValueOnce({ rows: [] })
       .mockResolvedValueOnce({
         rows: [{
           id: 10,
@@ -341,7 +341,8 @@ describe('PUT /api/leaves/:id/status', () => {
           remaining: 10,
         }],
       }) // SELECT balance FOR UPDATE (10 remaining >= 2)
-      .mockResolvedValueOnce({}) // UPDATE leave_balances (used + 2)
+      .mockResolvedValueOnce({ rows: [{ remaining: 8 }] }) // applyLedgerEntry: UPDATE leave_balances (used + 2) RETURNING remaining
+      .mockResolvedValueOnce({ rows: [{ id: 555 }] }) // applyLedgerEntry: INSERT INTO leave_ledger
       .mockResolvedValueOnce({
         rows: [{
           ...SAMPLE_APPLICATION,

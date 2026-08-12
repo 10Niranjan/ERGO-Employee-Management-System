@@ -9,6 +9,7 @@ import {
   Clock4,
   Download,
   FileText,
+  History,
   Hourglass,
   Info,
   LogOut,
@@ -35,6 +36,7 @@ import {
   getLeaveBalances,
   applyLeave,
   getLeaveApplications,
+  getLeaveLedger,
 } from '../api/leaveApi';
 import {
   computeSalary,
@@ -94,6 +96,8 @@ export default function EmployeeDashboardPage() {
   const [leaveBalancesLoading, setLeaveBalancesLoading] = useState(true);
   const [myLeaves, setMyLeaves] = useState([]);
   const [myLeavesLoading, setMyLeavesLoading] = useState(true);
+  const [leaveLedger, setLeaveLedger] = useState([]);
+  const [leaveLedgerLoading, setLeaveLedgerLoading] = useState(true);
 
   // Apply Leave Modal
   const [isApplyLeaveModalOpen, setIsApplyLeaveModalOpen] = useState(false);
@@ -176,6 +180,19 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
+  // Fetch my leave balance ledger (why the balance is what it is)
+  const fetchLedger = useCallback(async () => {
+    setLeaveLedgerLoading(true);
+    try {
+      const data = await getLeaveLedger({ year: new Date().getFullYear() });
+      setLeaveLedger(data.ledger || []);
+    } catch (err) {
+      console.error('Failed to fetch leave ledger', err);
+    } finally {
+      setLeaveLedgerLoading(false);
+    }
+  }, []);
+
   // Fetch salary preview
   const fetchMySalary = useCallback(async () => {
     setSalaryCalcLoading(true);
@@ -209,7 +226,8 @@ export default function EmployeeDashboardPage() {
     fetchTodayStatus();
     fetchBalances();
     fetchMyLeaves();
-  }, [fetchTodayStatus, fetchBalances, fetchMyLeaves]);
+    fetchLedger();
+  }, [fetchTodayStatus, fetchBalances, fetchMyLeaves, fetchLedger]);
 
   useEffect(() => {
     fetchMonthly(selectedYear, selectedMonth);
@@ -835,6 +853,84 @@ export default function EmployeeDashboardPage() {
                                   ? leave.admin_notes
                                   : '—'}
                               </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+
+              {/* Leave Balance History / Ledger — why the balance is what it is */}
+              <div className="table-card card" style={{ marginTop: 'var(--space-6)' }}>
+                <div className="card-header-bar" style={{ padding: 'var(--space-4)', borderBottom: '1px solid var(--color-border)' }}>
+                  <h3 className="section-title" style={{ fontSize: 'var(--font-size-md)' }}>
+                    <History size={16} aria-hidden="true" style={{ verticalAlign: 'text-bottom', marginRight: 'var(--space-2)' }} />
+                    Leave Balance History ({now.getFullYear()})
+                  </h3>
+                </div>
+
+                {leaveLedgerLoading ? (
+                  <div className="state-container">
+                    <span className="spinner" />
+                    <p className="text-muted">Loading balance history...</p>
+                  </div>
+                ) : leaveLedger.length === 0 ? (
+                  <div className="state-container">
+                    <History size={40} className="state-icon" aria-hidden="true" />
+                    <h3>No balance history yet</h3>
+                    <p className="text-muted text-sm">
+                      Allocations, leaves taken, and attendance bonuses will appear here as they happen.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Leave Type</th>
+                          <th>Transaction</th>
+                          <th>Amount</th>
+                          <th>Resulting Balance</th>
+                          <th>Note</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {leaveLedger.map((entry) => (
+                          <tr key={entry.id}>
+                            <td>
+                              <span className="text-sm">
+                                {new Date(entry.created_at).toLocaleDateString('en-IN')}
+                              </span>
+                            </td>
+                            <td>
+                              <strong className="text-sm">{entry.leave_type_name}</strong>
+                            </td>
+                            <td>
+                              <span
+                                className={`status-pill ${
+                                  entry.entry_type === 'ATTENDANCE_BONUS'
+                                    ? 'status-active'
+                                    : entry.entry_type === 'LEAVE_TAKEN'
+                                    ? 'status-unpaid'
+                                    : 'status-weekend'
+                                }`}
+                              >
+                                {entry.entry_type.replace('_', ' ')}
+                              </span>
+                            </td>
+                            <td>
+                              <strong className={entry.entry_type === 'LEAVE_TAKEN' ? 'text-danger' : 'text-success'}>
+                                {entry.entry_type === 'LEAVE_TAKEN' ? '−' : '+'}{entry.amount}
+                              </strong>
+                            </td>
+                            <td>
+                              <strong className="salary-rate-text">{entry.resulting_balance}</strong>
+                            </td>
+                            <td>
+                              <span className="text-muted text-sm">{entry.note || '—'}</span>
                             </td>
                           </tr>
                         ))}

@@ -42,9 +42,11 @@ router.get(
 router.post(
   '/',
   [
-    body('name').trim().notEmpty().withMessage('Name is required.'),
+    body('name').trim().notEmpty().withMessage('Name is required.')
+      .matches(/^[a-zA-Z\s]+$/).withMessage('Name must contain letters only.'),
     body('email').trim().isEmail().withMessage('A valid email is required.'),
-    body('phone').optional({ nullable: true }).trim(),
+    body('phone').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[0-9]+$/).withMessage('Phone number must contain numbers only.'),
     body('designation').optional({ nullable: true }).trim(),
     body('date_of_joining').optional({ nullable: true }).isISO8601().withMessage('Date must be YYYY-MM-DD.'),
     body('per_day_salary')
@@ -55,6 +57,18 @@ router.post(
       .optional({ nullable: true })
       .isInt({ min: 0 })
       .withMessage('Leaves this year must be a non-negative integer.'),
+    body('gender').optional({ nullable: true, checkFalsy: true }).trim().isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other.'),
+    body('date_of_birth').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Date of birth must be YYYY-MM-DD.'),
+    body('address').optional({ nullable: true }).trim(),
+    body('bank_name').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[a-zA-Z\s]+$/).withMessage('Bank name must contain letters only.'),
+    body('bank_account_no').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[0-9]+$/).withMessage('Bank account number must contain numbers only.'),
+    body('ifsc_code').optional({ nullable: true }).trim(),
+    body('emergency_contact_name').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[a-zA-Z\s]+$/).withMessage('Emergency contact name must contain letters only.'),
+    body('emergency_contact_phone').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[0-9]+$/).withMessage('Emergency contact phone must contain numbers only.'),
   ],
   validate,
   createUser
@@ -65,8 +79,11 @@ router.put(
   '/:id',
   [
     param('id').isInt({ min: 1 }).withMessage('Invalid employee ID.'),
-    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty.'),
+    body('name').optional().trim().notEmpty().withMessage('Name cannot be empty.')
+      .matches(/^[a-zA-Z\s]+$/).withMessage('Name must contain letters only.'),
     body('email').optional().trim().isEmail().withMessage('A valid email is required.'),
+    body('phone').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[0-9]+$/).withMessage('Phone number must contain numbers only.'),
     body('date_of_joining').optional({ nullable: true }).isISO8601().withMessage('Date must be YYYY-MM-DD.'),
     body('per_day_salary')
       .optional()

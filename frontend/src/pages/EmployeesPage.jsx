@@ -81,8 +81,15 @@ export default function EmployeesPage() {
       phone: '',
       designation: '',
       date_of_joining: new Date().toISOString().slice(0, 10),
-      per_day_salary: '',
       leaves_this_year: '6',
+      gender: '',
+      date_of_birth: '',
+      address: '',
+      bank_name: '',
+      bank_account_no: '',
+      ifsc_code: '',
+      emergency_contact_name: '',
+      emergency_contact_phone: '',
     });
     setIsAddModalOpen(true);
   }
@@ -121,7 +128,6 @@ export default function EmployeesPage() {
     try {
       const res = await createUser({
         ...formData,
-        per_day_salary: formData.per_day_salary ? parseFloat(formData.per_day_salary) : 0,
         leaves_this_year: formData.leaves_this_year !== '' ? parseInt(formData.leaves_this_year, 10) : undefined,
       });
       showToast('Employee created successfully!', 'success');
@@ -401,7 +407,7 @@ export default function EmployeesPage() {
                 required
                 placeholder="e.g. Rahul Sharma"
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                 disabled={submitting}
               />
             </div>
@@ -430,9 +436,10 @@ export default function EmployeesPage() {
               <input
                 id="add-phone"
                 type="tel"
-                placeholder="e.g. +91 9876543210"
+                inputMode="numeric"
+                placeholder="e.g. 9876543210"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, '') })}
                 disabled={submitting}
               />
             </div>
@@ -467,17 +474,125 @@ export default function EmployeesPage() {
             </div>
 
             <div className="form-group">
-              <label className="form-label" htmlFor="add-salary">
-                Per-Day Salary Rate (₹)
+              <label className="form-label" htmlFor="add-gender">
+                Gender
+              </label>
+              <select
+                id="add-gender"
+                value={formData.gender}
+                onChange={(e) => setFormData({ ...formData, gender: e.target.value })}
+                disabled={submitting}
+              >
+                <option value="">Select gender</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-dob">
+                Date of Birth
               </label>
               <input
-                id="add-salary"
-                type="number"
-                min="0"
-                step="0.01"
-                placeholder="e.g. 1500"
-                value={formData.per_day_salary}
-                onChange={(e) => setFormData({ ...formData, per_day_salary: e.target.value })}
+                id="add-dob"
+                type="date"
+                value={formData.date_of_birth}
+                onChange={(e) => setFormData({ ...formData, date_of_birth: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-address">
+                Address
+              </label>
+              <input
+                id="add-address"
+                type="text"
+                placeholder="e.g. 12 MG Road, Pune"
+                value={formData.address}
+                onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-bank-name">
+                Bank Name
+              </label>
+              <input
+                id="add-bank-name"
+                type="text"
+                placeholder="e.g. HDFC Bank"
+                value={formData.bank_name}
+                onChange={(e) => setFormData({ ...formData, bank_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-bank-account">
+                Bank Account No.
+              </label>
+              <input
+                id="add-bank-account"
+                type="text"
+                inputMode="numeric"
+                placeholder="e.g. 123456789012"
+                value={formData.bank_account_no}
+                onChange={(e) => setFormData({ ...formData, bank_account_no: e.target.value.replace(/[^0-9]/g, '') })}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-ifsc">
+                IFSC Code
+              </label>
+              <input
+                id="add-ifsc"
+                type="text"
+                placeholder="e.g. HDFC0001234"
+                value={formData.ifsc_code}
+                onChange={(e) => setFormData({ ...formData, ifsc_code: e.target.value.toUpperCase() })}
+                disabled={submitting}
+              />
+            </div>
+
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-emergency-name">
+                Emergency Contact Name
+              </label>
+              <input
+                id="add-emergency-name"
+                type="text"
+                placeholder="e.g. Priya Sharma"
+                value={formData.emergency_contact_name}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
+                disabled={submitting}
+              />
+            </div>
+          </div>
+
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="add-emergency-phone">
+                Emergency Contact Phone No.
+              </label>
+              <input
+                id="add-emergency-phone"
+                type="tel"
+                inputMode="numeric"
+                placeholder="e.g. 9876543210"
+                value={formData.emergency_contact_phone}
+                onChange={(e) => setFormData({ ...formData, emergency_contact_phone: e.target.value.replace(/[^0-9]/g, '') })}
                 disabled={submitting}
               />
             </div>
@@ -535,7 +650,7 @@ export default function EmployeesPage() {
                 type="text"
                 required
                 value={formData.name}
-                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, name: e.target.value.replace(/[^a-zA-Z\s]/g, '') })}
                 disabled={submitting}
               />
             </div>
@@ -563,8 +678,9 @@ export default function EmployeesPage() {
               <input
                 id="edit-phone"
                 type="tel"
+                inputMode="numeric"
                 value={formData.phone}
-                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                onChange={(e) => setFormData({ ...formData, phone: e.target.value.replace(/[^0-9]/g, '') })}
                 disabled={submitting}
               />
             </div>

@@ -4,11 +4,14 @@ const bcrypt = require('bcryptjs');
 const { query, getClient } = require('../db/pool');
 const { generateEmployeeId } = require('../utils/employeeId');
 const { generateTempPassword } = require('../utils/passwordGen');
+const { recordInitialAllocation } = require('../services/leaveAccrualService');
 
 // Fields returned to callers — password_hash is never included
 const SAFE_USER_FIELDS = `
   id, employee_id, role, name, email, phone, designation,
   date_of_joining, per_day_salary, first_login, status,
+  gender, date_of_birth, address, bank_name, bank_account_no,
+  ifsc_code, emergency_contact_name, emergency_contact_phone,
   created_at, updated_at
 `;
 
@@ -102,6 +105,9 @@ async function createUser(req, res, next) {
     const {
       name, email, phone, designation,
       date_of_joining, per_day_salary,
+      gender, date_of_birth, address,
+      bank_name, bank_account_no, ifsc_code,
+      emergency_contact_name, emergency_contact_phone,
     } = req.body;
 
     // Check email uniqueness
@@ -126,9 +132,12 @@ async function createUser(req, res, next) {
     const { rows: userRows } = await client.query(
       `INSERT INTO users
          (employee_id, role, name, email, phone, designation,
-          date_of_joining, per_day_salary, password_hash, first_login, status)
+          date_of_joining, per_day_salary, password_hash, first_login, status,
+          gender, date_of_birth, address, bank_name, bank_account_no,
+          ifsc_code, emergency_contact_name, emergency_contact_phone)
        VALUES
-         ($1, 'employee', $2, $3, $4, $5, $6, $7, $8, TRUE, 'active')
+         ($1, 'employee', $2, $3, $4, $5, $6, $7, $8, TRUE, 'active',
+          $9, $10, $11, $12, $13, $14, $15, $16)
        RETURNING ${SAFE_USER_FIELDS}`,
       [
         employee_id,
@@ -139,6 +148,14 @@ async function createUser(req, res, next) {
         date_of_joining || null,
         parseFloat(per_day_salary) || 0,
         passwordHash,
+        gender?.trim() || null,
+        date_of_birth || null,
+        address?.trim() || null,
+        bank_name?.trim() || null,
+        bank_account_no?.trim() || null,
+        ifsc_code?.trim() || null,
+        emergency_contact_name?.trim() || null,
+        emergency_contact_phone?.trim() || null,
       ]
     );
     const newUser = userRows[0];
@@ -168,12 +185,19 @@ async function createUser(req, res, next) {
         }
       }
 
-      await client.query(
+      const { rows: inserted } = await client.query(
         `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted, used)
          VALUES ($1, $2, $3, $4, 0)
-         ON CONFLICT (user_id, leave_type_id, year) DO NOTHING`,
+         ON CONFLICT (user_id, leave_type_id, year) DO NOTHING
+         RETURNING id`,
         [newUser.id, lt.id, currentYear, allotted]
       );
+      if (inserted.length) {
+        await recordInitialAllocation(client, {
+          userId: newUser.id, leaveTypeId: lt.id, year: currentYear, allotted,
+          note: `Base allocation ${allotted}`,
+        });
+      }
     }
 
     await client.query('COMMIT');

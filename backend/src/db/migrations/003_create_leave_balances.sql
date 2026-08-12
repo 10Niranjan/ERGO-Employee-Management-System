@@ -1,6 +1,8 @@
 -- Migration: 003_create_leave_balances.sql
 -- Tracks per-employee, per-leave-type, per-year leave balances.
--- Balances reset annually (no carry-forward per spec).
+-- Rows are per calendar year; carry-forward across years (unused balance + fresh
+-- allocation) is handled by leaveAccrualService.ensureBalanceRowForCredit at the
+-- Dec->Jan boundary — see migration 010_create_leave_accrual.sql.
 
 DROP TRIGGER IF EXISTS leave_balances_updated_at ON leave_balances;
 

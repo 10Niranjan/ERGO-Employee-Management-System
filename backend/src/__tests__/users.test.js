@@ -161,7 +161,7 @@ describe('POST /api/users', () => {
       .post('/api/users')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({
-        name: 'Test Employee 2',
+        name: 'Test Employee Two',
         email: 'test2@ergo.com',
         designation: 'Designer',
         per_day_salary: 1200,

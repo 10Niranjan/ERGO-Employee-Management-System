@@ -1,6 +1,16 @@
 'use strict';
 
-const { Pool } = require('pg');
+const { Pool, types } = require('pg');
+
+// PostgreSQL DATE columns have no time-of-day or timezone component, but pg's default
+// parser builds a JS Date from them using local-time semantics. Combined with this app
+// forcing process.env.TZ = 'Asia/Kolkata' (see server.js), that silently shifts every
+// DATE value back by one calendar day whenever it's later reformatted via
+// `new Date(x).toISOString()` — a pattern used throughout the codebase (attendance,
+// holidays, leave date ranges, salary calculation). Returning DATE columns as plain
+// 'YYYY-MM-DD' strings sidesteps the ambiguity entirely — that's the only form every
+// caller actually needs.
+types.setTypeParser(types.builtins.DATE, (val) => val);
 
 const pool = new Pool({
   host: process.env.DB_HOST,

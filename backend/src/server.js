@@ -9,6 +9,7 @@ process.env.TZ = 'Asia/Kolkata';
 
 const app = require('./app');
 const { pool } = require('./db/pool');
+const { startLeaveAccrualScheduler } = require('./jobs/leaveAccrualJob');
 
 const PORT = parseInt(process.env.PORT, 10) || 5000;
 
@@ -26,6 +27,10 @@ async function startServer() {
     console.log(`✅ Server running on port ${PORT} (${process.env.NODE_ENV || 'development'})`);
     console.log(`   TZ: ${process.env.TZ}`);
   });
+
+  if (process.env.NODE_ENV !== 'test') {
+    startLeaveAccrualScheduler();
+  }
 
   // Graceful shutdown
   function shutdown(signal) {
