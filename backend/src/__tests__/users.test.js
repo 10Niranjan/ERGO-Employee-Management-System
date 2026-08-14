@@ -319,3 +319,42 @@ describe('PATCH /api/users/:id/status', () => {
     expect(res.status).toBe(404);
   });
 });
+
+// =============================================================================
+// DELETE /api/users/:id — Permanent removal
+// =============================================================================
+describe('DELETE /api/users/:id', () => {
+  test('admin permanently deletes an employee', async () => {
+    query.mockResolvedValueOnce({ rows: [{ employee_id: 'EMP001', name: 'Test Employee' }] });
+    const res = await request(app)
+      .delete('/api/users/2')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+    expect(res.status).toBe(200);
+    expect(res.body.message).toMatch(/EMP001/);
+  });
+
+  test('returns 404 if employee not found', async () => {
+    query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .delete('/api/users/999')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('cannot delete an admin account through this endpoint', async () => {
+    // The DELETE query itself is scoped to role='employee', so targeting an
+    // admin id matches zero rows — same as a non-existent employee.
+    query.mockResolvedValueOnce({ rows: [] });
+    const res = await request(app)
+      .delete('/api/users/1')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+    expect(res.status).toBe(404);
+  });
+
+  test('employee token cannot delete', async () => {
+    const res = await request(app)
+      .delete('/api/users/2')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
+    expect(res.status).toBe(403);
+  });
+});

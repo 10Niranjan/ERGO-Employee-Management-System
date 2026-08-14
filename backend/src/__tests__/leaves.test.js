@@ -283,6 +283,114 @@ describe('POST /api/leaves', () => {
     expect(res.status).toBe(409);
     expect(res.body.message).toMatch(/overlapping/i);
   });
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // Admin-on-behalf-of filing (backdated leave)
+  // ───────────────────────────────────────────────────────────────────────────
+  test('admin files backdated paid leave on behalf of employee — auto-approved, balance deducted', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 2, status: 'active' }] }) // target user check
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // leave type check
+      .mockResolvedValueOnce({ rows: [] }) // holidays check
+      .mockResolvedValueOnce({ rows: [] }) // overlap check
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // ensure balances (soft check)
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ remaining: 10, allotted: 12, used: 2 }] }); // balance check (soft)
+
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 200, user_id: 2, leave_type_id: 1,
+          start_date: '2026-07-06', end_date: '2026-07-07',
+          working_days_count: 2, reason: 'Backdated sick day', status: 'pending', filed_by: 1,
+        }],
+      }) // INSERT leave_applications
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // ensure balances (hard, inside approve)
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 10, allotted: 12, used: 2, remaining: 10 }] }) // balance FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ remaining: 8 }] }) // applyLedgerEntry: UPDATE leave_balances
+      .mockResolvedValueOnce({ rows: [{ id: 555 }] }) // applyLedgerEntry: INSERT leave_ledger
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 200, user_id: 2, leave_type_id: 1,
+          start_date: '2026-07-06', end_date: '2026-07-07',
+          working_days_count: 2, status: 'approved', reviewed_by: 1, filed_by: 1,
+        }],
+      }) // UPDATE leave_applications -> approved
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const res = await request(app)
+      .post('/api/leaves')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        user_id: 2,
+        leave_type_id: 1,
+        start_date: '2026-07-06',
+        end_date: '2026-07-07',
+        reason: 'Backdated sick day',
+      });
+
+    expect(res.status).toBe(201);
+    expect(res.body.application.status).toBe('approved');
+    expect(mockClient.query).toHaveBeenCalledWith('COMMIT');
+  });
+
+  test('admin backdated filing with insufficient balance rolls back and returns 400', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 2, status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ remaining: 10, allotted: 12, used: 2 }] }); // soft check passes
+
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({
+        rows: [{
+          id: 201, user_id: 2, leave_type_id: 1,
+          start_date: '2026-07-06', end_date: '2026-07-07',
+          working_days_count: 2, reason: 'Backdated', status: 'pending', filed_by: 1,
+        }],
+      }) // INSERT leave_applications
+      .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] }) // ensure balances (hard)
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 10, allotted: 12, used: 11, remaining: 1 }] }) // only 1 left, need 2
+      .mockResolvedValueOnce({}); // ROLLBACK
+
+    const res = await request(app)
+      .post('/api/leaves')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({
+        user_id: 2,
+        leave_type_id: 1,
+        start_date: '2026-07-06',
+        end_date: '2026-07-07',
+        reason: 'Backdated',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/insufficient balance/i);
+    expect(mockClient.query).toHaveBeenCalledWith('ROLLBACK');
+  });
+
+  test('non-admin cannot bypass the past-date block by sending user_id', async () => {
+    const res = await request(app)
+      .post('/api/leaves')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
+      .send({
+        user_id: 3, // spoofed target — should be ignored, employee is not an admin
+        leave_type_id: 1,
+        start_date: '2026-07-06', // in the past relative to this suite's dates
+        end_date: '2026-07-07',
+        reason: 'Trying to backdate',
+      });
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/past dates/i);
+  });
 });
 
 // =============================================================================

@@ -4,7 +4,7 @@ const { Router } = require('express');
 const { body, query: qv, param, validationResult } = require('express-validator');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const {
-  getUsers, getUserById, createUser, updateUser, updateUserStatus,
+  getUsers, getUserById, createUser, updateUser, updateUserStatus, deleteUser,
 } = require('../controllers/userController');
 
 const router = Router();
@@ -103,6 +103,14 @@ router.patch(
   ],
   validate,
   updateUserStatus
+);
+
+// DELETE /api/users/:id — permanent removal (employees only, never admins)
+router.delete(
+  '/:id',
+  [param('id').isInt({ min: 1 }).withMessage('Invalid employee ID.')],
+  validate,
+  deleteUser
 );
 
 module.exports = router;

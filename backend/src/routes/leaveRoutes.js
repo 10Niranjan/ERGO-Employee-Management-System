@@ -45,6 +45,9 @@ router.post(
     body('start_date').isISO8601().withMessage('Start date must be in YYYY-MM-DD format.'),
     body('end_date').isISO8601().withMessage('End date must be in YYYY-MM-DD format.'),
     body('reason').trim().notEmpty().withMessage('Reason for leave is required.'),
+    // Admin-only: file (and auto-approve) leave on behalf of this employee.
+    // Ignored server-side unless the caller's role is admin — see applyLeave.
+    body('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.'),
   ],
   validate,
   applyLeave

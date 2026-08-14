@@ -312,4 +312,31 @@ async function updateUserStatus(req, res, next) {
   }
 }
 
-module.exports = { getUsers, getUserById, createUser, updateUser, updateUserStatus };
+// ─────────────────────────────────────────────────────────────────────────────
+// DELETE /api/users/:id
+// Admin only — permanently removes an employee and all their history
+// (attendance, leave, payslips, salary revisions cascade via ON DELETE CASCADE).
+// Scoped to role = 'employee' so an admin account can never be deleted here.
+// ─────────────────────────────────────────────────────────────────────────────
+async function deleteUser(req, res, next) {
+  try {
+    const { id } = req.params;
+
+    const { rows } = await query(
+      `DELETE FROM users WHERE id = $1 AND role = 'employee' RETURNING employee_id, name`,
+      [id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'Employee not found.' });
+    }
+
+    return res.status(200).json({
+      message: `Employee ${rows[0].employee_id} (${rows[0].name}) permanently deleted.`,
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = { getUsers, getUserById, createUser, updateUser, updateUserStatus, deleteUser };

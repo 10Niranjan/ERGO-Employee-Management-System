@@ -109,7 +109,11 @@ async function getLeaveBalances(req, res, next) {
 // ─────────────────────────────────────────────────────────────────────────────
 async function applyLeave(req, res, next) {
   try {
-    const userId = req.user.id;
+    // Admin filing on behalf of an employee (e.g. backdated leave): identified by
+    // role + presence of a target user_id. Everything below keeps operating on
+    // `userId`, so the self-service path is untouched when this is false.
+    const isAdminFiling = req.user.role === 'admin' && !!req.body.user_id;
+    const userId = isAdminFiling ? parseInt(req.body.user_id, 10) : req.user.id;
     const { leave_type_id, start_date, end_date, reason } = req.body;
 
     if (!leave_type_id || !start_date || !end_date || !reason || !reason.trim()) {
@@ -122,17 +126,22 @@ async function applyLeave(req, res, next) {
 
     const todayIST = getTodayIST();
 
-    // ── 9:00 AM IST Cutoff check for same-day leave ──────────────────────────
-    if (start_date === todayIST) {
-      if (isPastSameDayLeaveCutoff(9, 0)) {
+    // Same-day cutoff and past-date restrictions exist to stop employees
+    // self-service-backdating their own leave — they don't apply when an
+    // admin is deliberately filing a backdated record on someone's behalf.
+    if (!isAdminFiling) {
+      // ── 9:00 AM IST Cutoff check for same-day leave ──────────────────────────
+      if (start_date === todayIST) {
+        if (isPastSameDayLeaveCutoff(9, 0)) {
+          return res.status(400).json({
+            message: 'Same-day leave requests must be submitted before 9:00 AM IST. Please contact your Administrator for manual approval.',
+          });
+        }
+      } else if (start_date < todayIST) {
         return res.status(400).json({
-          message: 'Same-day leave requests must be submitted before 9:00 AM IST. Please contact your Administrator for manual approval.',
+          message: 'Leave cannot be applied for past dates. Please contact your Administrator.',
         });
       }
-    } else if (start_date < todayIST) {
-      return res.status(400).json({
-        message: 'Leave cannot be applied for past dates. Please contact your Administrator.',
-      });
     }
 
     // Check user is active
@@ -201,7 +210,47 @@ async function applyLeave(req, res, next) {
       }
     }
 
-    // ── Insert Leave Application ─────────────────────────────────────────────
+    // ── Admin-on-behalf-of: insert + auto-approve, atomically ────────────────
+    // Balance deduction must be transactional (same invariant as the regular
+    // PUT /:id/status approval path), so this branch uses its own client
+    // rather than the plain `query` the self-service path below uses.
+    if (isAdminFiling) {
+      const client = await getClient();
+      try {
+        await client.query('BEGIN');
+
+        const { rows: insertedRows } = await client.query(
+          `INSERT INTO leave_applications
+             (user_id, leave_type_id, start_date, end_date, working_days_count, reason, status, filed_by)
+           VALUES ($1, $2, $3, $4, $5, $6, 'pending', $7)
+           RETURNING *`,
+          [userId, leaveType.id, start_date, end_date, workingDaysCount, reason.trim(), req.user.id]
+        );
+
+        const approved = await approvePendingApplication(
+          client,
+          { ...insertedRows[0], is_paid: leaveType.is_paid, leave_type_name: leaveType.name },
+          { reviewerId: req.user.id, adminNotes: 'Backdated leave filed and auto-approved by admin on behalf of employee.' }
+        );
+
+        await client.query('COMMIT');
+        return res.status(201).json({
+          message: 'Leave filed and approved on behalf of employee successfully.',
+          application: approved,
+          working_days: workingDays,
+        });
+      } catch (err) {
+        await client.query('ROLLBACK');
+        if (err.statusCode) {
+          return res.status(err.statusCode).json({ message: err.message });
+        }
+        throw err;
+      } finally {
+        client.release();
+      }
+    }
+
+    // ── Insert Leave Application (self-service, stays pending for review) ────
     const { rows } = await query(
       `INSERT INTO leave_applications
          (user_id, leave_type_id, start_date, end_date, working_days_count, reason, status)
@@ -263,14 +312,16 @@ async function getLeaveApplications(req, res, next) {
     const { rows } = await query(
       `SELECT la.id, la.user_id, la.leave_type_id, la.start_date, la.end_date,
               la.working_days_count, la.reason, la.status, la.admin_notes,
-              la.decline_reason, la.reviewed_at, la.created_at,
+              la.decline_reason, la.reviewed_at, la.created_at, la.filed_by,
               lt.name AS leave_type_name, lt.is_paid,
               u.name AS employee_name, u.employee_id, u.designation,
-              r.name AS reviewer_name
+              r.name AS reviewer_name,
+              f.name AS filed_by_name
        FROM leave_applications la
        JOIN leave_types lt ON lt.id = la.leave_type_id
        JOIN users u ON u.id = la.user_id
        LEFT JOIN users r ON r.id = la.reviewed_by
+       LEFT JOIN users f ON f.id = la.filed_by
        ${whereClause}
        ORDER BY la.created_at DESC`,
       params
@@ -280,6 +331,70 @@ async function getLeaveApplications(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+/**
+ * Approves a pending leave application: for paid leave, deducts balance with a
+ * matching ledger entry (row-locked, atomic); always marks the application
+ * approved. Must be called with an active transactional client (caller has
+ * already issued BEGIN). Shared by the admin review endpoint and by
+ * admin-on-behalf-of filing (applyLeave), so balance-deduction logic lives in
+ * exactly one place.
+ * Throws an Error with .statusCode set for expected failure cases (400s) —
+ * caller is responsible for ROLLBACK + mapping to an HTTP response.
+ */
+async function approvePendingApplication(client, application, { reviewerId, adminNotes }) {
+  if (application.is_paid) {
+    const leaveYear = parseInt(new Date(application.start_date).toISOString().slice(0, 4), 10);
+    await ensureUserLeaveBalances(client, application.user_id, leaveYear);
+
+    const { rows: balRows } = await client.query(
+      `SELECT id, allotted, used, remaining
+       FROM leave_balances
+       WHERE user_id = $1 AND leave_type_id = $2 AND year = $3
+       FOR UPDATE`,
+      [application.user_id, application.leave_type_id, leaveYear]
+    );
+
+    if (balRows.length === 0) {
+      const err = new Error('Leave balance record not found.');
+      err.statusCode = 400;
+      throw err;
+    }
+
+    const balance = balRows[0];
+    if (balance.remaining < application.working_days_count) {
+      const err = new Error(
+        `Cannot approve leave: Employee has insufficient balance (${balance.remaining} available, ${application.working_days_count} required).`
+      );
+      err.statusCode = 400;
+      throw err;
+    }
+
+    await applyLedgerEntry(client, {
+      userId: application.user_id,
+      leaveTypeId: application.leave_type_id,
+      year: leaveYear,
+      entryType: 'LEAVE_TAKEN',
+      amount: application.working_days_count,
+      note: `${application.leave_type_name}: ${new Date(application.start_date).toISOString().slice(0, 10)} to ${new Date(application.end_date).toISOString().slice(0, 10)}`,
+      createdBy: reviewerId,
+    });
+  }
+
+  const { rows } = await client.query(
+    `UPDATE leave_applications
+     SET
+       status       = 'approved',
+       reviewed_by  = $1,
+       reviewed_at  = NOW(),
+       admin_notes  = $2,
+       updated_at   = NOW()
+     WHERE id = $3
+     RETURNING *`,
+    [reviewerId, adminNotes?.trim() || null, application.id]
+  );
+  return rows[0];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -325,57 +440,18 @@ async function reviewLeaveApplication(req, res, next) {
     let updatedApplication;
 
     if (status === 'approved') {
-      // If paid leave, deduct balance in transaction
-      if (application.is_paid) {
-        const leaveYear = parseInt(new Date(application.start_date).toISOString().slice(0, 4), 10);
-        await ensureUserLeaveBalances(client, application.user_id, leaveYear);
-
-        const { rows: balRows } = await client.query(
-          `SELECT id, allotted, used, remaining
-           FROM leave_balances
-           WHERE user_id = $1 AND leave_type_id = $2 AND year = $3
-           FOR UPDATE`,
-          [application.user_id, application.leave_type_id, leaveYear]
-        );
-
-        if (balRows.length === 0) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({ message: 'Leave balance record not found.' });
-        }
-
-        const balance = balRows[0];
-        if (balance.remaining < application.working_days_count) {
-          await client.query('ROLLBACK');
-          return res.status(400).json({
-            message: `Cannot approve leave: Employee has insufficient balance (${balance.remaining} available, ${application.working_days_count} required).`,
-          });
-        }
-
-        // Deduct balance by incrementing used, with a matching ledger entry
-        await applyLedgerEntry(client, {
-          userId: application.user_id,
-          leaveTypeId: application.leave_type_id,
-          year: leaveYear,
-          entryType: 'LEAVE_TAKEN',
-          amount: application.working_days_count,
-          note: `${application.leave_type_name}: ${new Date(application.start_date).toISOString().slice(0, 10)} to ${new Date(application.end_date).toISOString().slice(0, 10)}`,
-          createdBy: req.user.id,
+      try {
+        updatedApplication = await approvePendingApplication(client, application, {
+          reviewerId: req.user.id,
+          adminNotes: admin_notes,
         });
+      } catch (err) {
+        if (err.statusCode) {
+          await client.query('ROLLBACK');
+          return res.status(err.statusCode).json({ message: err.message });
+        }
+        throw err;
       }
-
-      const { rows } = await client.query(
-        `UPDATE leave_applications
-         SET
-           status       = 'approved',
-           reviewed_by  = $1,
-           reviewed_at  = NOW(),
-           admin_notes  = $2,
-           updated_at   = NOW()
-         WHERE id = $3
-         RETURNING *`,
-        [req.user.id, admin_notes?.trim() || null, id]
-      );
-      updatedApplication = rows[0];
     } else {
       // Declined — mandatory decline_reason
       if (!decline_reason || !decline_reason.trim()) {
