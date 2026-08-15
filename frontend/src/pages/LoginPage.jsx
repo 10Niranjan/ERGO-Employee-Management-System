@@ -1,26 +1,20 @@
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
-  AlertCircle,
-  CalendarCheck,
-  Clock4,
+  Mail,
+  Lock,
   Eye,
   EyeOff,
-  Lock,
-  ShieldCheck,
-  User,
-  Wallet,
+  ArrowRight,
+  CreditCard,
+  Menu,
+  CheckCircle,
+  Globe,
+  AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { loginApi } from '../api/authApi';
-import ThemeToggle from '../components/ThemeToggle';
 import './LoginPage.css';
-
-const FEATURES = [
-  { icon: Clock4, text: 'Daily attendance with audited overrides' },
-  { icon: CalendarCheck, text: 'Transparent leave approval workflow' },
-  { icon: Wallet, text: 'Automated salary computation & payslips' },
-];
 
 export default function LoginPage() {
   const { login } = useAuth();
@@ -68,61 +62,100 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      {/* Branding panel — hidden on narrow viewports */}
+      {/* ─── LEFT PANEL (Animated Brand Panel) ──────────────────────── */}
       <div className="login-brand-panel">
-        <div className="brand-panel-glow" aria-hidden="true" />
-        <div className="brand-panel-grid" aria-hidden="true" />
+        
+        {/* Animated Mesh Background */}
+        <div className="bg-mesh" aria-hidden="true" />
+        
+        {/* Converging Chevrons Animation */}
+        <div className="converge" aria-hidden="true">
+          <svg viewBox="0 0 700 900" preserveAspectRatio="xMidYMid slice">
+            <path className="chev chev-track" d="M 40,140 Q 260,200 340,420" />
+            <path className="chev chev-run c1" d="M 40,140 Q 260,200 340,420" />
+            
+            <path className="chev chev-track" d="M 660,120 Q 440,220 340,420" />
+            <path className="chev chev-run c2" d="M 660,120 Q 440,220 340,420" />
+            
+            <path className="chev chev-track" d="M 90,760 Q 260,560 340,420" />
+            <path className="chev chev-run c3" d="M 90,760 Q 260,560 340,420" />
+            
+            <circle className="hub-ring" cx="340" cy="420" r="6" />
+            <circle className="hub" cx="340" cy="420" r="3.2" />
+          </svg>
+        </div>
 
+        {/* Floating Widgets */}
+        <div className="glass-widget w1">
+          <div className="widget-icon red">
+            <Menu size={18} strokeWidth={2.5} />
+          </div>
+          <div className="widget-text">
+            <span className="widget-title">Shipment #4821</span>
+            <span className="widget-sub">IN TRANSIT &middot; MUMBAI &rarr; ROTTERDAM</span>
+          </div>
+        </div>
+
+        <div className="glass-widget w2">
+          <div className="widget-icon white">
+            <CheckCircle size={18} strokeWidth={2.5} />
+          </div>
+          <div className="widget-text">
+            <span className="widget-title">Supplier Audit Passed</span>
+            <span className="widget-sub">PUNE FACILITY &middot; TODAY</span>
+          </div>
+        </div>
+
+        <div className="glass-widget w3">
+          <div className="widget-icon red">
+            <Globe size={18} strokeWidth={2.5} />
+          </div>
+          <div className="widget-text">
+            <span className="widget-title">3 Regions Live</span>
+            <span className="widget-sub">EUROPE &middot; ASIA &middot; USA</span>
+          </div>
+        </div>
+
+        {/* Content */}
         <div className="brand-panel-content">
-          <div className="login-brand">
-            <div className="login-logo" aria-hidden="true">E</div>
-            <span className="login-brand-name">Ergo Management</span>
+          <div className="login-logo-row fade-up-1">
+            <div className="login-brand-badge">
+              <img
+                src="/ergo-logo.jpg"
+                alt="ERGO Logo"
+                className="login-logo-img"
+              />
+            </div>
+            <span className="login-portal-label">EMPLOYEE PORTAL</span>
           </div>
 
-          <div className="brand-panel-copy">
-            <h2 className="brand-panel-heading">
-              Workforce management, without the spreadsheets.
-            </h2>
+          <div className="fade-up-2">
+            <div className="login-eyebrow">
+              <div className="login-eyebrow-line" />
+              <span className="login-eyebrow-text">INTERNAL ACCESS</span>
+            </div>
+            <h1 className="brand-panel-heading">
+              Your sourcing office, now <span>one sign-in</span> away.
+            </h1>
             <p className="brand-panel-subtext">
-              One system for attendance, leave, and payroll — built for growing teams.
+              Supplier files, shipment status, and quality reports for the Europe, Asia &amp; USA teams &mdash; all in your workspace.
             </p>
           </div>
-
-          <ul className="brand-feature-list">
-            {FEATURES.map(({ icon: Icon, text }) => (
-              <li key={text}>
-                <span className="brand-feature-icon">
-                  <Icon size={16} aria-hidden="true" />
-                </span>
-                <span>{text}</span>
-              </li>
-            ))}
-          </ul>
         </div>
 
-        <div className="brand-panel-footer">
-          <ShieldCheck size={14} aria-hidden="true" />
-          <span>Role-based access, enforced server-side</span>
-        </div>
       </div>
 
-      {/* Form panel */}
+      {/* ─── RIGHT PANEL (Form Panel) ──────────────────────────────── */}
       <div className="login-form-panel">
-        <ThemeToggle className="login-theme-toggle" />
         <div className="login-form-wrap">
-          <div className="login-brand login-brand-mobile">
-            <div className="login-logo" aria-hidden="true">E</div>
-            <span className="login-brand-name">Ergo Management</span>
-          </div>
-
-          <div className="login-heading">
-            <h1 className="login-title">Welcome back</h1>
-            <p className="text-muted text-sm">Sign in to access your HR workspace</p>
-          </div>
+          
+          <div className="form-eyebrow">WELCOME BACK</div>
+          <h2 className="form-heading">Sign in to your workspace</h2>
+          <p className="form-subtext">Use your ERGO employee credentials to continue.</p>
 
           <form id="login-form" onSubmit={handleSubmit} noValidate>
             {error && (
-              <div id="login-error-banner" className="alert alert-error" role="alert">
+              <div id="login-error-banner" className="alert alert-error" role="alert" style={{ marginBottom: '8px' }}>
                 <AlertCircle size={16} aria-hidden="true" />
                 <span>{error}</span>
               </div>
@@ -130,15 +163,15 @@ export default function LoginPage() {
 
             <div className="form-group">
               <label htmlFor="identifier" className="form-label">
-                Employee ID or Email
+                Work email
               </label>
               <div className="input-icon-wrapper">
-                <User className="input-icon" size={17} aria-hidden="true" />
+                <Mail className="input-icon" size={18} aria-hidden="true" />
                 <input
                   id="identifier"
-                  type="text"
+                  type="email"
                   autoComplete="username"
-                  placeholder="EMP001 or you@ergo.com"
+                  placeholder="you@ergo-asia.co"
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
@@ -152,7 +185,7 @@ export default function LoginPage() {
                 Password
               </label>
               <div className="input-icon-wrapper">
-                <Lock className="input-icon" size={17} aria-hidden="true" />
+                <Lock className="input-icon" size={18} aria-hidden="true" />
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
@@ -165,30 +198,45 @@ export default function LoginPage() {
                 />
                 <button
                   type="button"
-                  id="toggle-password-visibility"
                   className="password-toggle"
                   onClick={() => setShowPassword((v) => !v)}
                   aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
-                  {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
+                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
                 </button>
               </div>
             </div>
 
+            <div className="form-options-row">
+              <label className="checkbox-label">
+                <input type="checkbox" defaultChecked />
+                Keep me signed in
+              </label>
+              <button type="button" className="forgot-link">
+                Forgot password?
+              </button>
+            </div>
+
             <button
-              id="login-submit-btn"
               type="submit"
-              className="btn btn-primary btn-full login-btn"
+              className="login-submit-btn"
               disabled={loading || !identifier || !password}
             >
-              {loading ? <span className="spinner" aria-hidden="true" /> : null}
-              {loading ? 'Signing in…' : 'Sign In'}
+              {loading ? (
+                <span className="spinner" aria-hidden="true" />
+              ) : (
+                <>
+                  Sign in
+                  <ArrowRight className="btn-arrow" size={18} />
+                </>
+              )}
             </button>
           </form>
 
-          <p className="login-footer text-muted text-sm">
-            Trouble logging in? Contact your administrator.
-          </p>
+          <div className="login-form-footer">
+            Trouble signing in? Contact IT support at<br />
+            <a href="mailto:it@ergo-asia.co">it@ergo-asia.co</a>
+          </div>
         </div>
       </div>
     </div>

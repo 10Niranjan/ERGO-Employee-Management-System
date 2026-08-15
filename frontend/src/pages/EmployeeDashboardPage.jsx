@@ -364,11 +364,11 @@ export default function EmployeeDashboardPage() {
         {/* Sidebar Brand Header */}
         <div className="employee-sidebar-header">
           <div className="employee-brand-left">
-            <div className="employee-brand-icon">E</div>
-            <div className="employee-brand-text">
-              <span className="brand-name">Ergo Management</span>
-              <span className="brand-sub">Employee Portal</span>
-            </div>
+            <img
+              src="/ergo-logo.jpg"
+              alt="ERGO Logo"
+              className="employee-sidebar-logo"
+            />
           </div>
 
           <button
@@ -430,8 +430,11 @@ export default function EmployeeDashboardPage() {
               <Menu size={20} aria-hidden="true" />
             </button>
             <div className="employee-header-brand-mobile">
-              <div className="employee-brand-icon-sm">E</div>
-              <span className="brand-name-sm">Ergo Self-Service</span>
+              <img
+                src="/ergo-logo.jpg"
+                alt="ERGO"
+                className="employee-header-logo-mobile"
+              />
             </div>
           </div>
 

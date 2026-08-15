@@ -1,12 +1,13 @@
 /* AdminAttendancePage.css */
+
+/* Tab Pill Switcher */
 .tab-pill-switcher {
   display: flex;
   background-color: var(--color-surface-2);
-  border: var(--border-w) solid var(--color-ink);
-  box-shadow: var(--shadow-sm);
+  border: 1px solid var(--color-border);
   padding: 3px;
   border-radius: var(--radius-md);
-  gap: 3px;
+  gap: 2px;
 }
 
 .tab-pill-btn {
@@ -14,13 +15,11 @@
   align-items: center;
   gap: var(--space-2);
   background: transparent;
-  color: var(--color-text);
-  border: var(--border-w-thin) solid transparent;
+  color: var(--color-text-muted);
+  border: 1px solid transparent;
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
+  font-weight: 600;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
@@ -28,15 +27,18 @@
 
 .tab-pill-btn:hover {
   background-color: var(--color-surface);
-  border-color: var(--color-ink);
+  color: var(--color-text);
+  border-color: var(--color-border);
 }
 
 .tab-pill-btn.active {
   background-color: var(--color-primary);
-  color: var(--color-on-primary);
-  border-color: var(--color-ink);
+  color: #ffffff;
+  border-color: transparent;
+  box-shadow: var(--shadow-sm);
 }
 
+/* Date picker */
 .date-picker-group {
   display: flex;
   align-items: center;
