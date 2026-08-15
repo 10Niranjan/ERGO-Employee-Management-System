@@ -1,0 +1,57 @@
+/* SalaryManagementPage.css */
+
+.salary-rate-highlight {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+  color: var(--color-success);
+  font-family: var(--font-mono);
+}
+
+.text-xs {
+  font-size: var(--font-size-xs);
+}
+
+.salary-compute-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+/* Tab bar */
+.employee-section-tabs {
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.emp-tab-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-5);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  color: var(--color-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: color var(--transition-fast), border-color var(--transition-fast);
+}
+
+.emp-tab-btn:hover {
+  color: var(--color-text);
+  border-bottom-color: var(--color-border);
+}
+
+.emp-tab-btn.active {
+  color: var(--color-primary);
+  border-bottom-color: var(--color-primary);
+  font-weight: 700;
+}
+
+:root[data-theme="light"] .emp-tab-btn.active {
+  color: #203B78;
+  border-bottom-color: #203B78;
+}

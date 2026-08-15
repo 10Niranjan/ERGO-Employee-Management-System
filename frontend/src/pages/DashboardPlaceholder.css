@@ -1,0 +1,119 @@
+/* DashboardPlaceholder.css — shared by placeholder pages */
+
+.placeholder-layout {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-bg);
+}
+
+.placeholder-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4) var(--space-8);
+  background-color: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: var(--shadow-sm);
+}
+
+.placeholder-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  font-size: var(--font-size-md);
+}
+
+.brand-dot {
+  width: 32px;
+  height: 32px;
+  background: linear-gradient(135deg, #203B78 0%, #4A6FD8 100%);
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 800;
+  color: #ffffff;
+  font-size: var(--font-size-sm);
+  box-shadow: 0 2px 6px rgba(32, 59, 120, 0.3);
+}
+
+.placeholder-user {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.role-badge {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  padding: 3px var(--space-3);
+  border-radius: var(--radius-full);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.role-admin {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+:root[data-theme="light"] .role-admin { color: #203B78; }
+
+.role-employee {
+  background-color: var(--color-success-light);
+  color: var(--color-success);
+}
+
+.placeholder-main {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-8);
+}
+
+.placeholder-hero {
+  text-align: center;
+  max-width: 520px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-5);
+  animation: slideUp 0.4s ease both;
+}
+
+.placeholder-icon {
+  font-size: 3rem;
+}
+
+.placeholder-hero h1 {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+}
+
+.placeholder-info {
+  display: flex;
+  gap: var(--space-8);
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+  padding-top: var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.info-item strong {
+  font-size: var(--font-size-md);
+  font-weight: 700;
+}
