@@ -43,6 +43,7 @@ import {
   listPayslips,
   downloadPayslipPDF,
 } from '../api/reportApi';
+import { getHolidays } from '../api/holidayApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import ThemeToggle from '../components/ThemeToggle';
@@ -116,6 +117,11 @@ export default function EmployeeDashboardPage() {
   const [salaryCalcLoading, setSalaryCalcLoading] = useState(false);
   const [myPayslips, setMyPayslips] = useState([]);
   const [myPayslipsLoading, setMyPayslipsLoading] = useState(false);
+
+  // ─── Holiday Calendar states ───────────────────────────────────────────────
+  const [holidays, setHolidays] = useState([]);
+  const [holidaysLoading, setHolidaysLoading] = useState(false);
+  const [holidayYear, setHolidayYear] = useState(now.getFullYear());
 
   function handleLogout() {
     logout();
@@ -222,6 +228,19 @@ export default function EmployeeDashboardPage() {
     }
   }, []);
 
+  // Fetch holidays for the year
+  const fetchYearlyHolidays = useCallback(async () => {
+    setHolidaysLoading(true);
+    try {
+      const data = await getHolidays({ year: holidayYear });
+      setHolidays(data.holidays || []);
+    } catch (err) {
+      console.error('Failed to fetch holidays', err);
+    } finally {
+      setHolidaysLoading(false);
+    }
+  }, [holidayYear]);
+
   useEffect(() => {
     fetchTodayStatus();
     fetchBalances();
@@ -237,8 +256,10 @@ export default function EmployeeDashboardPage() {
     if (activeTab === 'payslips') {
       fetchMySalary();
       fetchMyPayslips();
+    } else if (activeTab === 'holidays') {
+      fetchYearlyHolidays();
     }
-  }, [activeTab, fetchMySalary, fetchMyPayslips]);
+  }, [activeTab, fetchMySalary, fetchMyPayslips, fetchYearlyHolidays]);
 
   // Handle marking attendance
   async function handleMarkAttendance(statusToMark) {
@@ -343,6 +364,7 @@ export default function EmployeeDashboardPage() {
     { id: 'attendance', label: 'Attendance & Calendar', icon: Clock4 },
     { id: 'leaves', label: 'Leave & Requests', icon: Palmtree },
     { id: 'payslips', label: 'Salary & Payslips', icon: Wallet },
+    { id: 'holidays', label: 'Holiday Calendar', icon: CalendarDays },
   ];
 
   return (
@@ -726,6 +748,93 @@ export default function EmployeeDashboardPage() {
                 </div>
               </div>
             </>
+          ) : activeTab === 'holidays' ? (
+            /* ─── Holiday Calendar Section ─────────────────────────────────────────── */
+            <div className="holidays-section">
+              <div className="page-header-row" style={{ marginBottom: 'var(--space-2)' }}>
+                <div>
+                  <h2 className="section-title">Company Holiday Calendar</h2>
+                  <p className="text-muted text-sm">
+                    Public and national holidays are auto-exempt from attendance and leave deductions.
+                  </p>
+                </div>
+              </div>
+
+              <div className="page-controls card" style={{ marginBottom: 'var(--space-4)' }}>
+                <div className="year-selector-group">
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setHolidayYear((y) => y - 1)}
+                  >
+                    ← {holidayYear - 1}
+                  </button>
+                  <span className="selected-year-badge">Calendar Year {holidayYear}</span>
+                  <button
+                    type="button"
+                    className="btn btn-ghost btn-sm"
+                    onClick={() => setHolidayYear((y) => y + 1)}
+                  >
+                    {holidayYear + 1} →
+                  </button>
+                </div>
+                <span className="text-muted text-sm">
+                  Total Holidays in {holidayYear}: <strong>{holidays.length}</strong>
+                </span>
+              </div>
+
+              <div className="table-card card">
+                {holidaysLoading ? (
+                  <div className="state-container">
+                    <span className="spinner" />
+                    <p className="text-muted">Loading holidays for {holidayYear}...</p>
+                  </div>
+                ) : holidays.length === 0 ? (
+                  <div className="state-container">
+                    <CalendarDays className="state-icon" size={40} aria-hidden="true" />
+                    <h3>No holidays announced for {holidayYear}</h3>
+                    <p className="text-muted text-sm">
+                      Check back later for updates.
+                    </p>
+                  </div>
+                ) : (
+                  <div className="table-responsive">
+                    <table className="data-table">
+                      <thead>
+                        <tr>
+                          <th>Date</th>
+                          <th>Day of Week</th>
+                          <th>Holiday Name</th>
+                          <th>Type</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {holidays.map((h) => (
+                          <tr key={h.id}>
+                            <td>
+                              <strong className="holiday-date-text">
+                                {new Date(h.date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' })}
+                              </strong>
+                            </td>
+                            <td>
+                              <span className="text-muted text-sm">
+                                {new Date(h.date).toLocaleDateString('en-IN', { weekday: 'long' })}
+                              </span>
+                            </td>
+                            <td>
+                              <strong className="emp-fullname">{h.name}</strong>
+                            </td>
+                            <td>
+                              <span className="status-pill status-paid">Paid Public Holiday</span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </div>
           ) : activeTab === 'leaves' ? (
             /* ─── Leaves & Balances Section ──────────────────────────────── */
             <div className="leaves-section">
