@@ -1,7 +1,25 @@
 /* EmployeeDashboardPage.css — Left Vertical Sidebar & Responsive Employee Layout */
 
 :root {
-  --employee-sidebar-width: 260px;
+  --employee-sidebar-width: 256px;
+
+  --emp-sidebar-bg:         #141827;
+  --emp-sidebar-border:     rgba(255, 255, 255, 0.06);
+  --emp-sidebar-link-hover: rgba(74, 111, 216, 0.12);
+  --emp-sidebar-link-active-bg: rgba(74, 111, 216, 0.18);
+  --emp-sidebar-link-active-color: #7A9EF0;
+  --emp-sidebar-text:       #A8B3CC;
+  --emp-sidebar-text-strong:#D8DDEF;
+}
+
+:root[data-theme="light"] {
+  --emp-sidebar-bg:         #ffffff;
+  --emp-sidebar-border:     rgba(32, 59, 120, 0.10);
+  --emp-sidebar-link-hover: rgba(32, 59, 120, 0.06);
+  --emp-sidebar-link-active-bg: rgba(32, 59, 120, 0.10);
+  --emp-sidebar-link-active-color: #203B78;
+  --emp-sidebar-text:       #4B5563;
+  --emp-sidebar-text-strong:#111827;
 }
 
 .employee-app-layout {
@@ -9,6 +27,31 @@
   display: flex;
   background-color: var(--color-bg);
   position: relative;
+}
+
+/* ─── Sidebar Logo Image ─────────────────────────────────────── */
+.employee-sidebar-logo {
+  height: 40px;
+  width: 140px;
+  object-fit: contain;
+  object-position: left center;
+  background: #ffffff;
+  border-radius: var(--radius-md);
+  padding: 4px 8px;
+  display: block;
+}
+
+:root[data-theme="light"] .employee-sidebar-logo {
+  background: transparent;
+  padding: 0;
+}
+
+.employee-header-logo-mobile {
+  height: 30px;
+  width: auto;
+  max-width: 100px;
+  object-fit: contain;
+  display: block;
 }
 
 /* ─── Left Vertical Sidebar ───────────────────────────────────── */
@@ -19,12 +62,13 @@
   top: 0;
   left: 0;
   bottom: 0;
-  background-color: var(--color-surface);
-  border-right: var(--border-w) solid var(--color-border);
+  background-color: var(--emp-sidebar-bg);
+  border-right: 1px solid var(--emp-sidebar-border);
   display: flex;
   flex-direction: column;
   z-index: 50;
   transition: transform var(--transition-md), box-shadow var(--transition-md);
+  overflow: hidden;
 }
 
 .employee-sidebar-header {
@@ -33,7 +77,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  border-bottom: var(--border-w) solid var(--color-border);
+  border-bottom: 1px solid var(--emp-sidebar-border);
   flex-shrink: 0;
 }
 
@@ -46,17 +90,17 @@
 .employee-brand-icon {
   width: 36px;
   height: 36px;
-  background: var(--color-accent);
-  border: var(--border-w-thin) solid var(--color-border);
+  background: linear-gradient(135deg, #203B78 0%, #4A6FD8 100%);
   border-radius: var(--radius-md);
   display: flex;
   align-items: center;
   justify-content: center;
   font-family: var(--font-display);
-  font-size: var(--font-size-md);
+  font-size: 18px;
   font-weight: 900;
-  color: var(--color-on-primary);
-  box-shadow: var(--shadow-sm);
+  color: #ffffff;
+  letter-spacing: -0.05em;
+  box-shadow: 0 2px 8px rgba(32, 59, 120, 0.4);
   flex-shrink: 0;
 }
 
@@ -91,13 +135,14 @@
 }
 
 .employee-nav-section-title {
-  font-size: 0.6875rem;
+  font-size: 0.65rem;
   text-transform: uppercase;
   letter-spacing: 0.12em;
-  color: var(--color-text-subtle);
-  font-weight: 800;
+  color: var(--emp-sidebar-text);
+  font-weight: 700;
   padding: var(--space-2) var(--space-3);
   margin-bottom: var(--space-1);
+  opacity: 0.7;
 }
 
 .employee-sidebar-link {
@@ -107,13 +152,12 @@
   width: 100%;
   text-align: left;
   background: transparent;
-  border: none;
-  padding: 0.625rem var(--space-3);
-  border: var(--border-w-thin) solid transparent;
+  padding: 0.6rem var(--space-3);
+  border: 1px solid transparent;
   border-radius: var(--radius-md);
-  color: var(--color-text-muted);
+  color: var(--emp-sidebar-text);
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: 500;
   transition: all var(--transition-fast);
   cursor: pointer;
   position: relative;
@@ -121,29 +165,39 @@
 }
 
 .employee-sidebar-link:hover {
-  color: var(--color-text);
-  background-color: var(--color-surface-2);
-  border-color: var(--color-border);
+  color: var(--emp-sidebar-text-strong);
+  background-color: var(--emp-sidebar-link-hover);
+  border-color: transparent;
 }
 
 .employee-sidebar-link-active {
-  color: var(--color-primary);
-  background-color: var(--color-primary-light);
+  color: var(--emp-sidebar-link-active-color);
+  background-color: var(--emp-sidebar-link-active-bg);
   border-color: transparent;
-  box-shadow: inset 2px 0 0 var(--color-primary);
-  font-weight: 700;
-  overflow: hidden;
+  font-weight: 600;
+}
+
+/* Left accent stripe on active */
+.employee-sidebar-link-active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 20%;
+  bottom: 20%;
+  width: 3px;
+  background: var(--color-primary);
+  border-radius: 0 2px 2px 0;
 }
 
 .employee-sidebar-link-active:hover {
-  background-color: var(--color-primary-light);
-  color: var(--color-primary);
+  background-color: var(--emp-sidebar-link-active-bg);
+  color: var(--emp-sidebar-link-active-color);
 }
 
 .employee-sidebar-footer {
-  padding: var(--space-4) var(--space-5);
-  border-top: var(--border-w) solid var(--color-border);
-  background-color: var(--color-surface);
+  padding: var(--space-4) var(--space-4);
+  border-top: 1px solid var(--emp-sidebar-border);
+  background-color: var(--emp-sidebar-bg);
   flex-shrink: 0;
 }
 
@@ -170,7 +224,8 @@
   justify-content: space-between;
   padding: 0 var(--space-8);
   background-color: var(--color-surface);
-  border-bottom: var(--border-w) solid var(--color-border);
+  border-bottom: 1px solid var(--color-border);
+  box-shadow: var(--shadow-sm);
 }
 
 .employee-header-left {
@@ -196,12 +251,12 @@
 
 .employee-mobile-menu-btn:hover {
   background-color: var(--color-primary);
-  color: var(--color-on-primary);
+  color: #ffffff;
+  border-color: var(--color-primary);
 }
 
 .employee-mobile-menu-btn:active {
-  transform: translate(var(--press), var(--press));
-  box-shadow: var(--shadow-flat);
+  transform: scale(0.95);
 }
 
 .employee-header-brand-mobile {
@@ -213,8 +268,7 @@
 .employee-brand-icon-sm {
   width: 28px;
   height: 28px;
-  background: var(--color-accent);
-  border: var(--border-w-thin) solid var(--color-border);
+  background: linear-gradient(135deg, #203B78 0%, #4A6FD8 100%);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -222,7 +276,7 @@
   font-family: var(--font-display);
   font-size: var(--font-size-xs);
   font-weight: 900;
-  color: var(--color-on-primary);
+  color: #ffffff;
 }
 
 .employee-header-right {
@@ -250,8 +304,10 @@
   gap: var(--space-6);
   padding: var(--space-6);
   background: var(--color-surface);
-  border: var(--border-w) solid var(--color-border);
-  border-left: 2px solid var(--color-primary);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  border-top: 3px solid var(--color-primary);
+  box-shadow: var(--shadow-sm);
 }
 
 .today-hero-info {
@@ -356,10 +412,10 @@
   gap: 2px;
   background-color: var(--color-primary-light);
   color: var(--color-primary);
-  border: var(--border-w-thin) solid var(--color-ink);
   padding: 1px var(--space-2);
   border-radius: var(--radius-sm);
-  font-weight: 800;
+  font-weight: 700;
+  font-size: var(--font-size-xs);
 }
 
 /* Calendar Section */
@@ -387,13 +443,12 @@
 .current-month-badge {
   font-family: var(--font-display);
   font-size: var(--font-size-md);
-  font-weight: 900;
-  text-transform: uppercase;
-  color: var(--color-on-accent);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: #ffffff;
   padding: var(--space-1) var(--space-4);
-  background-color: var(--color-accent);
+  background: linear-gradient(135deg, #203B78 0%, #4A6FD8 100%);
   border-radius: var(--radius-md);
-  border: var(--border-w) solid var(--color-ink);
   box-shadow: var(--shadow-sm);
 }
 
@@ -455,7 +510,8 @@
 }
 
 .prompt-option-card:hover {
-  transform: translate(-2px, -2px);
+  border-color: rgba(74, 111, 216, 0.3);
+  background-color: var(--color-surface-hover);
   box-shadow: var(--shadow-sm);
 }
 
@@ -516,7 +572,8 @@
   .employee-sidebar-backdrop {
     position: fixed;
     inset: 0;
-    background-color: rgba(0, 0, 0, 0.7);
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(2px);
     z-index: 45;
     animation: fadeIn 0.2s ease both;
   }

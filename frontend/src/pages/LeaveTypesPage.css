@@ -1,28 +1,41 @@
 /* LeaveTypesPage.css */
+
 .policy-banner {
   display: flex;
   align-items: center;
   gap: var(--space-4);
-  background-color: var(--color-surface-2);
-  border: var(--border-w) solid var(--color-ink);
-  border-left: 12px solid var(--color-primary);
+  background-color: var(--color-primary-light);
+  border: 1px solid rgba(74, 111, 216, 0.2);
+  border-left: 4px solid var(--color-primary);
+  border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
   padding: var(--space-4);
   font-size: var(--font-size-sm);
   line-height: 1.5;
 }
 
+:root[data-theme="light"] .policy-banner {
+  background-color: rgba(32, 59, 120, 0.06);
+  border-color: rgba(32, 59, 120, 0.15);
+  border-left-color: #203B78;
+}
+
 .policy-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
-  color: var(--color-text);
+  color: var(--color-primary);
+}
+
+:root[data-theme="light"] .policy-icon {
+  color: #203B78;
 }
 
 .policy-text {
   color: var(--color-text);
-  font-weight: 600;
+  font-weight: 500;
 }
 
+/* Radio options */
 .radio-options-row {
   display: flex;
   gap: var(--space-6);
@@ -35,9 +48,11 @@
   gap: var(--space-2);
   cursor: pointer;
   font-size: var(--font-size-sm);
+  font-weight: 500;
 }
 
 .radio-label input[type="radio"] {
   width: auto;
   cursor: pointer;
+  accent-color: var(--color-primary);
 }

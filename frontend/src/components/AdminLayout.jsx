@@ -82,11 +82,11 @@ export default function AdminLayout() {
         {/* Sidebar Brand Header */}
         <div className="admin-sidebar-header">
           <div className="admin-brand-left">
-            <div className="admin-brand-icon">E</div>
-            <div className="admin-brand-text">
-              <span className="brand-name">Ergo Management</span>
-              <span className="brand-sub">Admin Portal</span>
-            </div>
+            <img
+              src="/ergo-logo.jpg"
+              alt="ERGO Logo"
+              className="admin-sidebar-logo"
+            />
           </div>
 
           <button
@@ -146,8 +146,11 @@ export default function AdminLayout() {
               <Menu size={20} aria-hidden="true" />
             </button>
             <div className="admin-header-brand-mobile">
-              <div className="admin-brand-icon-sm">E</div>
-              <span className="brand-name-sm">Ergo Admin</span>
+              <img
+                src="/ergo-logo.jpg"
+                alt="ERGO"
+                className="admin-header-logo-mobile"
+              />
             </div>
           </div>
 

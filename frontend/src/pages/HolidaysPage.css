@@ -1,4 +1,5 @@
 /* HolidaysPage.css */
+
 .year-selector-group {
   display: flex;
   align-items: center;
@@ -8,16 +9,17 @@
 .selected-year-badge {
   font-family: var(--font-display);
   font-size: var(--font-size-md);
-  font-weight: 900;
-  color: var(--color-on-accent);
-  background-color: var(--color-accent);
+  font-weight: 800;
+  color: #ffffff;
+  background: linear-gradient(135deg, #203B78 0%, #4A6FD8 100%);
   padding: var(--space-1) var(--space-4);
   border-radius: var(--radius-md);
-  border: var(--border-w) solid var(--color-ink);
   box-shadow: var(--shadow-sm);
+  letter-spacing: -0.01em;
 }
 
 .holiday-date-text {
   color: var(--color-text);
   font-size: var(--font-size-sm);
+  font-family: var(--font-mono);
 }
