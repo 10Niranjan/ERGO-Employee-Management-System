@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import {
   Mail,
   Lock,
@@ -212,9 +212,9 @@ export default function LoginPage() {
                 <input type="checkbox" defaultChecked />
                 Keep me signed in
               </label>
-              <button type="button" className="forgot-link">
+              <Link to="/forgot-password" className="forgot-link">
                 Forgot password?
-              </button>
+              </Link>
             </div>
 
             <button

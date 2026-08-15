@@ -15,6 +15,12 @@ import AdminLayout from '../components/AdminLayout';
 // Pages
 import LoginPage from '../pages/LoginPage';
 import ResetPasswordPage from '../pages/ResetPasswordPage';
+import ForgotPasswordChoicePage from '../pages/ForgotPasswordChoicePage';
+import AdminForgotPasswordPage from '../pages/AdminForgotPasswordPage';
+import AdminVerifyOtpPage from '../pages/AdminVerifyOtpPage';
+import AdminResetPasswordPage from '../pages/AdminResetPasswordPage';
+import EmployeeForgotPasswordPage from '../pages/EmployeeForgotPasswordPage';
+import AdminPasswordResetsPage from '../pages/AdminPasswordResetsPage';
 import AdminDashboardPage from '../pages/AdminDashboardPage';
 import AdminReportsPage from '../pages/AdminReportsPage';
 import AdminAttendancePage from '../pages/AdminAttendancePage';
@@ -41,6 +47,31 @@ export default function AppRouter() {
                   <LoginPage />
                 </GuestOnly>
               }
+            />
+
+            {/* ─── Password recovery (public) ──────────────────────────
+                Declared as siblings of /admin rather than children, because
+                /admin is gated by RequireAdmin — a locked-out admin has no
+                session yet and would be bounced straight back to /login. */}
+            <Route
+              path="/forgot-password"
+              element={<GuestOnly><ForgotPasswordChoicePage /></GuestOnly>}
+            />
+            <Route
+              path="/admin/forgot-password"
+              element={<GuestOnly><AdminForgotPasswordPage /></GuestOnly>}
+            />
+            <Route
+              path="/admin/verify-otp"
+              element={<GuestOnly><AdminVerifyOtpPage /></GuestOnly>}
+            />
+            <Route
+              path="/admin/reset-password"
+              element={<GuestOnly><AdminResetPasswordPage /></GuestOnly>}
+            />
+            <Route
+              path="/employee/forgot-password"
+              element={<GuestOnly><EmployeeForgotPasswordPage /></GuestOnly>}
             />
 
             {/* ─── First-login forced password reset ───────────────── */}
@@ -72,6 +103,7 @@ export default function AppRouter() {
               <Route path="holidays" element={<HolidaysPage />} />
               <Route path="salaries" element={<SalaryManagementPage />} />
               <Route path="salary-history" element={<SalaryHistoryPage />} />
+              <Route path="password-resets" element={<AdminPasswordResetsPage />} />
             </Route>
 
             {/* ─── Employee routes ──────────────────────────────────── */}

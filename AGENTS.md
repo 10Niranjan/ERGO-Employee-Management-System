@@ -95,6 +95,61 @@ breakdown before assuming it's a bug.
   see `salary-logic-spec.md` if it's still in the repo/Downloads, or ask —
   it was a one-time input doc, not committed as a permanent reference.
 
+## Password reset — two flows (15 Aug 2026)
+
+Migration `013`. Two separate recovery paths, both reached from the login
+screen's "Forgot password?" link via a role chooser at `/forgot-password`
+(admins and employees share one login screen, and auto-detecting the role
+server-side would leak which accounts are admins).
+
+- **Flow 1 — admin, self-service.** `/admin/forgot-password` → `/admin/verify-otp`
+  → `/admin/reset-password`. A 6-digit code, 5-minute expiry, single use,
+  locked after 5 failed attempts. Codes are stored only as a keyed
+  HMAC-SHA256 (`OTP_PEPPER`, falling back to `JWT_SECRET`) — never plaintext.
+  A correct code mints a 32-byte, 10-minute, single-use *reset session token*
+  stored hashed; it is scoped to the reset action only and is never accepted
+  by the authenticate middleware.
+- **Flow 2 — employee, admin-mediated.** `/employee/forgot-password` raises a
+  request; an admin actions it under **Password Resets** in the sidebar, which
+  generates a 14-char random temp password shown **once** and never stored in
+  plaintext. A partial unique index (`uq_one_pending_reset_per_employee`)
+  guarantees one pending request per employee, so resubmitting surfaces the
+  existing row instead of duplicating it.
+
+Things that will bite you if you don't know them:
+
+- **`must_change_password` is `users.first_login`.** The spec named a new
+  column; `first_login` already meant exactly this and was already wired into
+  login, `GuestOnly`, `RequirePasswordReset` and the reset screen. A second
+  column would be two sources of truth for one state. Don't add one.
+- **"Log out of all devices" is `users.password_changed_at`.** Auth is
+  stateless JWT with no session store, so `authenticate` re-reads the account
+  on every request and rejects any token whose `iat` predates the last
+  password change. It compares at whole-second precision on purpose — without
+  that tolerance a token minted in the same second as a legitimate reset gets
+  rejected immediately. That lookup uses the raw `pool` rather than the shared
+  `query` helper specifically so it doesn't consume the per-request mock
+  chains the controller tests set up on `query`; each test file's `jest.mock`
+  factory gives `pool.query` a default active-user row.
+- **A pending password change is enforced twice, and it needs to be.** The
+  route guards redirect, and `blockUntilPasswordChanged` (applied in `app.js`
+  to every `/api` router except `/api/auth`) returns 403. The frontend guard
+  alone was a real, verified hole: a `first_login` user could type
+  `/employee/dashboard` and walk straight past the mandatory screen.
+- **Two password policies coexist deliberately.** The legacy
+  `POST /api/auth/reset-password` keeps its original looser rules (>=8, a
+  letter, a number) so existing behaviour and tests don't shift. Everything
+  new — the admin reset and the forced change — uses the strong policy in
+  `utils/passwordPolicy.js` (length, uppercase, number, symbol), mirrored on
+  the client by `components/PasswordChecklist.jsx`. Change one, change both.
+- **Rate limiters are skipped when `NODE_ENV === 'test'`** because their
+  counters are per-process and would leak across test cases. They are fully
+  active in dev and production.
+- **Email needs no SMTP locally.** With `SMTP_HOST` unset outside production,
+  `services/mailer.js` prints the message (including the code) to the server
+  console; in production a missing `SMTP_HOST` throws rather than silently
+  dropping a reset email.
+
 ## Frontend design system — "Ops Console" (current, 15 Aug 2026)
 
 The whole frontend runs one visual direction: **Ops Console** — "attendance

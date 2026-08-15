@@ -2,11 +2,20 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AlertCircle, Eye, EyeOff, KeyRound, Lock } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { resetPasswordApi } from '../api/authApi';
+import { forceChangePassword } from '../api/passwordResetApi';
+import PasswordChecklist, { meetsPolicy } from '../components/PasswordChecklist';
 import './ResetPasswordPage.css';
 
+/**
+ * Mandatory password change.
+ *
+ * Reached whenever `first_login` is true — on a genuinely new account, and
+ * after an admin issues a temporary password in the employee reset flow.
+ * RequirePasswordReset gates the route, so it can't be dismissed or navigated
+ * away from until a new password is set.
+ */
 export default function ResetPasswordPage() {
-  const { user, updateUser, logout, isAdmin } = useAuth();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const [newPassword, setNewPassword] = useState('');
@@ -16,40 +25,33 @@ export default function ResetPasswordPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  /** Very lightweight client-side validation before hitting the API */
-  function validate() {
-    if (newPassword.length < 8) {
-      return 'Password must be at least 8 characters long.';
-    }
-    if (!/[a-zA-Z]/.test(newPassword) || !/[0-9]/.test(newPassword)) {
-      return 'Password must contain at least one letter and one number.';
-    }
-    if (newPassword !== confirmPassword) {
-      return 'Passwords do not match.';
-    }
-    return null;
-  }
+  const policyOk = meetsPolicy(newPassword);
+  const matches = newPassword.length > 0 && newPassword === confirmPassword;
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
 
-    const validationError = validate();
-    if (validationError) {
-      setError(validationError);
+    if (!policyOk) {
+      setError('Please satisfy every password requirement below.');
+      return;
+    }
+    if (!matches) {
+      setError('Passwords do not match.');
       return;
     }
 
     setLoading(true);
     try {
-      await resetPasswordApi({ new_password: newPassword });
-      // Mark first_login as false in context/localStorage
-      updateUser({ first_login: false });
-      // Redirect to the appropriate dashboard
-      navigate(isAdmin ? '/admin/dashboard' : '/employee/dashboard', { replace: true });
+      await forceChangePassword(newPassword);
+      // Changing the password stamps password_changed_at, which invalidates
+      // every token issued before it — including the one we're holding. So we
+      // must clear it and re-authenticate rather than continue to a dashboard
+      // with a token the server will now reject.
+      logout();
+      navigate('/login', { replace: true, state: { passwordChanged: true } });
     } catch (err) {
       setError(err.response?.data?.message || 'Failed to reset password. Please try again.');
-    } finally {
       setLoading(false);
     }
   }
@@ -87,7 +89,7 @@ export default function ResetPasswordPage() {
                 id="new-password"
                 type={showNew ? 'text' : 'password'}
                 autoComplete="new-password"
-                placeholder="Min. 8 characters, must include a number"
+                placeholder="Choose a strong new password"
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 required
@@ -133,23 +135,17 @@ export default function ResetPasswordPage() {
             </div>
           </div>
 
-          <ul className="password-requirements text-sm text-muted">
-            <li className={newPassword.length >= 8 ? 'met' : ''}>
-              At least 8 characters
-            </li>
-            <li className={/[a-zA-Z]/.test(newPassword) && /[0-9]/.test(newPassword) ? 'met' : ''}>
-              Contains a letter and a number
-            </li>
-            <li className={newPassword && newPassword === confirmPassword ? 'met' : ''}>
-              Passwords match
-            </li>
-          </ul>
+          <PasswordChecklist password={newPassword} />
+
+          {confirmPassword.length > 0 && !matches && (
+            <span className="text-danger text-sm">Passwords do not match.</span>
+          )}
 
           <button
             id="reset-password-submit-btn"
             type="submit"
             className="btn btn-primary btn-full reset-btn"
-            disabled={loading || !newPassword || !confirmPassword}
+            disabled={loading || !policyOk || !matches}
           >
             {loading ? <span className="spinner" aria-hidden="true" /> : null}
             {loading ? 'Updating…' : 'Set Password & Continue'}

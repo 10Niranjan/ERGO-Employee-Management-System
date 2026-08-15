@@ -1,0 +1,233 @@
+/* AuthShell.css — shared styles for the password-reset screens.
+   Layout/typography come from LoginPage.css; this file only adds the pieces
+   those screens need that the login page doesn't have. All values reuse the
+   login theme's local variables (--lp-*, --form-*) so the two stay in sync. */
+
+.auth-shell-assurance {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--lp-font-mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  color: rgba(255, 255, 255, 0.5);
+}
+
+.auth-shell-link {
+  color: var(--lp-primary);
+  font-weight: 600;
+  text-decoration: none;
+}
+.auth-shell-link:hover { text-decoration: underline; }
+
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* ─── Role chooser ─────────────────────────────────────────────── */
+.auth-choice-list {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.auth-choice-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 18px 20px;
+  border-radius: 12px;
+  border: 1.5px solid var(--form-border);
+  background: var(--form-input-bg);
+  cursor: pointer;
+  text-align: left;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.auth-choice-card:hover {
+  border-color: var(--lp-primary);
+  box-shadow: 0 6px 18px rgba(28, 54, 115, 0.12);
+  transform: translateY(-1px);
+  /* index.css underlines every `a:hover`, which beats the card's own
+     text-decoration on specificity and streaks the whole card. */
+  text-decoration: none;
+}
+
+.auth-choice-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: rgba(28, 54, 115, 0.08);
+  color: var(--lp-primary);
+}
+
+.auth-choice-card.is-admin .auth-choice-icon {
+  background: rgba(227, 30, 36, 0.09);
+  color: var(--lp-red);
+}
+
+.auth-choice-text { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.auth-choice-title { font-size: 15px; font-weight: 700; color: var(--form-text); }
+.auth-choice-sub { font-size: 12.5px; color: var(--form-muted); line-height: 1.45; }
+.auth-choice-arrow { margin-left: auto; color: var(--form-muted); flex-shrink: 0; }
+
+/* ─── OTP digit boxes ──────────────────────────────────────────── */
+.otp-input-row {
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.otp-box {
+  width: 100%;
+  aspect-ratio: 1 / 1;
+  max-width: 56px;
+  border-radius: 10px;
+  border: 1.5px solid var(--form-border);
+  background: var(--form-input-bg);
+  font-family: var(--lp-font-mono);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--form-text);
+  text-align: center;
+  transition: all 0.15s ease;
+  /* Number inputs would render spinners and allow 'e'/'-'; a text input with
+     an inputMode gives the mobile numeric keypad without either problem. */
+  -moz-appearance: textfield;
+}
+
+.otp-box:focus {
+  outline: none;
+  border-color: var(--lp-primary);
+  box-shadow: 0 0 0 4px rgba(28, 54, 115, 0.15);
+}
+
+.otp-box.is-filled { border-color: var(--lp-primary); background: rgba(28, 54, 115, 0.04); }
+.otp-box.is-error { border-color: var(--lp-red); box-shadow: 0 0 0 4px rgba(227, 30, 36, 0.12); }
+
+@keyframes otp-shake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-5px); }
+  40%, 80% { transform: translateX(5px); }
+}
+.otp-input-row.is-error { animation: otp-shake 0.4s ease; }
+
+/* ─── Countdown + resend ───────────────────────────────────────── */
+.otp-meta-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.otp-countdown {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--lp-font-mono);
+  color: var(--form-muted);
+  font-variant-numeric: tabular-nums;
+}
+.otp-countdown.is-urgent { color: var(--lp-red); font-weight: 600; }
+.otp-countdown.is-expired { color: var(--lp-red); font-weight: 600; }
+
+.otp-resend-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--lp-primary);
+  cursor: pointer;
+}
+.otp-resend-btn:hover:not(:disabled) { text-decoration: underline; }
+.otp-resend-btn:disabled { color: var(--form-muted); cursor: not-allowed; }
+
+.otp-sent-to {
+  padding: 12px 14px;
+  border-radius: 9px;
+  background: rgba(28, 54, 115, 0.05);
+  border: 1px solid rgba(28, 54, 115, 0.12);
+  font-size: 13px;
+  color: var(--form-text);
+  word-break: break-word;
+}
+.otp-sent-to strong { font-weight: 700; }
+
+/* ─── Live password policy checklist ───────────────────────────── */
+.policy-checklist {
+  list-style: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px 14px;
+  margin: 0;
+  padding: 14px;
+  border-radius: 9px;
+  background: rgba(28, 54, 115, 0.04);
+  border: 1px solid var(--form-border);
+}
+
+.policy-checklist li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--form-muted);
+  transition: color 0.2s ease;
+  min-width: 0;
+}
+
+.policy-checklist li.is-met { color: #16794a; font-weight: 600; }
+.policy-checklist svg { flex-shrink: 0; }
+
+@media (max-width: 420px) {
+  .policy-checklist { grid-template-columns: 1fr; }
+}
+
+/* ─── Success / confirmation state ─────────────────────────────── */
+.auth-success {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.auth-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(34, 197, 94, 0.12);
+  color: #16794a;
+}
+
+.auth-success-note {
+  padding: 14px 16px;
+  border-radius: 9px;
+  background: rgba(28, 54, 115, 0.05);
+  border: 1px solid rgba(28, 54, 115, 0.12);
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--form-text);
+}
+
+/* The alert banner is styled globally, but inside the light form panel it
+   needs the light-theme treatment rather than the dark dashboard one. */
+.login-form-panel .alert-error {
+  background: rgba(227, 30, 36, 0.08);
+  border: 1px solid rgba(227, 30, 36, 0.25);
+  color: #B4141A;
+}
