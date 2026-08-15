@@ -49,10 +49,10 @@ router.post(
       .matches(/^[0-9]+$/).withMessage('Phone number must contain numbers only.'),
     body('designation').optional({ nullable: true }).trim(),
     body('date_of_joining').optional({ nullable: true }).isISO8601().withMessage('Date must be YYYY-MM-DD.'),
-    body('per_day_salary')
+    body('monthly_salary')
       .optional()
       .isFloat({ min: 0 })
-      .withMessage('Per-day salary must be a non-negative number.'),
+      .withMessage('Monthly salary must be a non-negative number.'),
     body('leaves_this_year')
       .optional({ nullable: true })
       .isInt({ min: 0 })
@@ -85,10 +85,10 @@ router.put(
     body('phone').optional({ nullable: true, checkFalsy: true }).trim()
       .matches(/^[0-9]+$/).withMessage('Phone number must contain numbers only.'),
     body('date_of_joining').optional({ nullable: true }).isISO8601().withMessage('Date must be YYYY-MM-DD.'),
-    body('per_day_salary')
+    body('monthly_salary')
       .optional()
       .isFloat({ min: 0 })
-      .withMessage('Per-day salary must be a non-negative number.'),
+      .withMessage('Monthly salary must be a non-negative number.'),
   ],
   validate,
   updateUser

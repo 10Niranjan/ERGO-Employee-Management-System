@@ -189,7 +189,7 @@ export default function AdminReportsPage() {
                 <tr>
                   <th>Employee</th>
                   <th>Designation</th>
-                  <th>Base Rate</th>
+                  <th>Rate/Day</th>
                   <th>Working Days</th>
                   <th>Present</th>
                   <th>Half-Day</th>

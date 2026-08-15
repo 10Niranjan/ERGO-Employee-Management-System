@@ -3,59 +3,69 @@
 const { getMonthDates, isWeekend } = require('../utils/time');
 
 /**
- * Determines the applicable per-day salary rate for a specific date
- * by evaluating the employee's historical salary revision log.
+ * Determines the applicable *monthly* salary for a specific date by walking
+ * the employee's revision history. The caller derives that day's per-day
+ * rate by dividing this by however many calendar days are in that month —
+ * the rate is never stored directly, only the monthly figure is.
  *
  * @param {string} dateStr - 'YYYY-MM-DD'
- * @param {number} currentSalary - Fallback / latest rate
- * @param {Array} salaryHistory - Array of salary_history objects ordered by changed_at ASC
- * @returns {number} The rate applicable on dateStr
+ * @param {number} currentMonthlySalary - Fallback / latest monthly salary
+ * @param {Array} salaryHistory - salary_history rows ordered by changed_at ASC
+ * @returns {number} The monthly salary applicable on dateStr
  */
-function getApplicableSalaryRate(dateStr, currentSalary, salaryHistory = []) {
+function getApplicableMonthlySalary(dateStr, currentMonthlySalary, salaryHistory = []) {
   if (!salaryHistory || salaryHistory.length === 0) {
-    return parseFloat(currentSalary) || 0;
+    return parseFloat(currentMonthlySalary) || 0;
   }
 
   const targetDate = new Date(`${dateStr}T23:59:59.999+05:30`);
 
   // Find the last revision that occurred on or before targetDate
-  let applicableRate = null;
+  let applicableSalary = null;
 
   for (let i = 0; i < salaryHistory.length; i++) {
     const rev = salaryHistory[i];
     const revDate = new Date(rev.changed_at);
 
     if (revDate <= targetDate) {
-      applicableRate = parseFloat(rev.new_rate);
+      applicableSalary = parseFloat(rev.new_monthly_salary);
     } else {
-      // If the very first revision happened after targetDate, the rate on targetDate was rev.old_rate
-      if (applicableRate === null) {
-        applicableRate = parseFloat(rev.old_rate);
+      // If the very first revision happened after targetDate, the salary on
+      // targetDate was rev.old_monthly_salary
+      if (applicableSalary === null) {
+        applicableSalary = parseFloat(rev.old_monthly_salary);
       }
       break;
     }
   }
 
-  // If all revisions were before targetDate, the latest new_rate applies (or currentSalary)
-  if (applicableRate === null) {
-    applicableRate = parseFloat(currentSalary) || 0;
+  // If all revisions were before targetDate, the latest new_monthly_salary applies
+  if (applicableSalary === null) {
+    applicableSalary = parseFloat(currentMonthlySalary) || 0;
   }
 
-  return Math.round(applicableRate * 100) / 100;
+  return applicableSalary;
 }
 
 /**
- * Pure, deterministic salary computation engine.
- * Computes exact itemized daily payable amounts using the strict priority:
- * 1. Holiday / Weekend (excluded from payable working days)
- * 2. Approved Leave (Paid: 100% rate, Unpaid: 0%)
- * 3. Attendance (Present: 100%, Travel: 100%, Half-Day: 50%, Absent: 0%)
- * 4. No record on working day (Absent: 0%)
+ * Pure, deterministic salary computation engine — calendar-days-prorated
+ * monthly salary model:
+ *
+ *   Per-Day Rate = Monthly Salary ÷ Actual Days in That Calendar Month
+ *   Paid Days    = every day EXCEPT unpaid leave, absent/unmarked working
+ *                  days, and half-days count at 50%
+ *   Final Salary = sum of (rate × payable factor) across all days
+ *
+ * Weekends and company holidays are paid days (factor 1.0) — they simply
+ * aren't attendance-tracked, so they can never be "absent". Mid-month
+ * revisions resolve day-by-day via getApplicableMonthlySalary, each day's
+ * rate always divided by the *same* month's total day count regardless of
+ * which side of the revision it falls on.
  */
 async function calculateMonthlySalary(dbClient, userId, year, month) {
   // 1. Fetch employee details
   const { rows: userRows } = await dbClient.query(
-    `SELECT id, employee_id, name, designation, email, per_day_salary, date_of_joining, status
+    `SELECT id, employee_id, name, designation, email, monthly_salary, date_of_joining, status
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -64,21 +74,22 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     throw new Error(`Employee with ID ${userId} not found.`);
   }
   const employee = userRows[0];
-  const currentSalary = parseFloat(employee.per_day_salary) || 0;
+  const currentMonthlySalary = parseFloat(employee.monthly_salary) || 0;
 
   // 2. Fetch salary revision history
   const { rows: salaryHistory } = await dbClient.query(
-    `SELECT id, old_rate, new_rate, changed_at
+    `SELECT id, old_monthly_salary, new_monthly_salary, changed_at
      FROM salary_history
-     WHERE user_id = $1
+     WHERE user_id = $1 AND new_monthly_salary IS NOT NULL
      ORDER BY changed_at ASC`,
     [userId]
   );
 
-  // 3. Month dates
+  // 3. Month dates — length is the true calendar day count (28-31)
   const monthDates = getMonthDates(year, month);
   const startDate = monthDates[0];
   const endDate = monthDates[monthDates.length - 1];
+  const daysInMonth = monthDates.length;
 
   // 4. Fetch company holidays in this month
   const { rows: holidays } = await dbClient.query(
@@ -143,28 +154,30 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     const leave = leaveMap.get(d) || null;
     const att = attendanceMap.get(d) || null;
 
-    const rate = getApplicableSalaryRate(d, currentSalary, salaryHistory);
+    const monthlySalaryForDay = getApplicableMonthlySalary(d, currentMonthlySalary, salaryHistory);
+    const rate = daysInMonth > 0 ? monthlySalaryForDay / daysInMonth : 0;
 
     let status = 'absent';
     let payableFactor = 0;
     let note = '';
 
-    // Precedence 1: Non-working exclusions (Weekend or Holiday)
+    // Weekends and company holidays are paid days — they aren't
+    // attendance-tracked, so they're classified but never deducted.
     if (isHol) {
       holidayCount++;
       status = 'holiday';
-      payableFactor = 0;
+      payableFactor = 1.0;
       note = `Public Holiday: ${holidayName}`;
     } else if (isWeekendDay) {
       weekendCount++;
       status = 'weekend';
-      payableFactor = 0;
+      payableFactor = 1.0;
       note = 'Weekend';
     } else {
       // Working day
       workingDays++;
 
-      // Precedence 2: Approved Leave
+      // Precedence 1: Approved Leave
       if (leave) {
         if (leave.is_paid) {
           paidLeaveDays++;
@@ -178,7 +191,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
           note = `Approved Unpaid Leave: ${leave.leave_type_name}`;
         }
       } else if (att) {
-        // Precedence 3: Attendance
+        // Precedence 2: Attendance
         if (att.status === 'present') {
           presentDays++;
           status = 'present';
@@ -201,7 +214,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
           note = 'Recorded Absent';
         }
       } else {
-        // Precedence 4: No record on working day
+        // Precedence 3: No record on working day
         absentDays++;
         status = 'absent';
         payableFactor = 0;
@@ -215,7 +228,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     return {
       date: d,
       status,
-      rate,
+      rate: Math.round(rate * 100) / 100,
       payable_factor: payableFactor,
       daily_amount: dailyAmount,
       note,
@@ -223,6 +236,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
   });
 
   const netSalary = Math.round(totalPayableAmount * 100) / 100;
+  const derivedPerDayRate = daysInMonth > 0 ? Math.round((currentMonthlySalary / daysInMonth) * 100) / 100 : 0;
 
   return {
     employee: {
@@ -231,7 +245,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
       name: employee.name,
       designation: employee.designation,
       email: employee.email,
-      per_day_salary: currentSalary,
+      monthly_salary: currentMonthlySalary,
     },
     year,
     month,
@@ -246,7 +260,8 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
       absent_days: absentDays,
       holiday_count: holidayCount,
       weekend_count: weekendCount,
-      per_day_salary: currentSalary,
+      monthly_salary: currentMonthlySalary,
+      per_day_salary: derivedPerDayRate,
       net_salary: netSalary,
     },
     days,
@@ -254,6 +269,6 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
 }
 
 module.exports = {
-  getApplicableSalaryRate,
+  getApplicableMonthlySalary,
   calculateMonthlySalary,
 };

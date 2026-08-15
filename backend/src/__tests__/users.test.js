@@ -34,7 +34,7 @@ const SAFE_USER = {
   id: 2, employee_id: 'EMP001', role: 'employee',
   name: 'Test Employee', email: 'test@ergo.com', phone: '9999999999',
   designation: 'Developer', date_of_joining: '2025-01-01',
-  per_day_salary: '1500.00', first_login: true, status: 'active',
+  monthly_salary: '31000.00', first_login: true, status: 'active',
   created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
 };
 
@@ -145,7 +145,7 @@ describe('POST /api/users', () => {
         name: 'Test Employee',
         email: 'test@ergo.com',
         designation: 'Developer',
-        per_day_salary: 1500,
+        monthly_salary: 31000,
       });
     expect(res.status).toBe(201);
     expect(res.body.user).toBeDefined();
@@ -164,7 +164,7 @@ describe('POST /api/users', () => {
         name: 'Test Employee Two',
         email: 'test2@ergo.com',
         designation: 'Designer',
-        per_day_salary: 1200,
+        monthly_salary: 28000,
         leaves_this_year: 20,
       });
     expect(res.status).toBe(201);

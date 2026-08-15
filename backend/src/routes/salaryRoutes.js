@@ -32,14 +32,14 @@ router.get(
   getSalaryHistory
 );
 
-// PUT /api/salary/:userId — update a single employee's per-day salary
+// PUT /api/salary/:userId — update a single employee's monthly salary
 router.put(
   '/:userId',
   [
     param('userId').isInt({ min: 1 }).withMessage('Invalid user ID.'),
-    body('per_day_salary')
-      .notEmpty().withMessage('Per-day salary is required.')
-      .isFloat({ min: 0 }).withMessage('Per-day salary must be a non-negative number.'),
+    body('monthly_salary')
+      .notEmpty().withMessage('Monthly salary is required.')
+      .isFloat({ min: 0 }).withMessage('Monthly salary must be a non-negative number.'),
     body('note').optional({ nullable: true }).trim(),
   ],
   validate,

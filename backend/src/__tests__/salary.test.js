@@ -21,20 +21,22 @@ jest.mock('../db/pool', () => {
 
 const { query, _mockClient: mockClient } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
-const { getApplicableSalaryRate, calculateMonthlySalary } = require('../services/salaryService');
+const { getApplicableMonthlySalary, calculateMonthlySalary } = require('../services/salaryService');
 const app = require('../app');
 
 const ADMIN_TOKEN     = signToken({ id: 1, role: 'admin',    employee_id: 'ADMIN001' });
 const EMPLOYEE_TOKEN  = signToken({ id: 2, role: 'employee', employee_id: 'EMP001'   });
 const OTHER_EMP_TOKEN = signToken({ id: 3, role: 'employee', employee_id: 'EMP002'   });
 
+// 31000 / 31 days in August = a clean 1000/day derived rate, so expected
+// totals below read the same way the old flat-rate fixture did.
 const SAMPLE_EMPLOYEE = {
   id: 2,
   employee_id: 'EMP001',
   name: 'John Doe',
   designation: 'Software Engineer',
   email: 'john@example.com',
-  per_day_salary: '1000.00',
+  monthly_salary: '31000.00',
   date_of_joining: '2025-01-01',
   status: 'active',
 };
@@ -47,48 +49,55 @@ afterEach(() => {
 // =============================================================================
 // Unit Tests: Salary Engine & Rate Resolution
 // =============================================================================
-describe('Salary Engine: getApplicableSalaryRate', () => {
-  test('returns current salary when no salary history exists', () => {
-    const rate = getApplicableSalaryRate('2026-08-15', 1200, []);
-    expect(rate).toBe(1200);
+describe('Salary Engine: getApplicableMonthlySalary', () => {
+  test('returns current monthly salary when no salary history exists', () => {
+    const salary = getApplicableMonthlySalary('2026-08-15', 31200, []);
+    expect(salary).toBe(31200);
   });
 
-  test('returns old rate for dates before revision and new rate for dates after revision', () => {
+  test('returns old monthly salary for dates before revision and new for dates after', () => {
     const history = [
       {
         id: 1,
-        old_rate: '1000.00',
-        new_rate: '1500.00',
+        old_monthly_salary: '31000.00',
+        new_monthly_salary: '31500.00',
         changed_at: '2026-08-15T10:00:00.000Z',
       },
     ];
 
     // Date before revision: Aug 10
-    expect(getApplicableSalaryRate('2026-08-10', 1500, history)).toBe(1000);
+    expect(getApplicableMonthlySalary('2026-08-10', 31500, history)).toBe(31000);
     // Date of revision / after revision: Aug 15
-    expect(getApplicableSalaryRate('2026-08-15', 1500, history)).toBe(1500);
+    expect(getApplicableMonthlySalary('2026-08-15', 31500, history)).toBe(31500);
     // Date after revision: Aug 20
-    expect(getApplicableSalaryRate('2026-08-20', 1500, history)).toBe(1500);
+    expect(getApplicableMonthlySalary('2026-08-20', 31500, history)).toBe(31500);
   });
 
   test('handles multiple revisions in historical timeline', () => {
     const history = [
-      { id: 1, old_rate: '800.00',  new_rate: '1000.00', changed_at: '2026-08-05T00:00:00.000Z' },
-      { id: 2, old_rate: '1000.00', new_rate: '1200.00', changed_at: '2026-08-20T00:00:00.000Z' },
+      { id: 1, old_monthly_salary: '28000.00', new_monthly_salary: '31000.00', changed_at: '2026-08-05T00:00:00.000Z' },
+      { id: 2, old_monthly_salary: '31000.00', new_monthly_salary: '32000.00', changed_at: '2026-08-20T00:00:00.000Z' },
     ];
 
-    // Before first change (Aug 02) -> 800
-    expect(getApplicableSalaryRate('2026-08-02', 1200, history)).toBe(800);
-    // Between first and second change (Aug 10) -> 1000
-    expect(getApplicableSalaryRate('2026-08-10', 1200, history)).toBe(1000);
-    // After second change (Aug 25) -> 1200
-    expect(getApplicableSalaryRate('2026-08-25', 1200, history)).toBe(1200);
+    // Before first change (Aug 02) -> 28000
+    expect(getApplicableMonthlySalary('2026-08-02', 32000, history)).toBe(28000);
+    // Between first and second change (Aug 10) -> 31000
+    expect(getApplicableMonthlySalary('2026-08-10', 32000, history)).toBe(31000);
+    // After second change (Aug 25) -> 32000
+    expect(getApplicableMonthlySalary('2026-08-25', 32000, history)).toBe(32000);
   });
 });
 
 // =============================================================================
 // Unit Tests: calculateMonthlySalary
 // =============================================================================
+// All scenarios below use August 2026 (31 days, Aug 1 = Saturday), so
+// weekends fall on 1,2,8,9,15,16,22,23,29,30 — 10 weekend days unless one
+// coincides with a holiday, in which case the holiday takes precedence
+// (matches the engine's classification order) and isn't double-counted.
+// With SAMPLE_EMPLOYEE's monthly_salary of 31000, the derived rate is a
+// clean 1000/day, and — per the confirmed formula — weekends and holidays
+// are now paid days, so every scenario's expected total includes them.
 describe('Salary Engine: calculateMonthlySalary', () => {
   test('calculates salary with mixed statuses (Present, Travel, Half-Day, Paid Leave, Unpaid Leave, Absent, Weekend, Holiday)', async () => {
     const mockDb = {
@@ -127,17 +136,19 @@ describe('Salary Engine: calculateMonthlySalary', () => {
 
     const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
 
-    expect(result.summary.per_day_salary).toBe(1000);
+    expect(result.summary.monthly_salary).toBe(31000);
+    expect(result.summary.per_day_salary).toBe(1000); // derived: 31000 / 31 days
     expect(result.summary.present_days).toBe(1); // Aug 05 (1000)
     expect(result.summary.travel_days).toBe(1); // Aug 06 (1000)
     expect(result.summary.half_days).toBe(1); // Aug 07 (500)
     expect(result.summary.paid_leave_days).toBe(1); // Aug 03 (1000)
     expect(result.summary.unpaid_leave_days).toBe(1); // Aug 04 (0)
-    expect(result.summary.holiday_count).toBe(1); // Aug 15
+    expect(result.summary.holiday_count).toBe(1); // Aug 15 — also a Saturday, holiday wins
 
-    // Total expected for the 4 payable days (1000 + 1000 + 500 + 1000 = 3500)
-    // Other working days without record are absent (0)
-    expect(result.summary.net_salary).toBe(3500);
+    // 9 weekend days (Aug 15 reclassified as holiday, not double-counted) @1000 = 9000
+    // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500
+    // + unpaid leave 0 + 15 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(13500);
   });
 
   // Scenario A: 8 Present, 1 Half-Day, 1 Unpaid Leave (with remaining 11 working days absent)
@@ -175,8 +186,9 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.present_days).toBe(8);
     expect(result.summary.half_days).toBe(1);
     expect(result.summary.unpaid_leave_days).toBe(1);
-    // (8 * 1000) + (1 * 500) + (1 * 0) = 8500
-    expect(result.summary.net_salary).toBe(8500);
+    // 10 weekend days @1000 = 10000, + (8 * 1000) present + (1 * 500) half-day
+    // + (1 * 0) unpaid + 11 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(18500);
   });
 
   // Scenario B: 6 Present, 1 Half-Day, 1 Travel, 1 Paid Leave, 1 Unpaid Leave
@@ -213,24 +225,27 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.half_days).toBe(1);
     expect(result.summary.paid_leave_days).toBe(1);
     expect(result.summary.unpaid_leave_days).toBe(1);
-    // (6 * 1000) + (1 * 1000) + (0.5 * 1000) + (1 * 1000) + 0 = 8500
-    expect(result.summary.net_salary).toBe(8500);
+    // 10 weekend days @1000 = 10000, + (6*1000) present + (1*1000) travel
+    // + (0.5*1000) half-day + (1*1000) paid leave + 0 unpaid + 11 unmarked @ 0
+    expect(result.summary.net_salary).toBe(18500);
   });
 
-  // Scenario C: Mid-Month Salary Revision
-  test('Scenario C: Mid-Month Salary Revision on Aug 16 from 1000 to 2000', async () => {
+  // Scenario C: Mid-Month Salary Revision — monthly figures chosen so the
+  // derived rate is a clean 1000/day before and 2000/day after (31000 and
+  // 62000, both /31).
+  test('Scenario C: Mid-Month Salary Revision on Aug 16 from 31000 to 62000 (1000/day -> 2000/day)', async () => {
     const mockDb = {
       query: jest
         .fn()
         .mockResolvedValueOnce({
-          rows: [{ ...SAMPLE_EMPLOYEE, per_day_salary: '2000.00' }],
+          rows: [{ ...SAMPLE_EMPLOYEE, monthly_salary: '62000.00' }],
         })
         .mockResolvedValueOnce({
           rows: [
             {
               id: 1,
-              old_rate: '1000.00',
-              new_rate: '2000.00',
+              old_monthly_salary: '31000.00',
+              new_monthly_salary: '62000.00',
               changed_at: '2026-08-16T00:00:00.000Z',
             },
           ],
@@ -239,20 +254,23 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         .mockResolvedValueOnce({ rows: [] }) // no leaves
         .mockResolvedValueOnce({
           rows: [
-            { date: '2026-08-14', status: 'present' }, // before revision -> 1000
-            { date: '2026-08-17', status: 'present' }, // after revision -> 2000
+            { date: '2026-08-14', status: 'present' }, // before revision -> 1000/day
+            { date: '2026-08-17', status: 'present' }, // after revision -> 2000/day
           ],
         }),
     };
 
     const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
     expect(result.summary.present_days).toBe(2);
-    // Day 14 amount = 1000, Day 17 amount = 2000 -> Total = 3000
-    expect(result.summary.net_salary).toBe(3000);
+    // Present: Aug14 (1000) + Aug17 (2000) = 3000
+    // Weekends (10 days total) split by the revision boundary: Aug 1,2,8,9,15
+    // (before, @1000) = 5000; Aug 16,22,23,29,30 (on/after, @2000) = 10000
+    // Total = 3000 + 5000 + 10000 = 18000
+    expect(result.summary.net_salary).toBe(18000);
   });
 
   // Scenario D: Weekend + Company Holiday + Approved Leave
-  test('Scenario D: Weekends & Holidays excluded, only working days consumed by Leave', async () => {
+  test('Scenario D: paid leave only "consumes" working days — the holiday and weekend inside its range are already paid on their own', async () => {
     const mockDb = {
       query: jest
         .fn()
@@ -278,8 +296,9 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.holiday_count).toBe(1); // Aug 14 is holiday
     // Working days in leave range: Aug 13 (Thu) & Aug 17 (Mon) = 2 paid leave days
     expect(result.summary.paid_leave_days).toBe(2);
-    // 2 * 1000 = 2000
-    expect(result.summary.net_salary).toBe(2000);
+    // 10 weekend days @1000 = 10000, + 1 holiday @1000 = 1000, + 2 paid-leave
+    // days @1000 = 2000, + 18 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(13000);
   });
 });
 
@@ -303,7 +322,8 @@ describe('GET /api/reports/salary/compute', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.summary.present_days).toBe(1);
-    expect(res.body.summary.net_salary).toBe(1000);
+    // 10 weekend days @1000 + 1 present day @1000, rest unmarked-absent @ 0
+    expect(res.body.summary.net_salary).toBe(11000);
   });
 
   test('employee cannot compute salary for another employee', async () => {
@@ -467,6 +487,7 @@ describe('GET /api/reports/payslips/:id/download', () => {
           absent_days: 0,
           holiday_count: 1,
           weekend_count: 9,
+          monthly_salary: '31000.00',
           per_day_salary: '1000.00',
           net_salary: '21000.00',
           breakdown: '[]',

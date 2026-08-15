@@ -9,7 +9,7 @@ const { recordInitialAllocation } = require('../services/leaveAccrualService');
 // Fields returned to callers — password_hash is never included
 const SAFE_USER_FIELDS = `
   id, employee_id, role, name, email, phone, designation,
-  date_of_joining, per_day_salary, first_login, status,
+  date_of_joining, monthly_salary, first_login, status,
   gender, date_of_birth, address, bank_name, bank_account_no,
   ifsc_code, emergency_contact_name, emergency_contact_phone,
   created_at, updated_at
@@ -104,7 +104,7 @@ async function createUser(req, res, next) {
 
     const {
       name, email, phone, designation,
-      date_of_joining, per_day_salary,
+      date_of_joining, monthly_salary,
       gender, date_of_birth, address,
       bank_name, bank_account_no, ifsc_code,
       emergency_contact_name, emergency_contact_phone,
@@ -132,7 +132,7 @@ async function createUser(req, res, next) {
     const { rows: userRows } = await client.query(
       `INSERT INTO users
          (employee_id, role, name, email, phone, designation,
-          date_of_joining, per_day_salary, password_hash, first_login, status,
+          date_of_joining, monthly_salary, password_hash, first_login, status,
           gender, date_of_birth, address, bank_name, bank_account_no,
           ifsc_code, emergency_contact_name, emergency_contact_phone)
        VALUES
@@ -146,7 +146,7 @@ async function createUser(req, res, next) {
         phone?.trim() || null,
         designation?.trim() || null,
         date_of_joining || null,
-        parseFloat(per_day_salary) || 0,
+        parseFloat(monthly_salary) || 0,
         passwordHash,
         gender?.trim() || null,
         date_of_birth || null,
@@ -224,7 +224,7 @@ async function updateUser(req, res, next) {
     const { id } = req.params;
     const {
       name, email, phone, designation,
-      date_of_joining, per_day_salary,
+      date_of_joining, monthly_salary,
     } = req.body;
 
     // Check the employee exists
@@ -255,7 +255,7 @@ async function updateUser(req, res, next) {
          phone           = COALESCE($3, phone),
          designation     = COALESCE($4, designation),
          date_of_joining = COALESCE($5, date_of_joining),
-         per_day_salary  = COALESCE($6, per_day_salary),
+         monthly_salary  = COALESCE($6, monthly_salary),
          updated_at      = NOW()
        WHERE id = $7
        RETURNING ${SAFE_USER_FIELDS}`,
@@ -265,7 +265,7 @@ async function updateUser(req, res, next) {
         phone?.trim() ?? null,
         designation?.trim() ?? null,
         date_of_joining || null,
-        per_day_salary !== undefined ? parseFloat(per_day_salary) : null,
+        monthly_salary !== undefined ? parseFloat(monthly_salary) : null,
         id,
       ]
     );

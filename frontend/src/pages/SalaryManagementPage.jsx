@@ -133,7 +133,7 @@ export default function SalaryManagementPage() {
 
   function handleOpenUpdate(emp) {
     setSelectedEmployee(emp);
-    setNewRate(emp.per_day_salary || '');
+    setNewRate(emp.monthly_salary || '');
     setNote('');
     setIsUpdateModalOpen(true);
   }
@@ -156,16 +156,16 @@ export default function SalaryManagementPage() {
     e.preventDefault();
     const rateVal = parseFloat(newRate);
     if (isNaN(rateVal) || rateVal < 0) {
-      showToast('Please enter a valid positive salary rate', 'error');
+      showToast('Please enter a valid positive monthly salary', 'error');
       return;
     }
     setSubmitting(true);
     try {
       await updateSalaryRate(selectedEmployee.id, {
-        per_day_salary: rateVal,
+        monthly_salary: rateVal,
         note: note.trim() || undefined,
       });
-      showToast('Salary rate updated and recorded in audit log!', 'success');
+      showToast('Monthly salary updated and recorded in audit log!', 'success');
       setIsUpdateModalOpen(false);
       fetchRates();
     } catch (err) {
@@ -209,9 +209,9 @@ export default function SalaryManagementPage() {
       {/* Header */}
       <div className="page-header-row">
         <div>
-          <h1 className="page-title">Per-Day Salary & Payroll</h1>
+          <h1 className="page-title">Monthly Salary & Payroll</h1>
           <p className="page-subtitle text-muted">
-            Configure employee daily rates, preview deterministic monthly compensation, and generate official payslip snapshots.
+            Set each employee's monthly salary, preview deterministic compensation, and generate official payslip snapshots.
           </p>
         </div>
         <div className="action-buttons-group">
@@ -231,7 +231,7 @@ export default function SalaryManagementPage() {
           className={`emp-tab-btn ${activeTab === 'rates' ? 'active' : ''}`}
           onClick={() => setActiveTab('rates')}
         >
-          <Wallet size={15} aria-hidden="true" /> Employee Base Rates
+          <Wallet size={15} aria-hidden="true" /> Employee Salaries
         </button>
         <button
           type="button"
@@ -248,7 +248,7 @@ export default function SalaryManagementPage() {
           <div className="policy-banner card">
             <Wallet className="policy-icon" size={20} aria-hidden="true" />
             <div className="policy-text">
-              <strong>Per-Day Rate Architecture:</strong> In V1, monthly gross salary is computed strictly from actual attendance and approved leave records: <code>(Per-Day Rate × Days Present) + (Half-Day Rate × Half-Days) + (Per-Day Rate × Paid Leaves)</code>. Weekends and holidays are non-working and excluded.
+              <strong>Calendar-Days Salary Model:</strong> Each employee has one monthly salary figure. The per-day rate is derived from it each month — <code>Monthly Salary ÷ Days in That Month</code> — so it floats slightly with month length. Weekends, holidays, present, travel, and paid-leave days are all paid at the full derived rate; half-days pay 50%; unpaid leave and unmarked/absent working days pay 0%.
             </div>
           </div>
 
@@ -304,7 +304,8 @@ export default function SalaryManagementPage() {
                       <th>Employee ID</th>
                       <th>Name</th>
                       <th>Designation</th>
-                      <th>Current Per-Day Rate</th>
+                      <th>Monthly Salary</th>
+                      <th>Derived Rate (this month)</th>
                       <th>Status</th>
                       <th>Last Updated</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -327,8 +328,14 @@ export default function SalaryManagementPage() {
                         </td>
                         <td>
                           <strong className="salary-rate-highlight">
-                            ₹{parseFloat(emp.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            ₹{parseFloat(emp.monthly_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </strong>
+                          <span className="text-muted text-xs"> / mo</span>
+                        </td>
+                        <td>
+                          <span className="text-muted">
+                            ₹{parseFloat(emp.derived_per_day_rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
                           <span className="text-muted text-xs"> / day</span>
                         </td>
                         <td>
@@ -384,7 +391,7 @@ export default function SalaryManagementPage() {
               >
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.name} ({e.employee_id}) — ₹{parseFloat(e.per_day_salary).toFixed(0)}/day
+                    {e.name} ({e.employee_id}) — ₹{parseFloat(e.monthly_salary).toFixed(0)}/mo
                   </option>
                 ))}
               </select>
@@ -495,7 +502,8 @@ export default function SalaryManagementPage() {
                   ₹{parseFloat(calcResult.summary.net_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
                 <span className="kpi-sub text-muted text-xs">
-                  Deterministic rate calculation for {calcResult.employee.name}
+                  ₹{parseFloat(calcResult.employee.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}/mo
+                  {' '}(₹{parseFloat(calcResult.summary.per_day_salary).toFixed(2)}/day this month)
                 </span>
               </div>
             </div>
@@ -652,17 +660,17 @@ export default function SalaryManagementPage() {
           </div>
 
           <div className="form-group">
-            <label className="form-label">Current Per-Day Rate</label>
+            <label className="form-label">Current Monthly Salary</label>
             <input
               type="text"
               disabled
-              value={`₹${parseFloat(selectedEmployee?.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
+              value={`₹${parseFloat(selectedEmployee?.monthly_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
             />
           </div>
 
           <div className="form-group">
             <label className="form-label" htmlFor="new-rate-input">
-              New Per-Day Rate (₹) *
+              New Monthly Salary (₹) *
             </label>
             <input
               id="new-rate-input"
@@ -670,7 +678,7 @@ export default function SalaryManagementPage() {
               min="0"
               step="0.01"
               required
-              placeholder="e.g. 2000"
+              placeholder="e.g. 50000"
               value={newRate}
               onChange={(e) => setNewRate(e.target.value)}
               disabled={submitting}
@@ -731,8 +739,8 @@ export default function SalaryManagementPage() {
               <thead>
                 <tr>
                   <th>Date & Time</th>
-                  <th>Previous Rate</th>
-                  <th>New Rate</th>
+                  <th>Previous Salary</th>
+                  <th>New Salary</th>
                   <th>Changed By</th>
                   <th>Note</th>
                 </tr>
@@ -753,12 +761,12 @@ export default function SalaryManagementPage() {
                     </td>
                     <td>
                       <span className="text-muted text-sm">
-                        ₹{parseFloat(rev.old_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{parseFloat(rev.old_monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </td>
                     <td>
                       <strong className="salary-rate-text">
-                        ₹{parseFloat(rev.new_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{parseFloat(rev.new_monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </strong>
                     </td>
                     <td>

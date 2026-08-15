@@ -14,18 +14,25 @@ import {
   Wallet,
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { getTodayAttendance } from '../api/attendanceApi';
+import { getTodayAttendance, getCorrections } from '../api/attendanceApi';
 import { getLeaveTypes } from '../api/leaveTypeApi';
 import { getHolidays } from '../api/holidayApi';
 import { getLeaveApplications } from '../api/leaveApi';
+import { getSalaryHistory } from '../api/salaryApi';
+import { getUsers } from '../api/userApi';
 import './AdminDashboardPage.css';
 
 const LOG_POLL_MS = 20000;
-const LOG_MAX_LINES = 20;
-const LOG_SEED_LINES = 6;
+const LOG_MAX_LINES = 30;
+const LOG_SEED_LINES = 10;
 
-/** Turns a today-attendance + pending-leaves snapshot into a flat, sorted event list. */
-function buildEvents(todayAtt, leavesData) {
+/**
+ * Turns a snapshot from every admin-facing endpoint into one flat, sorted
+ * event list. Each source contributes events with a *real* timestamp already
+ * on the record (marked_at / created_at / changed_at / correction_requested_at)
+ * — nothing here is synthesized.
+ */
+function buildEvents(todayAtt, leavesAll, salaryHistory, corrections) {
   const events = [];
 
   (todayAtt?.employees || []).forEach((emp) => {
@@ -40,17 +47,93 @@ function buildEvents(todayAtt, leavesData) {
     });
   });
 
-  (leavesData?.applications || []).forEach((app) => {
+  (leavesAll?.applications || []).forEach((app) => {
+    if (app.status === 'pending') {
+      events.push({
+        id: `leave-${app.id}`,
+        time: app.created_at,
+        tag: 'LEAVE',
+        tone: '',
+        msg: `${app.employee_name} filed ${app.leave_type_name} (${app.working_days_count}d) — pending review`,
+      });
+    } else if (app.status === 'approved' || app.status === 'declined') {
+      events.push({
+        id: `leave-review-${app.id}`,
+        time: app.reviewed_at || app.created_at,
+        tag: 'LEAVE',
+        tone: app.status === 'approved' ? 'ok' : 'bad',
+        msg: `${app.employee_name}'s ${app.leave_type_name} ${app.status}${app.reviewer_name ? ` by ${app.reviewer_name}` : ''}${app.status === 'declined' && app.decline_reason ? `: ${app.decline_reason}` : ''}`,
+      });
+    }
+  });
+
+  (salaryHistory?.history || []).forEach((rec) => {
     events.push({
-      id: `leave-${app.id}`,
-      time: app.created_at,
-      tag: 'LEAVE',
+      id: `salary-${rec.id}`,
+      time: rec.changed_at,
+      tag: 'SALARY',
       tone: '',
-      msg: `${app.employee_name} filed ${app.leave_type_name} (${app.working_days_count}d) — pending review`,
+      msg: `${rec.employee_name}'s salary ₹${rec.old_monthly_salary} → ₹${rec.new_monthly_salary}/mo${rec.changed_by_name ? ` by ${rec.changed_by_name}` : ''}`,
+    });
+  });
+
+  (corrections?.corrections || []).forEach((c) => {
+    events.push({
+      id: `corr-${c.id}`,
+      time: c.correction_requested_at,
+      tag: 'CORRECT',
+      tone: '',
+      msg: `${c.employee_name} requested correction to ${c.correction_requested_status?.replace('_', ' ')} for ${c.date}`,
     });
   });
 
   return events.sort((a, b) => new Date(b.time) - new Date(a.time));
+}
+
+/** Pure — real created_at, safe to seed on initial load like every other source. */
+function seedUserEvents(users) {
+  return users.map((u) => ({
+    id: `user-new-${u.id}`,
+    time: u.created_at,
+    tag: 'STAFF',
+    tone: 'ok',
+    msg: `${u.name} onboarded${u.designation ? ` as ${u.designation}` : ''}`,
+  }));
+}
+
+/** Diffs the current roster against the last-*polled* snapshot to catch new
+ * hires and activation/deactivation live. Status changes have no historical
+ * audit trail — only current status is stored — so they can only be
+ * detected while the dashboard is open through the transition. Mutates
+ * prevStatusMap; only call this from the polling loop. The baseline is
+ * established separately by the initial load (seedUserEvents + a plain
+ * assignment) so this never re-fires "onboarded" for people who already
+ * existed when the page opened — including under React StrictMode's
+ * double-invoked effects in dev. */
+function diffUserEvents(users, prevStatusMap) {
+  const events = [];
+  users.forEach((u) => {
+    const prevStatus = prevStatusMap.get(u.id);
+    if (prevStatus === undefined) {
+      events.push({
+        id: `user-new-${u.id}`,
+        time: u.created_at,
+        tag: 'STAFF',
+        tone: 'ok',
+        msg: `${u.name} onboarded${u.designation ? ` as ${u.designation}` : ''}`,
+      });
+    } else if (prevStatus !== u.status) {
+      events.push({
+        id: `user-status-${u.id}-${u.status}-${u.updated_at}`,
+        time: u.updated_at,
+        tag: 'STAFF',
+        tone: u.status === 'active' ? 'ok' : 'bad',
+        msg: `${u.name} ${u.status === 'active' ? 'reactivated' : 'deactivated'}`,
+      });
+    }
+    prevStatusMap.set(u.id, u.status);
+  });
+  return events;
 }
 
 export default function AdminDashboardPage() {
@@ -65,48 +148,65 @@ export default function AdminDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [logEntries, setLogEntries] = useState([]);
   const seenIds = useRef(new Set());
+  const prevUserStatus = useRef(new Map());
 
-  // Polls the same endpoints the page already loads with and appends only
-  // genuinely new attendance marks / leave filings to the live feed.
+  // Fetches every admin-facing source used by both the initial load and
+  // each poll — real records only, nothing fabricated.
+  const fetchSources = useCallback(async () => {
+    const [todayAtt, leavesAll, salaryHistory, corrections, usersData] = await Promise.all([
+      getTodayAttendance(),
+      getLeaveApplications({}),
+      getSalaryHistory({}),
+      getCorrections({ status: 'all' }),
+      getUsers({ limit: 100 }),
+    ]);
+    const pendingLeavesCount = (leavesAll.applications || []).filter((a) => a.status === 'pending').length;
+    const events = buildEvents(todayAtt, leavesAll, salaryHistory, corrections);
+    return { todayAtt, pendingLeavesCount, events, users: usersData.users || [] };
+  }, []);
+
   const pollLog = useCallback(async () => {
     try {
-      const [todayAtt, leavesData] = await Promise.all([
-        getTodayAttendance(),
-        getLeaveApplications({ status: 'pending' }),
-      ]);
+      const { todayAtt, pendingLeavesCount, events, users } = await fetchSources();
       setTodayData(todayAtt);
-      setStats((s) => ({ ...s, pendingLeavesCount: leavesData.applications?.length || 0 }));
+      setStats((s) => ({ ...s, pendingLeavesCount }));
 
-      const events = buildEvents(todayAtt, leavesData);
-      const fresh = events.filter((e) => !seenIds.current.has(e.id));
+      // Only the polling loop mutates prevUserStatus — see diffUserEvents.
+      const userEvents = diffUserEvents(users, prevUserStatus.current);
+      const merged = [...events, ...userEvents].sort((a, b) => new Date(b.time) - new Date(a.time));
+
+      const fresh = merged.filter((e) => !seenIds.current.has(e.id));
       if (fresh.length === 0) return;
       fresh.forEach((e) => seenIds.current.add(e.id));
       setLogEntries((prev) => [...fresh, ...prev].slice(0, LOG_MAX_LINES));
     } catch {
       // Silent — this is a background refresh, the page already has data on screen.
     }
-  }, []);
+  }, [fetchSources]);
 
   useEffect(() => {
     async function loadOverview() {
       try {
-        const [todayAtt, ltData, holData, leavesData] = await Promise.all([
-          getTodayAttendance(),
+        const [{ todayAtt, pendingLeavesCount, events, users }, ltData, holData] = await Promise.all([
+          fetchSources(),
           getLeaveTypes({ include_inactive: true }),
           getHolidays({ year: new Date().getFullYear() }),
-          getLeaveApplications({ status: 'pending' }),
         ]);
 
         setTodayData(todayAtt);
         setStats({
           leaveTypesCount: ltData.leave_types?.length || 0,
           holidaysCount: holData.holidays?.length || 0,
-          pendingLeavesCount: leavesData.applications?.length || 0,
+          pendingLeavesCount,
         });
 
-        const events = buildEvents(todayAtt, leavesData);
-        const seed = events.slice(0, LOG_SEED_LINES);
-        seed.forEach((e) => seenIds.current.add(e.id));
+        // Idempotent: establishes the baseline for live status-change
+        // detection and seeds onboarding events from real created_at.
+        // Safe to run twice (React StrictMode) — same input, same output.
+        prevUserStatus.current = new Map(users.map((u) => [u.id, u.status]));
+        const merged = [...events, ...seedUserEvents(users)].sort((a, b) => new Date(b.time) - new Date(a.time));
+        const seed = merged.slice(0, LOG_SEED_LINES);
+        seenIds.current = new Set(seed.map((e) => e.id));
         setLogEntries(seed);
       } catch (err) {
         console.error('Failed to load dashboard overview stats', err);
@@ -118,7 +218,7 @@ export default function AdminDashboardPage() {
     loadOverview();
     const interval = setInterval(pollLog, LOG_POLL_MS);
     return () => clearInterval(interval);
-  }, [pollLog]);
+  }, [fetchSources, pollLog]);
 
   const todayStats = todayData?.stats || {
     total_active_employees: 0,

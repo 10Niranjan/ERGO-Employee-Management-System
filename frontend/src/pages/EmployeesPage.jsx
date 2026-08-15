@@ -45,7 +45,7 @@ export default function EmployeesPage() {
     phone: '',
     designation: '',
     date_of_joining: '',
-    per_day_salary: '',
+    monthly_salary: '',
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -102,7 +102,7 @@ export default function EmployeesPage() {
       phone: emp.phone || '',
       designation: emp.designation || '',
       date_of_joining: emp.date_of_joining ? emp.date_of_joining.slice(0, 10) : '',
-      per_day_salary: emp.per_day_salary || '',
+      monthly_salary: emp.monthly_salary || '',
       leaves_this_year: '',
     });
     setIsEditModalOpen(true);
@@ -154,7 +154,7 @@ export default function EmployeesPage() {
     try {
       await updateUser(selectedEmployee.id, {
         ...formData,
-        per_day_salary: formData.per_day_salary ? parseFloat(formData.per_day_salary) : 0,
+        monthly_salary: formData.monthly_salary ? parseFloat(formData.monthly_salary) : 0,
       });
       showToast('Employee details updated!', 'success');
       setIsEditModalOpen(false);
@@ -280,7 +280,7 @@ export default function EmployeesPage() {
                   <th>Designation</th>
                   <th>Contact</th>
                   <th>Joining Date</th>
-                  <th>Per-Day Salary</th>
+                  <th>Monthly Salary</th>
                   <th>Status</th>
                   <th style={{ textAlign: 'right' }}>Actions</th>
                 </tr>
@@ -310,7 +310,7 @@ export default function EmployeesPage() {
                     </td>
                     <td>
                       <strong className="salary-rate-text">
-                        ₹{parseFloat(emp.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{parseFloat(emp.monthly_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </strong>
                     </td>
                     <td>
@@ -715,15 +715,15 @@ export default function EmployeesPage() {
 
             <div className="form-group">
               <label className="form-label" htmlFor="edit-salary">
-                Per-Day Salary Rate (₹)
+                Monthly Salary (₹)
               </label>
               <input
                 id="edit-salary"
                 type="number"
                 min="0"
                 step="0.01"
-                value={formData.per_day_salary}
-                onChange={(e) => setFormData({ ...formData, per_day_salary: e.target.value })}
+                value={formData.monthly_salary}
+                onChange={(e) => setFormData({ ...formData, monthly_salary: e.target.value })}
                 disabled={submitting}
               />
             </div>
@@ -788,9 +788,9 @@ export default function EmployeesPage() {
                 </span>
               </div>
               <div className="profile-detail-item">
-                <span className="profile-detail-label">Per-Day Salary</span>
+                <span className="profile-detail-label">Monthly Salary</span>
                 <strong className="profile-detail-value salary-rate-text">
-                  ₹{parseFloat(selectedEmployee.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                  ₹{parseFloat(selectedEmployee.monthly_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </strong>
               </div>
               <div className="profile-detail-item">

@@ -4,7 +4,10 @@ const { query, getClient } = require('../db/pool');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/salary
-// Admin only — list all employees with their current per-day salary
+// Admin only — list all employees with their monthly salary and the
+// derived per-day rate for the current calendar month (read-only; it's
+// monthly_salary / days-in-this-month, shown so admins can see why the
+// rate floats slightly month to month for an unchanged monthly figure).
 // ─────────────────────────────────────────────────────────────────────────────
 async function getSalaryRates(req, res, next) {
   try {
@@ -18,14 +21,23 @@ async function getSalaryRates(req, res, next) {
     }
 
     const { rows } = await query(
-      `SELECT id, employee_id, name, designation, email, per_day_salary, status, updated_at
+      `SELECT id, employee_id, name, designation, email, monthly_salary, status, updated_at
        FROM users
        ${whereClause}
        ORDER BY name ASC`,
       params
     );
 
-    return res.status(200).json({ employees: rows });
+    const now = new Date();
+    const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+    const employees = rows.map((emp) => ({
+      ...emp,
+      derived_per_day_rate: daysInCurrentMonth > 0
+        ? Math.round((parseFloat(emp.monthly_salary) / daysInCurrentMonth) * 100) / 100
+        : 0,
+    }));
+
+    return res.status(200).json({ employees });
   } catch (err) {
     next(err);
   }
@@ -33,7 +45,7 @@ async function getSalaryRates(req, res, next) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUT /api/salary/:userId
-// Admin only — update a single employee's per-day salary and log the change
+// Admin only — update a single employee's monthly salary and log the change
 // ─────────────────────────────────────────────────────────────────────────────
 async function updateSalaryRate(req, res, next) {
   const client = await getClient();
@@ -41,18 +53,18 @@ async function updateSalaryRate(req, res, next) {
     await client.query('BEGIN');
 
     const { userId } = req.params;
-    const { per_day_salary, note } = req.body;
+    const { monthly_salary, note } = req.body;
     const adminId = req.user.id;
 
-    const newRate = parseFloat(per_day_salary);
-    if (isNaN(newRate) || newRate < 0) {
+    const newSalary = parseFloat(monthly_salary);
+    if (isNaN(newSalary) || newSalary < 0) {
       await client.query('ROLLBACK');
-      return res.status(400).json({ message: 'Per-day salary must be a non-negative number.' });
+      return res.status(400).json({ message: 'Monthly salary must be a non-negative number.' });
     }
 
     // Fetch current salary
     const { rows: empRows } = await client.query(
-      `SELECT id, employee_id, name, per_day_salary
+      `SELECT id, employee_id, name, monthly_salary
        FROM users
        WHERE id = $1 AND role = 'employee'`,
       [userId]
@@ -63,23 +75,23 @@ async function updateSalaryRate(req, res, next) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
-    const oldRate = parseFloat(empRows[0].per_day_salary);
+    const oldSalary = parseFloat(empRows[0].monthly_salary);
 
-    // Update user's per-day salary
+    // Update user's monthly salary
     const { rows: updatedRows } = await client.query(
       `UPDATE users
-       SET per_day_salary = $1, updated_at = NOW()
+       SET monthly_salary = $1, updated_at = NOW()
        WHERE id = $2
-       RETURNING id, employee_id, name, designation, email, per_day_salary, status`,
-      [newRate, userId]
+       RETURNING id, employee_id, name, designation, email, monthly_salary, status`,
+      [newSalary, userId]
     );
 
-    // Record the revision in salary_history (always, even if same rate — for audit trail)
+    // Record the revision in salary_history (always, even if same salary — for audit trail)
     const { rows: historyRows } = await client.query(
-      `INSERT INTO salary_history (user_id, old_rate, new_rate, changed_by, note)
+      `INSERT INTO salary_history (user_id, old_monthly_salary, new_monthly_salary, changed_by, note)
        VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, user_id, old_rate, new_rate, changed_by, note, changed_at`,
-      [userId, oldRate, newRate, adminId, note?.trim() || null]
+       RETURNING id, user_id, old_monthly_salary, new_monthly_salary, changed_by, note, changed_at`,
+      [userId, oldSalary, newSalary, adminId, note?.trim() || null]
     );
 
     await client.query('COMMIT');
@@ -106,17 +118,23 @@ async function getSalaryHistory(req, res, next) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
     const offset = (page - 1) * limit;
 
-    const countResult = await query('SELECT COUNT(*) AS total FROM salary_history');
+    // Only revisions under the monthly-salary model — legacy per-day-rate
+    // revisions (old_rate/new_rate, pre-migration) stay in the table for
+    // historical reference but aren't surfaced through this endpoint.
+    const countResult = await query(
+      'SELECT COUNT(*) AS total FROM salary_history WHERE new_monthly_salary IS NOT NULL'
+    );
     const total = parseInt(countResult.rows[0].total, 10);
 
     const { rows } = await query(
       `SELECT
-         sh.id, sh.old_rate, sh.new_rate, sh.note, sh.changed_at,
+         sh.id, sh.old_monthly_salary, sh.new_monthly_salary, sh.note, sh.changed_at,
          u.employee_id, u.name AS employee_name, u.designation,
          a.name AS changed_by_name, a.employee_id AS changed_by_employee_id
        FROM salary_history sh
        JOIN users u ON u.id = sh.user_id
        JOIN users a ON a.id = sh.changed_by
+       WHERE sh.new_monthly_salary IS NOT NULL
        ORDER BY sh.changed_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset]
@@ -150,11 +168,11 @@ async function getEmployeeSalaryHistory(req, res, next) {
 
     const { rows } = await query(
       `SELECT
-         sh.id, sh.old_rate, sh.new_rate, sh.note, sh.changed_at,
+         sh.id, sh.old_monthly_salary, sh.new_monthly_salary, sh.note, sh.changed_at,
          a.name AS changed_by_name, a.employee_id AS changed_by_employee_id
        FROM salary_history sh
        JOIN users a ON a.id = sh.changed_by
-       WHERE sh.user_id = $1
+       WHERE sh.user_id = $1 AND sh.new_monthly_salary IS NOT NULL
        ORDER BY sh.changed_at DESC`,
       [userId]
     );

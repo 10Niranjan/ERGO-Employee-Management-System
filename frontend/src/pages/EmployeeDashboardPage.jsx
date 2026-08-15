@@ -1034,7 +1034,8 @@ export default function EmployeeDashboardPage() {
                       ₹{parseFloat(mySalaryCalc.summary.net_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                     </div>
                     <span className="kpi-sub text-muted text-xs">
-                      Base Rate: ₹{parseFloat(mySalaryCalc.summary.per_day_salary).toFixed(2)}/day
+                      ₹{parseFloat(mySalaryCalc.summary.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}/mo
+                      {' '}(₹{parseFloat(mySalaryCalc.summary.per_day_salary).toFixed(2)}/day this month)
                     </span>
                   </div>
                 </div>

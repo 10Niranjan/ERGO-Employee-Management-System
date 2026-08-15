@@ -15,11 +15,13 @@ or leave logic.
 - **Frontend**: `frontend/` — React 18 + Vite 5 + React Router 6, plain CSS
   (no Tailwind/CSS-in-JS), `lucide-react` for icons.
 - **Backend**: `backend/` — Node.js + Express + PostgreSQL, JWT auth,
-  127 passing Jest/Supertest tests. Untouched by the frontend redesign work
-  described below — treat it as a stable API surface.
+  154 passing Jest/Supertest tests (9 suites).
 
-Current focus (per the user) is **frontend-only** work. Don't touch
-`backend/` unless explicitly asked.
+The frontend redesign further down was frontend-only; the salary engine
+section below was an explicit, deliberate backend change (migration +
+service + controllers + tests). Backend is not off-limits — it just wasn't
+in scope until the user asked for it. Same rule either way: don't touch
+`backend/` speculatively, only when a task actually calls for it.
 
 ## Local dev
 
@@ -39,6 +41,59 @@ on first login — that's the `RequirePasswordReset` flow in
 
 `npm run lint` in `frontend/` is currently a no-op — `eslint` was never
 installed as a devDependency. Pre-existing gap, not fixed yet.
+
+## Salary engine — calendar-days monthly model (current, 15 Aug 2026)
+
+The salary engine (`backend/src/services/salaryService.js`) computes pay from
+a **monthly salary figure**, not an admin-entered flat daily rate. This
+**replaced** the previous per-day-rate model — check `git log` on
+`services/salaryService.js` if you need the old formula for reference.
+
+Confirmed formula (owner-approved, not up for silent reinterpretation):
+
+```
+Per-Day Rate = Monthly Salary ÷ Actual Days in That Calendar Month  (28-31, floats)
+Paid Days    = every day except: Unpaid Leave, Absent/Unmarked working days (0%),
+               Half-Days (50%) — present, travel, paid leave, weekends AND
+               company holidays are all full-pay (100%) days
+Final Salary = sum of (that day's rate × payable factor) across the month
+```
+
+The single biggest behavior change from the old model: **weekends and
+holidays are now paid**, not excluded. If you're debugging a salary number
+that looks "too high" compared to the old system, that's very likely why —
+check `payable_factor` on the weekend/holiday rows in the day-by-day
+breakdown before assuming it's a bug.
+
+- **DB**: `users.monthly_salary` is the source of truth (migration `012`).
+  `users.per_day_salary` still exists in the table but is deprecated —
+  nothing reads or writes it anymore. Existing employees started at
+  `monthly_salary = 0` after the migration; there's no auto-conversion from
+  the old rate (`rate × N` is a guess, not a fact) — an admin has to
+  re-enter it per employee via Salary Rates or the Employee Directory edit
+  form.
+- **Audit trail**: `salary_history.old_monthly_salary` /
+  `new_monthly_salary` (additive columns, migration `012`) — the legacy
+  `old_rate`/`new_rate` columns are kept for historical rows only, never
+  rewritten, and every query that reads revisions filters
+  `WHERE new_monthly_salary IS NOT NULL` so legacy per-day-rate rows don't
+  leak into the new UI as `null → null`.
+- **`payslips.per_day_salary`** was deliberately *repurposed*, not replaced
+  — it now stores the *derived* rate for that snapshot (shown read-only next
+  to the new `payslips.monthly_salary` column), per the owner's explicit
+  ask that the derived rate stay visible even though it's no longer the
+  input.
+- **Mid-month revisions**: `getApplicableMonthlySalary()` resolves the
+  correct *monthly* figure for a given date by walking `salary_history`;
+  the caller always divides by that same month's day count regardless of
+  which side of the revision boundary the day falls on — never re-derive a
+  different divisor for the "before" and "after" halves of a revision.
+- **No rounding-remainder absorption** — a per-day round-then-sum can leave
+  a few-paise gap versus the raw monthly figure. That's expected, not a bug
+  (matches the owner's own worked example).
+- Full spec and the six resolved open questions this was built from:
+  see `salary-logic-spec.md` if it's still in the repo/Downloads, or ask —
+  it was a one-time input doc, not committed as a permanent reference.
 
 ## Frontend design system — "Ops Console" (current, 15 Aug 2026)
 
@@ -73,13 +128,24 @@ regression, not a feature.
 - **`.icon-chip` utility**: colored icon badges — `icon-chip-sm|md|lg` for
   size, `icon-chip-primary|success|warning|danger` for color. Reuse instead
   of inventing new badge styles.
-- **Live behavior, not decoration**: `AdminDashboardPage.jsx` polls the
-  existing `getTodayAttendance()` + `getLeaveApplications({status:'pending'})`
-  endpoints every 20s and appends genuinely new events to a `.ops-log-panel`
-  feed (diffed via a `seenIds` ref — don't replace this with fake/static
-  log lines). `AdminLayout.jsx` has a real `setInterval(1000)` IST clock
-  chip in the header. Both reuse endpoints that already existed — no new
-  backend routes were added for this.
+- **Live behavior, not decoration**: `AdminDashboardPage.jsx` polls five
+  existing endpoints every 20s (`getTodayAttendance`, `getLeaveApplications`,
+  `getSalaryHistory`, `getCorrections`, `getUsers`) and appends genuinely new
+  events to a `.ops-log-panel` feed — attendance marks, leave filed/approved/
+  declined, salary rate changes, correction requests, and employee onboarding/
+  activation/deactivation. Everything except status changes carries a real
+  timestamp from its own record (`marked_at`/`created_at`/`changed_at`/
+  `correction_requested_at`) and is safe to seed on first load. Status
+  changes have **no historical audit trail** (only current status is
+  stored), so `diffUserEvents` in that file can only detect them live —
+  against the previous *poll's* snapshot (`prevUserStatus` ref) — never
+  seed them from history. Seeding (`seedUserEvents`) and the polling diff
+  are deliberately separate functions: the seed path must stay pure/
+  idempotent because React StrictMode double-invokes the mount effect in
+  dev, and a stateful diff there would silently eat its own baseline (this
+  was a real bug, fixed once). `AdminLayout.jsx` has a real
+  `setInterval(1000)` IST clock chip in the header. No new backend routes
+  were added — everything reuses endpoints that already existed.
 - **Dark/light theme**: `frontend/src/context/ThemeContext.jsx` +
   `frontend/src/components/ThemeToggle.jsx`. Toggles `data-theme` on
   `<html>`, applied synchronously in `main.jsx` before React mounts (no
@@ -134,4 +200,9 @@ dependency array** — memoize it or compute primitives inline.
 - Responsive testing only covered ~500px mobile and desktop widths; tablet
   breakpoints (768/1024px) not specifically audited.
 - No keyboard-navigation/focus-visible accessibility audit done.
-- Backend is untouched and out of scope unless asked.
+- Existing employees' `monthly_salary` is 0 until an admin re-enters it per
+  employee (see the salary engine section above) — payroll for them will be
+  ₹0 until that happens, not a bug.
+- `BRD_Employee_Management.pdf` §5.7 still documents the old per-day-rate
+  formula — it's a compiled PDF, not editable by an agent; needs a manual
+  update to match the new calendar-days monthly model.

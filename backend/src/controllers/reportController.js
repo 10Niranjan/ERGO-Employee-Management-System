@@ -59,8 +59,8 @@ async function generatePayslip(req, res, next) {
       `INSERT INTO payslips
          (user_id, month, year, working_days, present_days, half_days, travel_days,
           paid_leave_days, unpaid_leave_days, absent_days, holiday_count, weekend_count,
-          per_day_salary, net_salary, breakdown, generated_by, generated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, NOW())
+          monthly_salary, per_day_salary, net_salary, breakdown, generated_by, generated_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
        ON CONFLICT (user_id, month, year) DO UPDATE
        SET
          working_days      = EXCLUDED.working_days,
@@ -72,6 +72,7 @@ async function generatePayslip(req, res, next) {
          absent_days       = EXCLUDED.absent_days,
          holiday_count     = EXCLUDED.holiday_count,
          weekend_count     = EXCLUDED.weekend_count,
+         monthly_salary    = EXCLUDED.monthly_salary,
          per_day_salary    = EXCLUDED.per_day_salary,
          net_salary        = EXCLUDED.net_salary,
          breakdown         = EXCLUDED.breakdown,
@@ -92,6 +93,7 @@ async function generatePayslip(req, res, next) {
         calc.summary.absent_days,
         calc.summary.holiday_count,
         calc.summary.weekend_count,
+        calc.summary.monthly_salary,
         calc.summary.per_day_salary,
         calc.summary.net_salary,
         JSON.stringify(calc.days),
@@ -140,7 +142,8 @@ async function listPayslips(req, res, next) {
     const { rows } = await query(
       `SELECT p.id, p.user_id, p.month, p.year, p.working_days, p.present_days,
               p.half_days, p.travel_days, p.paid_leave_days, p.unpaid_leave_days,
-              p.absent_days, p.holiday_count, p.weekend_count, p.per_day_salary,
+              p.absent_days, p.holiday_count, p.weekend_count,
+              p.monthly_salary, p.per_day_salary,
               p.net_salary, p.generated_at,
               u.name AS employee_name, u.employee_id, u.designation,
               g.name AS generated_by_name
@@ -236,6 +239,7 @@ async function downloadPayslipPDF(req, res, next) {
         absent_days: payslip.absent_days,
         holiday_count: payslip.holiday_count,
         weekend_count: payslip.weekend_count,
+        monthly_salary: payslip.monthly_salary,
         per_day_salary: payslip.per_day_salary,
         net_salary: payslip.net_salary,
       },
@@ -272,7 +276,7 @@ async function downloadConsolidatedExcel(req, res, next) {
 
     // Fetch all active employees
     const { rows: employees } = await query(
-      `SELECT id, employee_id, name, designation, email, per_day_salary
+      `SELECT id, employee_id, name, designation, email, monthly_salary
        FROM users
        WHERE role = 'employee' AND status = 'active'
        ORDER BY name ASC`
