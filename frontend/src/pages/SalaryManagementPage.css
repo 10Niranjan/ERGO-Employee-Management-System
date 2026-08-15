@@ -18,7 +18,7 @@
 .employee-section-tabs {
   display: flex;
   gap: var(--space-2);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-w) solid var(--color-ink);
 }
 
 .emp-tab-btn {
@@ -28,20 +28,26 @@
   padding: var(--space-3) var(--space-4);
   background: transparent;
   border: none;
-  border-bottom: 2px solid transparent;
+  border-bottom: 6px solid transparent;
+  margin-bottom: -3px;
   color: var(--color-text-muted);
   font-size: var(--font-size-sm);
-  font-weight: 600;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   cursor: pointer;
-  transition: color var(--transition-fast), border-color var(--transition-fast);
+  transition: color var(--transition-fast), border-color var(--transition-fast),
+              background-color var(--transition-fast);
 }
 
 .emp-tab-btn:hover {
   color: var(--color-text);
+  background-color: var(--color-surface-2);
 }
 
 .emp-tab-btn.active {
-  color: var(--color-primary);
-  border-bottom-color: var(--color-primary);
+  color: var(--color-on-accent);
+  background-color: var(--color-accent);
+  border-bottom-color: var(--color-ink);
 }
 

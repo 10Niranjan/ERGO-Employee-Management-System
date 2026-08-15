@@ -23,6 +23,12 @@ export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [clock, setClock] = useState(() => new Date());
+
+  useEffect(() => {
+    const tick = setInterval(() => setClock(new Date()), 1000);
+    return () => clearInterval(tick);
+  }, []);
 
   // Close mobile sidebar on route change
   useEffect(() => {
@@ -146,6 +152,9 @@ export default function AdminLayout() {
           </div>
 
           <div className="admin-header-right">
+            <span className="ops-clock-chip" title="Asia/Kolkata">
+              IST {clock.toLocaleTimeString('en-GB', { hour12: false })}
+            </span>
             <ThemeToggle />
             <div className="user-profile-badge">
               <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>

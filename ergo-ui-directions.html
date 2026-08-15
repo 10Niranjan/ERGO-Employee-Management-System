@@ -1,0 +1,820 @@
+<title>Ergo UI Directions</title>
+<style>
+/* ══════════════ GALLERY FRAME — quiet, tokenised, both themes ══════════════ */
+:root{
+  --bg:#F4F5F8; --bg-2:#EBEDF2; --surface:#FFFFFF; --line:#DFE2E9; --line-soft:#EBEDF2;
+  --fg:#13151B; --fg-2:#3A3F4C; --muted:#666D80; --accent:#4F53C4; --accent-soft:rgba(79,83,196,.09);
+  --shadow:0 1px 2px rgba(17,20,30,.05), 0 12px 32px -12px rgba(17,20,30,.14);
+  --sans:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#0B0C10; --bg-2:#101218; --surface:#15171E; --line:#262A34; --line-soft:#1D2028;
+    --fg:#ECEEF3; --fg-2:#BFC4D0; --muted:#8B91A3; --accent:#9195F7; --accent-soft:rgba(145,149,247,.13);
+    --shadow:0 1px 2px rgba(0,0,0,.5), 0 16px 40px -16px rgba(0,0,0,.8);
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0B0C10; --bg-2:#101218; --surface:#15171E; --line:#262A34; --line-soft:#1D2028;
+  --fg:#ECEEF3; --fg-2:#BFC4D0; --muted:#8B91A3; --accent:#9195F7; --accent-soft:rgba(145,149,247,.13);
+  --shadow:0 1px 2px rgba(0,0,0,.5), 0 16px 40px -16px rgba(0,0,0,.8);
+}
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--bg); color:var(--fg); font-family:var(--sans);
+  font-size:15px; line-height:1.6; -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1180px; margin:0 auto; padding:0 28px}
+.eyebrow{
+  font-size:11px; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--muted); font-weight:600; margin:0;
+}
+
+/* ── head ── */
+.page-head{border-bottom:1px solid var(--line); padding:64px 0 34px; margin-bottom:0}
+.page-head h1{
+  font-size:clamp(34px,5.2vw,54px); line-height:1.04; letter-spacing:-.032em;
+  font-weight:700; margin:16px 0 0; text-wrap:balance; max-width:16ch;
+}
+.page-head .lede{
+  margin:20px 0 0; max-width:62ch; color:var(--fg-2); font-size:17px;
+}
+.head-facts{
+  display:flex; flex-wrap:wrap; gap:0 40px; margin-top:32px;
+  padding-top:22px; border-top:1px solid var(--line-soft);
+}
+.fact{display:flex; flex-direction:column; gap:3px}
+.fact b{font-size:13px; font-weight:600; letter-spacing:.01em}
+.fact span{font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--muted); font-weight:600}
+
+/* ── jump bar ── */
+.jump{
+  position:sticky; top:0; z-index:40; background:color-mix(in srgb,var(--bg) 88%,transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--line);
+}
+.jump-inner{display:flex; gap:6px; overflow-x:auto; padding:11px 28px; max-width:1180px; margin:0 auto; scrollbar-width:thin}
+.jump a{
+  flex:0 0 auto; text-decoration:none; color:var(--muted); font-size:12.5px; font-weight:600;
+  padding:6px 12px; border-radius:999px; border:1px solid transparent; white-space:nowrap;
+  transition:color .15s ease, background .15s ease, border-color .15s ease;
+}
+.jump a:hover,.jump a:focus-visible{color:var(--fg); background:var(--accent-soft); border-color:var(--line)}
+.jump a b{font-family:var(--mono); font-size:11px; color:var(--accent); margin-right:7px; font-weight:700}
+
+/* ── direction block ── */
+.dir{padding:68px 0; border-bottom:1px solid var(--line); scroll-margin-top:56px}
+.dir-head{display:flex; align-items:flex-start; gap:20px; margin-bottom:26px; flex-wrap:wrap}
+.dir-num{
+  font-family:var(--mono); font-size:12px; font-weight:700; color:var(--accent);
+  border:1px solid var(--line); border-radius:6px; padding:5px 9px; margin-top:5px; background:var(--surface);
+}
+.dir-head h2{font-size:27px; letter-spacing:-.022em; margin:0; font-weight:700}
+.dir-thesis{margin:6px 0 0; color:var(--fg-2); max-width:64ch}
+.dir-head .spacer{flex:1 1 auto}
+.replay{
+  margin-top:4px; font:inherit; font-size:12px; font-weight:600; color:var(--fg-2); cursor:pointer;
+  background:var(--surface); border:1px solid var(--line); border-radius:7px; padding:7px 13px;
+  transition:border-color .15s ease, color .15s ease, transform .12s ease;
+}
+.replay:hover{color:var(--fg); border-color:var(--accent)}
+.replay:active{transform:translateY(1px)}
+.replay:focus-visible,.jump a:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+
+/* ── browser frame ── */
+.frame{border:1px solid var(--line); border-radius:12px; overflow:hidden; box-shadow:var(--shadow); background:var(--surface)}
+.frame-bar{
+  display:flex; align-items:center; gap:7px; padding:9px 13px;
+  background:var(--bg-2); border-bottom:1px solid var(--line);
+}
+.frame-bar i{width:9px; height:9px; border-radius:50%; background:var(--line); display:block}
+.frame-url{
+  font-family:var(--mono); font-size:11px; color:var(--muted); background:var(--surface);
+  border:1px solid var(--line); border-radius:5px; padding:3px 11px; margin-left:10px;
+}
+.frame-scroll{overflow-x:auto; overflow-y:hidden}
+
+/* ── meta strip ── */
+.dir-meta{
+  display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:26px 30px;
+  margin-top:26px; padding-top:24px; border-top:1px solid var(--line-soft);
+}
+.meta-block h3{
+  font-size:10.5px; letter-spacing:.15em; text-transform:uppercase; color:var(--muted);
+  margin:0 0 10px; font-weight:700;
+}
+.meta-block p{margin:0; font-size:13.5px; color:var(--fg-2); line-height:1.55}
+.swatches{display:flex; flex-wrap:wrap; gap:7px}
+.sw{width:34px; height:34px; border-radius:7px; border:1px solid var(--line); position:relative; cursor:default}
+.sw::after{
+  content:attr(data-hex); position:absolute; bottom:calc(100% + 6px); left:50%; transform:translateX(-50%);
+  font-family:var(--mono); font-size:10px; background:var(--fg); color:var(--bg); padding:3px 6px;
+  border-radius:4px; opacity:0; pointer-events:none; transition:opacity .15s ease; white-space:nowrap;
+}
+.sw:hover::after{opacity:1}
+.stack{font-family:var(--mono); font-size:12px; color:var(--fg-2); line-height:1.75; margin:0}
+
+/* ── closing ── */
+.close{padding:66px 0 90px}
+.close h2{font-size:25px; letter-spacing:-.02em; margin:14px 0 0}
+.rec{
+  display:grid; grid-template-columns:auto 1fr; gap:14px 18px; margin-top:26px;
+  border:1px solid var(--line); border-radius:12px; padding:24px; background:var(--surface);
+}
+.rec dt{font-family:var(--mono); font-size:11.5px; font-weight:700; color:var(--accent); padding-top:3px; white-space:nowrap}
+.rec dd{margin:0; font-size:14px; color:var(--fg-2)}
+.rec dd b{color:var(--fg); font-weight:650}
+.note{margin-top:24px; font-size:13px; color:var(--muted); max-width:70ch}
+
+/* ══════════════ MOCKUPS — self-contained colour worlds ══════════════ */
+.ux{
+  --r:12px; --pad:22px;
+  min-width:900px; display:grid; grid-template-columns:212px 1fr; min-height:566px;
+  position:relative; overflow:hidden; font-family:var(--ux-sans); background:var(--ux-bg);
+  color:var(--ux-fg); font-size:13px; line-height:1.5;
+}
+.ux-fx{position:absolute; inset:0; pointer-events:none; overflow:hidden}
+.ux-fx>*{display:none; position:absolute}
+
+/* sidebar */
+.ux-side{
+  display:flex; flex-direction:column; gap:18px; padding:20px 14px; position:relative; z-index:2;
+  background:var(--ux-panel); border-right:1px solid var(--ux-line);
+}
+.ux-brand{display:flex; align-items:center; gap:10px; padding:0 6px 16px; border-bottom:1px solid var(--ux-line)}
+.ux-mark{
+  width:30px; height:30px; border-radius:9px; display:grid; place-items:center; flex:0 0 auto;
+  background:var(--ux-accent); color:var(--ux-accent-fg); font-weight:800; font-size:14px;
+}
+.ux-brandtext{display:flex; flex-direction:column; line-height:1.25; font-weight:700; font-size:14px; letter-spacing:-.01em}
+.ux-brandtext em{font-style:normal; font-size:9.5px; font-weight:600; letter-spacing:.1em; text-transform:uppercase; color:var(--ux-muted)}
+.ux-nav{display:flex; flex-direction:column; gap:2px}
+.ux-navitem{
+  display:flex; align-items:center; gap:10px; padding:7px 10px; border-radius:8px;
+  color:var(--ux-muted); font-size:12.5px; font-weight:500; cursor:pointer; border:1px solid transparent;
+  transition:background .16s ease, color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.ux-navitem svg{width:15px; height:15px; flex:0 0 auto; stroke:currentColor; fill:none; stroke-width:1.7; stroke-linecap:round; stroke-linejoin:round}
+.ux-navitem:hover{color:var(--ux-fg); background:var(--ux-hover)}
+.ux-navitem.is-active{color:var(--ux-accent-on); background:var(--ux-active); font-weight:650}
+.ux-user{
+  margin-top:auto; display:flex; align-items:center; gap:9px; padding:11px 8px 2px;
+  border-top:1px solid var(--ux-line);
+}
+.ux-av{
+  width:27px; height:27px; border-radius:50%; display:grid; place-items:center; flex:0 0 auto;
+  background:var(--ux-active); color:var(--ux-accent-on); font-size:11px; font-weight:700;
+}
+.ux-uname{display:flex; flex-direction:column; line-height:1.3; font-size:12px; font-weight:600}
+.ux-uname em{font-style:normal; font-size:9.5px; color:var(--ux-muted); font-weight:500; letter-spacing:.04em}
+
+/* main */
+.ux-main{position:relative; z-index:2; display:flex; flex-direction:column; min-width:0}
+.ux-top{
+  display:flex; align-items:center; gap:14px; padding:13px var(--pad);
+  border-bottom:1px solid var(--ux-line); background:var(--ux-topbar);
+}
+.ux-crumb{font-size:11px; color:var(--ux-muted); letter-spacing:.03em}
+.ux-crumb b{color:var(--ux-fg); font-weight:650}
+.ux-top .sp{flex:1}
+.ux-chip{
+  font-size:11px; padding:4px 10px; border-radius:999px; border:1px solid var(--ux-line);
+  color:var(--ux-muted); background:var(--ux-panel-2);
+}
+.ux-body{padding:var(--pad); display:flex; flex-direction:column; gap:20px}
+
+/* hero */
+.ux-hero{
+  padding:20px 22px; border-radius:var(--r); background:var(--ux-panel-2);
+  border:1px solid var(--ux-line); position:relative; overflow:hidden;
+}
+.ux-hero .greet{font-size:11px; letter-spacing:.13em; text-transform:uppercase; color:var(--ux-accent-on); font-weight:700}
+.ux-hero h1{
+  margin:8px 0 5px; font-size:23px; font-weight:700; letter-spacing:-.02em;
+  font-family:var(--ux-display); color:var(--ux-fg);
+}
+.ux-hero p{margin:0; color:var(--ux-muted); font-size:12.5px; max-width:64ch}
+.ux-hero p b{color:var(--ux-fg); font-weight:650}
+
+/* section head */
+.ux-sec{display:flex; align-items:baseline; gap:12px; margin-bottom:-6px}
+.ux-sec h2{
+  margin:0; font-size:13px; font-weight:700; letter-spacing:var(--ux-ls,.01em);
+  text-transform:var(--ux-tt,none); color:var(--ux-fg);
+}
+.ux-sec .sp{flex:1}
+.ux-sec a{font-size:11.5px; color:var(--ux-accent-on); font-weight:600; cursor:pointer}
+
+/* kpis */
+.ux-kpis{display:grid; grid-template-columns:repeat(6,1fr); gap:11px}
+.ux-kpi{
+  padding:14px; border-radius:var(--r); background:var(--ux-panel-2); border:1px solid var(--ux-line);
+  display:flex; flex-direction:column; gap:5px; position:relative; overflow:hidden;
+  transition:transform .22s cubic-bezier(.2,.7,.3,1), box-shadow .22s ease, border-color .22s ease;
+}
+.ux-kpi:hover{transform:translateY(-3px); border-color:var(--ux-accent)}
+.ux-kpi .lab{font-size:9.5px; letter-spacing:.11em; text-transform:uppercase; color:var(--ux-muted); font-weight:650}
+.ux-kpi .val{
+  font-size:27px; font-weight:700; line-height:1; font-family:var(--ux-display);
+  font-variant-numeric:tabular-nums; letter-spacing:-.03em; color:var(--ux-fg);
+}
+.ux-kpi .sub{font-size:10px; color:var(--ux-muted)}
+.ux-kpi.ok .val{color:var(--ux-ok)} .ux-kpi.warn .val{color:var(--ux-warn)} .ux-kpi.bad .val{color:var(--ux-bad)}
+.ux-bar{height:3px; border-radius:2px; background:var(--ux-line); overflow:hidden; margin-top:2px}
+.ux-bar i{display:block; height:100%; width:0; background:var(--ux-accent); transition:width .9s cubic-bezier(.2,.8,.3,1) .3s}
+.ux-kpi.ok .ux-bar i{background:var(--ux-ok)} .ux-kpi.warn .ux-bar i{background:var(--ux-warn)} .ux-kpi.bad .ux-bar i{background:var(--ux-bad)}
+
+/* panel + table */
+.ux-panel{border-radius:var(--r); border:1px solid var(--ux-line); background:var(--ux-panel-2); overflow:hidden}
+.ux-phead{display:flex; align-items:center; gap:10px; padding:13px 16px; border-bottom:1px solid var(--ux-line)}
+.ux-phead h3{margin:0; font-size:12.5px; font-weight:700; letter-spacing:var(--ux-ls,.01em); text-transform:var(--ux-tt,none)}
+.ux-phead .sp{flex:1}
+.ux-count{
+  font-size:10px; font-weight:700; padding:2px 8px; border-radius:999px;
+  background:var(--ux-warn-soft); color:var(--ux-warn);
+}
+.ux-table{width:100%; border-collapse:collapse; font-size:12px}
+.ux-table th{
+  text-align:left; padding:8px 16px; font-size:9.5px; letter-spacing:.11em; text-transform:uppercase;
+  color:var(--ux-muted); font-weight:650; border-bottom:1px solid var(--ux-line); background:var(--ux-thead);
+}
+.ux-table td{padding:10px 16px; border-bottom:1px solid var(--ux-line-soft); color:var(--ux-fg-2)}
+.ux-table tbody tr{transition:background .15s ease}
+.ux-table tbody tr:hover{background:var(--ux-hover)}
+.ux-table tbody tr:last-child td{border-bottom:0}
+.ux-who{display:flex; align-items:center; gap:9px}
+.ux-who i{
+  width:24px; height:24px; border-radius:50%; display:grid; place-items:center; font-style:normal;
+  font-size:10px; font-weight:700; background:var(--ux-active); color:var(--ux-accent-on); flex:0 0 auto;
+}
+.ux-who b{font-weight:650; color:var(--ux-fg)}
+.ux-num{font-variant-numeric:tabular-nums}
+.ux-badge{
+  display:inline-block; font-size:10px; font-weight:700; padding:3px 9px; border-radius:999px;
+  letter-spacing:.03em; border:1px solid transparent;
+}
+.ux-badge.p{background:var(--ux-warn-soft); color:var(--ux-warn)}
+.ux-badge.a{background:var(--ux-ok-soft); color:var(--ux-ok)}
+.ux-badge.r{background:var(--ux-bad-soft); color:var(--ux-bad)}
+.ux-acts{display:flex; gap:6px; justify-content:flex-end}
+.ux-btn{
+  font:inherit; font-size:11px; font-weight:650; padding:4px 11px; border-radius:7px; cursor:pointer;
+  border:1px solid var(--ux-line); background:var(--ux-panel); color:var(--ux-fg-2);
+  transition:transform .13s ease, background .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease;
+}
+.ux-btn:hover{color:var(--ux-fg); border-color:var(--ux-accent)}
+.ux-btn:active{transform:translateY(1px)}
+.ux-btn.pri{background:var(--ux-accent); color:var(--ux-accent-fg); border-color:var(--ux-accent)}
+.ux-btn.pri:hover{filter:brightness(1.1)}
+.ux-log,.ux-sticker,.ux-rule{display:none}
+
+/* ── entrance motion (shared) ── */
+.ux-navitem,.ux-hero,.ux-kpi,.ux-panel{opacity:0; transform:translateY(12px)}
+.ux.is-in .ux-navitem,.ux.is-in .ux-hero,.ux.is-in .ux-kpi,.ux.is-in .ux-panel{
+  opacity:1; transform:none;
+  transition:opacity .5s ease var(--d,0ms), transform .55s cubic-bezier(.2,.75,.3,1) var(--d,0ms);
+}
+.ux.is-in .ux-kpi{transition:opacity .5s ease var(--d,0ms), transform .55s cubic-bezier(.2,.75,.3,1) var(--d,0ms), border-color .22s ease, box-shadow .22s ease}
+.ux.is-in .ux-bar i{width:var(--w,0%)}
+.ux-table tbody tr{opacity:0}
+.ux.is-in .ux-table tbody tr{opacity:1; transition:opacity .45s ease var(--d,0ms), background .15s ease}
+
+/* ══════════ 01 · AURORA GLASS ══════════ */
+.ux--aurora{
+  --ux-bg:#0A0C13; --ux-panel:rgba(255,255,255,.028); --ux-panel-2:rgba(255,255,255,.045);
+  --ux-topbar:rgba(255,255,255,.02); --ux-thead:rgba(255,255,255,.02);
+  --ux-line:rgba(255,255,255,.085); --ux-line-soft:rgba(255,255,255,.05);
+  --ux-hover:rgba(255,255,255,.05); --ux-active:rgba(124,124,255,.16);
+  --ux-fg:#EEEFF7; --ux-fg-2:#C3C7D8; --ux-muted:#868CA6;
+  --ux-accent:#7C7CFF; --ux-accent-on:#A3A3FF; --ux-accent-fg:#0A0C13;
+  --ux-ok:#46D6C8; --ux-ok-soft:rgba(70,214,200,.14);
+  --ux-warn:#F0B45C; --ux-warn-soft:rgba(240,180,92,.14);
+  --ux-bad:#FF7A8A; --ux-bad-soft:rgba(255,122,138,.14);
+  --ux-sans:"Segoe UI",system-ui,-apple-system,sans-serif; --ux-display:var(--ux-sans);
+  --r:14px;
+}
+.ux--aurora .ux-side,.ux--aurora .ux-hero,.ux--aurora .ux-kpi,.ux--aurora .ux-panel{backdrop-filter:blur(22px)}
+.ux--aurora .ux-kpi:hover{box-shadow:0 12px 34px -14px rgba(124,124,255,.6)}
+.ux--aurora .ux-navitem.is-active{box-shadow:inset 2px 0 0 var(--ux-accent)}
+.ux--aurora .orb{display:block; border-radius:50%; filter:blur(72px); opacity:.55}
+.ux--aurora .orb-a{width:400px; height:400px; background:#5B5BFF; top:-140px; left:120px; animation:drift-a 26s ease-in-out infinite}
+.ux--aurora .orb-b{width:340px; height:340px; background:#00C2B2; bottom:-150px; right:60px; animation:drift-b 31s ease-in-out infinite}
+.ux--aurora .orb-c{width:280px; height:280px; background:#C452D8; top:180px; right:280px; opacity:.32; animation:drift-c 37s ease-in-out infinite}
+@keyframes drift-a{50%{transform:translate(90px,70px) scale(1.15)}}
+@keyframes drift-b{50%{transform:translate(-110px,-60px) scale(1.1)}}
+@keyframes drift-c{50%{transform:translate(60px,-90px) scale(.9)}}
+.ux--aurora .ux-hero::after{
+  content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+  background:linear-gradient(115deg,rgba(124,124,255,.18),transparent 46%);
+}
+
+/* ══════════ 02 · SWISS SIGNAL ══════════ */
+.ux--swiss{
+  --ux-bg:#FFFFFF; --ux-panel:#FFFFFF; --ux-panel-2:#FFFFFF; --ux-topbar:#FFFFFF; --ux-thead:#F4F5F6;
+  --ux-line:#111316; --ux-line-soft:#DCDEE2; --ux-hover:#F5F6F7; --ux-active:#111316;
+  --ux-fg:#0A0B0D; --ux-fg-2:#3B4149; --ux-muted:#767E89;
+  --ux-accent:#111316; --ux-accent-on:#111316; --ux-accent-fg:#FFFFFF;
+  --ux-ok:#0B7A46; --ux-ok-soft:transparent;
+  --ux-warn:#8A6200; --ux-warn-soft:transparent;
+  --ux-bad:#D9271C; --ux-bad-soft:transparent;
+  --ux-sans:"Helvetica Neue",Helvetica,Arial,sans-serif; --ux-display:var(--ux-sans);
+  --ux-tt:uppercase; --ux-ls:.13em; --r:0px;
+}
+.ux--swiss .ux-side{border-right:1px solid #111316}
+.ux--swiss .ux-brand,.ux--swiss .ux-user{border-color:#111316}
+.ux--swiss .ux-mark{border-radius:0}
+.ux--swiss .ux-navitem{border-radius:0; border-bottom:1px solid #E6E8EB; padding:8px 6px; letter-spacing:.02em}
+.ux--swiss .ux-navitem.is-active{background:#111316; color:#FFF; border-color:#111316}
+.ux--swiss .ux-navitem:hover:not(.is-active){background:transparent; box-shadow:inset 0 -1px 0 #D9271C}
+.ux--swiss .ux-hero{border:0; border-top:2px solid #111316; border-bottom:1px solid #DCDEE2; padding:20px 0}
+.ux--swiss .ux-hero h1{font-size:30px; letter-spacing:-.035em}
+.ux--swiss .ux-hero .greet{color:#D9271C}
+.ux--swiss .ux-kpi{
+  border:0; border-top:2px solid #111316; border-radius:0; padding:11px 0 13px; background:transparent;
+}
+.ux--swiss .ux-kpi:hover{transform:none; box-shadow:inset 0 3px 0 -1px #D9271C}
+.ux--swiss .ux-kpi .val{font-size:34px; letter-spacing:-.05em}
+.ux--swiss .ux-kpi.bad .val,.ux--swiss .ux-kpi.warn .val{color:#D9271C}
+.ux--swiss .ux-bar{height:2px; border-radius:0; background:#DCDEE2}
+.ux--swiss .ux-bar i{border-radius:0; background:#111316}
+.ux--swiss .ux-kpi.bad .ux-bar i,.ux--swiss .ux-kpi.warn .ux-bar i{background:#D9271C}
+.ux--swiss .ux-panel{border:0; border-top:2px solid #111316; border-radius:0}
+.ux--swiss .ux-phead{padding:11px 0; border-bottom:1px solid #DCDEE2}
+.ux--swiss .ux-count{background:#D9271C; color:#FFF; border-radius:0; padding:2px 7px}
+.ux--swiss .ux-table th{padding-left:0; background:transparent; border-bottom:1px solid #111316}
+.ux--swiss .ux-table td{padding-left:0}
+.ux--swiss .ux-table th:last-child,.ux--swiss .ux-table td:last-child{padding-right:0}
+.ux--swiss .ux-who i,.ux--swiss .ux-av{border-radius:0; background:#111316; color:#FFF}
+.ux--swiss .ux-badge{border-radius:0; border:1px solid currentColor; padding:2px 7px; font-size:9.5px; letter-spacing:.09em; text-transform:uppercase}
+.ux--swiss .ux-btn{border-radius:0; border-color:#111316; color:#111316}
+.ux--swiss .ux-btn:hover{background:#111316; color:#FFF}
+.ux--swiss .ux-btn.pri:hover{background:#D9271C; border-color:#D9271C}
+.ux--swiss .ux-chip{border-radius:0; border-color:#DCDEE2}
+.ux--swiss .ux-grid{
+  display:block; inset:0; opacity:.6;
+  background-image:linear-gradient(90deg,#F0F1F3 1px,transparent 1px);
+  background-size:74px 100%;
+}
+
+/* ══════════ 03 · OPS CONSOLE ══════════ */
+.ux--console{
+  --ux-bg:#07090C; --ux-panel:#0B0E12; --ux-panel-2:#0B0E12; --ux-topbar:#0B0E12; --ux-thead:#0E1218;
+  --ux-line:#1C242E; --ux-line-soft:#151B22; --ux-hover:rgba(245,165,36,.07); --ux-active:rgba(245,165,36,.12);
+  --ux-fg:#D4DBE3; --ux-fg-2:#9EA9B6; --ux-muted:#5F6D7C;
+  --ux-accent:#F5A524; --ux-accent-on:#F5A524; --ux-accent-fg:#07090C;
+  --ux-ok:#3FB950; --ux-ok-soft:rgba(63,185,80,.12);
+  --ux-warn:#F5A524; --ux-warn-soft:rgba(245,165,36,.12);
+  --ux-bad:#F85149; --ux-bad-soft:rgba(248,81,73,.12);
+  --ux-sans:ui-monospace,"Cascadia Mono",Consolas,"SF Mono",monospace; --ux-display:var(--ux-sans);
+  --ux-tt:uppercase; --ux-ls:.14em; --r:3px;
+}
+.ux--console .ux-mark{border-radius:3px}
+.ux--console .ux-navitem{border-radius:2px; font-size:11.5px; letter-spacing:.02em}
+.ux--console .ux-navitem::before{content:"·"; color:var(--ux-muted); margin-right:-4px}
+.ux--console .ux-navitem.is-active::before{content:">"; color:var(--ux-accent)}
+.ux--console .ux-navitem.is-active{background:rgba(245,165,36,.1); box-shadow:inset 2px 0 0 var(--ux-accent)}
+.ux--console .ux-hero{border-left:2px solid var(--ux-accent)}
+.ux--console .ux-hero h1{font-size:19px; letter-spacing:.01em}
+.ux--console .ux-hero h1::after{
+  content:"_"; color:var(--ux-accent); animation:blink 1.05s steps(1) infinite;
+}
+@keyframes blink{50%{opacity:0}}
+.ux--console .ux-kpi{border-left:2px solid var(--ux-line); border-radius:0 3px 3px 0}
+.ux--console .ux-kpi.ok{border-left-color:var(--ux-ok)}
+.ux--console .ux-kpi.warn{border-left-color:var(--ux-warn)}
+.ux--console .ux-kpi.bad{border-left-color:var(--ux-bad)}
+.ux--console .ux-kpi:hover{transform:none; background:#0E1319}
+.ux--console .ux-kpi .val{font-size:25px; letter-spacing:0}
+.ux--console .ux-kpi .sub::before{content:"› "}
+.ux--console .ux-badge{border-radius:2px; text-transform:uppercase; font-size:9.5px; letter-spacing:.1em}
+.ux--console .ux-badge::before{content:"["} .ux--console .ux-badge::after{content:"]"}
+.ux--console .ux-who i{border-radius:2px}
+.ux--console .ux-btn{border-radius:2px; text-transform:uppercase; letter-spacing:.08em; font-size:10px}
+.ux--console .ux-chip{border-radius:2px}
+.ux--console .ux-log{
+  display:block; position:static; margin-top:2px; padding:11px 14px; border:1px solid var(--ux-line);
+  border-radius:3px; background:#0B0E12; font-size:11px; color:var(--ux-muted);
+  height:88px; overflow:hidden; display:flex; flex-direction:column; gap:3px; justify-content:flex-end;
+}
+.ux--console .ux-log b{color:var(--ux-accent); font-weight:400}
+.ux--console .ux-log span{animation:logline .35s ease}
+.ux--console .ux-log .ok{color:var(--ux-ok)} .ux--console .ux-log .bad{color:var(--ux-bad)}
+@keyframes logline{from{opacity:0; transform:translateY(6px)}}
+.ux--console .ux-scan{
+  display:block; inset:0; opacity:.5;
+  background:repeating-linear-gradient(180deg,rgba(255,255,255,.018) 0 1px,transparent 1px 3px);
+}
+
+/* ══════════ 04 · BOLD BLOCKS ══════════ */
+.ux--blocks{
+  --ux-bg:#FFFDF9; --ux-panel:#FFD100; --ux-panel-2:#FFFFFF; --ux-topbar:#FFFFFF; --ux-thead:#FFF3BF;
+  --ux-line:#000000; --ux-line-soft:#E4E1D8; --ux-hover:#FFF3BF; --ux-active:#2563FF;
+  --ux-fg:#000000; --ux-fg-2:#2A2A2A; --ux-muted:#5C5A52;
+  --ux-accent:#2563FF; --ux-accent-on:#1B4BD6; --ux-accent-fg:#FFFFFF;
+  --ux-ok:#0B7A3B; --ux-ok-soft:#B9F0CE;
+  --ux-warn:#8A5A00; --ux-warn-soft:#FFD100;
+  --ux-bad:#C4230F; --ux-bad-soft:#FFC5BC;
+  --ux-sans:"Arial Black","Segoe UI",Arial,sans-serif; --ux-display:var(--ux-sans);
+  --r:6px;
+}
+.ux--blocks .ux-side{border-right:3px solid #000}
+.ux--blocks .ux-brand,.ux--blocks .ux-user{border-color:#000}
+.ux--blocks .ux-mark{border:2px solid #000; box-shadow:3px 3px 0 #000; background:#FF5A3C; color:#000}
+.ux--blocks .ux-navitem{
+  font-family:"Segoe UI",Arial,sans-serif; font-weight:700; border:2px solid transparent; color:#000;
+}
+.ux--blocks .ux-navitem:hover{border-color:#000; background:#FFF; transform:translate(-2px,-2px); box-shadow:3px 3px 0 #000}
+.ux--blocks .ux-navitem.is-active{background:#2563FF; color:#FFF; border-color:#000; box-shadow:3px 3px 0 #000}
+.ux--blocks .ux-top{border-bottom:3px solid #000}
+.ux--blocks .ux-hero{border:3px solid #000; box-shadow:7px 7px 0 #000; background:#FFD100}
+.ux--blocks .ux-hero h1{font-size:27px; letter-spacing:-.03em; text-transform:uppercase}
+.ux--blocks .ux-hero .greet{color:#000}
+.ux--blocks .ux-hero p{color:#2A2A2A}
+.ux--blocks .ux-hero p b{background:#000; color:#FFD100; padding:1px 5px}
+.ux--blocks .ux-kpi{border:3px solid #000; box-shadow:5px 5px 0 #000; background:#FFF}
+.ux--blocks .ux-kpi .lab{font-family:"Segoe UI",Arial,sans-serif; font-weight:800}
+.ux--blocks .ux-kpi:hover{transform:translate(5px,5px); box-shadow:0 0 0 #000}
+.ux--blocks .ux-kpi:nth-child(2){background:#B9F0CE}
+.ux--blocks .ux-kpi:nth-child(5){background:#FFC5BC}
+.ux--blocks .ux-kpi .val{font-size:29px}
+.ux--blocks .ux-bar{border:2px solid #000; height:9px; border-radius:0; background:#FFF}
+.ux--blocks .ux-bar i{background:#2563FF; border-radius:0}
+.ux--blocks .ux-panel{border:3px solid #000; box-shadow:7px 7px 0 #000; background:#FFF}
+.ux--blocks .ux-phead{border-bottom:3px solid #000; background:#FFD100}
+.ux--blocks .ux-count{background:#000; color:#FFD100; border-radius:0}
+.ux--blocks .ux-table th{border-bottom:3px solid #000; font-family:"Segoe UI",Arial,sans-serif; font-weight:800}
+.ux--blocks .ux-table td{font-family:"Segoe UI",Arial,sans-serif; font-weight:500}
+.ux--blocks .ux-table tbody tr:hover{background:#FFF3BF}
+.ux--blocks .ux-who i{border:2px solid #000; border-radius:0; background:#FF5A3C; color:#000}
+.ux--blocks .ux-av{border:2px solid #000; background:#FFD100; color:#000}
+.ux--blocks .ux-badge{border-radius:0; border:2px solid #000; font-family:"Segoe UI",Arial,sans-serif}
+.ux--blocks .ux-btn{
+  border:2px solid #000; border-radius:0; box-shadow:3px 3px 0 #000; font-family:"Segoe UI",Arial,sans-serif;
+  font-weight:800; background:#FFF;
+}
+.ux--blocks .ux-btn:hover{transform:translate(3px,3px); box-shadow:0 0 0 #000}
+.ux--blocks .ux-btn.pri{background:#2563FF; color:#FFF}
+.ux--blocks .ux-chip{border:2px solid #000; border-radius:0; background:#FFF; color:#000; font-weight:700}
+.ux--blocks .ux-sticker{
+  display:block; position:absolute; top:15px; right:20px; z-index:3;
+  background:#FF5A3C; color:#000; border:3px solid #000;
+  padding:7px 13px; font-weight:900; font-size:12px; letter-spacing:.04em; transform:rotate(6deg);
+  box-shadow:4px 4px 0 #000; text-transform:uppercase; animation:wobble 3.4s ease-in-out infinite;
+}
+@keyframes wobble{50%{transform:rotate(-3deg) scale(1.04)}}
+
+/* ══════════ 05 · NOCTURNE ══════════ */
+.ux--nocturne{
+  --ux-bg:#131110; --ux-panel:#171513; --ux-panel-2:transparent; --ux-topbar:transparent; --ux-thead:transparent;
+  --ux-line:rgba(201,162,39,.22); --ux-line-soft:rgba(242,237,227,.07);
+  --ux-hover:rgba(201,162,39,.05); --ux-active:rgba(201,162,39,.14);
+  --ux-fg:#F3EEE4; --ux-fg-2:#C8C0B1; --ux-muted:#8B8477;
+  --ux-accent:#C9A227; --ux-accent-on:#D9B549; --ux-accent-fg:#131110;
+  --ux-ok:#8FA76B; --ux-ok-soft:rgba(143,167,107,.14);
+  --ux-warn:#D9B549; --ux-warn-soft:rgba(217,181,73,.13);
+  --ux-bad:#C4756A; --ux-bad-soft:rgba(196,117,106,.14);
+  --ux-sans:"Segoe UI",system-ui,-apple-system,sans-serif;
+  --ux-display:"Iowan Old Style","Palatino Linotype",Georgia,serif;
+  --r:0px; --pad:30px;
+}
+.ux--nocturne{grid-template-columns:198px 1fr}
+.ux--nocturne .ux-side{background:#171513; border-right:1px solid rgba(201,162,39,.18)}
+.ux--nocturne .ux-mark{border-radius:0; font-family:var(--ux-display); font-weight:400; font-size:16px; background:transparent; color:#D9B549; border:1px solid rgba(201,162,39,.45)}
+.ux--nocturne .ux-brandtext{font-family:var(--ux-display); font-weight:400; font-size:16px; letter-spacing:.02em}
+.ux--nocturne .ux-navitem{border-radius:0; padding:8px 8px; font-size:12px; letter-spacing:.05em}
+.ux--nocturne .ux-navitem.is-active{background:transparent; color:#D9B549; box-shadow:inset 2px 0 0 #C9A227}
+.ux--nocturne .ux-body{gap:30px}
+.ux--nocturne .ux-hero{border:0; border-bottom:1px solid rgba(201,162,39,.22); padding:8px 0 26px; background:none}
+.ux--nocturne .ux-hero .greet{color:#8B8477; letter-spacing:.22em; font-weight:600}
+.ux--nocturne .ux-hero h1{font-size:37px; font-weight:400; letter-spacing:-.012em; margin:14px 0 9px; max-width:22ch}
+.ux--nocturne .ux-kpis{gap:0; border-bottom:1px solid rgba(242,237,227,.07)}
+.ux--nocturne .ux-kpi{
+  border:0; border-left:1px solid rgba(242,237,227,.07); background:none; padding:4px 18px 22px; border-radius:0;
+}
+.ux--nocturne .ux-kpi:first-child{border-left:0; padding-left:0}
+.ux--nocturne .ux-kpi:hover{transform:none; background:rgba(201,162,39,.04)}
+.ux--nocturne .ux-kpi .lab{letter-spacing:.2em; font-size:9px; font-weight:600}
+.ux--nocturne .ux-kpi .val{font-size:42px; font-weight:400; letter-spacing:-.02em; margin:6px 0 2px}
+.ux--nocturne .ux-bar{display:none}
+.ux--nocturne .ux-panel{border:0; border-radius:0; background:none}
+.ux--nocturne .ux-phead{padding:0 0 12px; border-bottom:1px solid rgba(201,162,39,.22)}
+.ux--nocturne .ux-phead h3{font-family:var(--ux-display); font-weight:400; font-size:19px; letter-spacing:.01em; text-transform:none}
+.ux--nocturne .ux-count{background:transparent; color:#D9B549; border:1px solid rgba(201,162,39,.4); border-radius:0; letter-spacing:.1em}
+.ux--nocturne .ux-sec h2{font-family:var(--ux-display); font-weight:400; font-size:19px; text-transform:none; letter-spacing:.01em}
+.ux--nocturne .ux-table th{padding:12px 14px 10px 0; letter-spacing:.19em; border-bottom:1px solid rgba(242,237,227,.07); background:none}
+.ux--nocturne .ux-table td{padding:14px 14px 14px 0; border-bottom:1px solid rgba(242,237,227,.06)}
+.ux--nocturne .ux-table th:last-child,.ux--nocturne .ux-table td:last-child{padding-right:0}
+.ux--nocturne .ux-who i{border-radius:0; background:transparent; border:1px solid rgba(201,162,39,.35); color:#D9B549; font-family:var(--ux-display); font-weight:400}
+.ux--nocturne .ux-who b{font-family:var(--ux-display); font-weight:400; font-size:14px; letter-spacing:.01em}
+.ux--nocturne .ux-num{font-family:var(--ux-display); font-size:14px}
+.ux--nocturne .ux-badge{border-radius:0; background:none; border:1px solid currentColor; text-transform:uppercase; font-size:9px; letter-spacing:.14em; font-weight:600}
+.ux--nocturne .ux-btn{border-radius:0; background:none; border-color:rgba(201,162,39,.35); letter-spacing:.09em; font-size:10px; text-transform:uppercase}
+.ux--nocturne .ux-btn.pri{background:#C9A227; color:#131110; border-color:#C9A227}
+.ux--nocturne .ux-chip{border-radius:0; background:none; letter-spacing:.09em}
+.ux--nocturne .ux-top{border-bottom:1px solid rgba(242,237,227,.07)}
+
+/* ── responsive frame ── */
+@media (max-width:760px){
+  .wrap{padding:0 18px}
+  .jump-inner{padding:11px 18px}
+  .dir{padding:48px 0}
+  .rec{grid-template-columns:1fr; gap:4px 0; padding:20px}
+  .rec dd{margin-bottom:14px}
+}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important; animation-iteration-count:1 !important; transition-duration:.001ms !important}
+  .ux-navitem,.ux-hero,.ux-kpi,.ux-panel,.ux-table tbody tr{opacity:1 !important; transform:none !important}
+  .ux-bar i{width:var(--w,0%) !important}
+}
+</style>
+
+<header class="page-head">
+  <div class="wrap">
+    <p class="eyebrow">Ergo · Employee Management System</p>
+    <h1>Five ways this could look</h1>
+    <p class="lede">
+      The same screen — Admin Overview, with your real navigation, live attendance counts and the pending
+      leave queue — rendered five times in five different visual languages. These are running interfaces,
+      not pictures: they animate on entry, respond to hover, and each one carries its own palette,
+      typography and motion. Pick a direction, or pick pieces from several.
+    </p>
+    <div class="head-facts">
+      <div class="fact"><span>Screen</span><b>/admin/dashboard</b></div>
+      <div class="fact"><span>Directions</span><b>5</b></div>
+      <div class="fact"><span>Stack assumed</span><b>React 18 · plain CSS · lucide</b></div>
+      <div class="fact"><span>Date</span><b>14 Aug 2026</b></div>
+    </div>
+  </div>
+</header>
+
+<nav class="jump"><div class="jump-inner" id="jump"></div></nav>
+
+<main id="directions" class="wrap"></main>
+
+<section class="close wrap">
+  <p class="eyebrow">Where I'd go</p>
+  <h2>A recommendation, since you asked for options</h2>
+  <dl class="rec">
+    <dt>System</dt>
+    <dd><b>01 Aurora Glass.</b> It's the only direction that costs you almost nothing — your tokens are
+      already a dark indigo palette on <code>#0f1117</code>. It's a glass layer, three blurred orbs and a
+      stagger helper on top of what you have, not a rewrite.</dd>
+    <dt>Tables</dt>
+    <dd><b>Steal 02's table.</b> Hairline rules, tabular figures, uppercase micro-labels and no row
+      striping. Drop that treatment into Aurora's dark panels and Attendance / Salary History stop looking
+      like spreadsheets in a dark theme.</dd>
+    <dt>One screen</dt>
+    <dd><b>03 Ops Console for a live attendance wallboard.</b> If a screen ever goes on a wall in the
+      office, this is what it should look like. It would be punishing across nine admin pages.</dd>
+    <dt>Skip unless</dt>
+    <dd><b>04</b> only if the employee-facing app wants a separate, friendlier identity from admin.
+      <b>05</b> only for payroll documents and exports, where big serif figures actually earn their keep.</dd>
+  </dl>
+  <p class="note">
+    Every mockup here is CSS on the markup structure you already have — sidebar, top bar, hero, KPI grid,
+    data panel. Nothing needs a UI kit or an animation library. Hover the swatches to read hex values,
+    and use "Replay motion" to watch a direction's entrance sequence again.
+  </p>
+</section>
+
+<script>
+const ICONS = {
+  dash:'<rect x="3" y="3" width="7" height="8" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="11" width="7" height="10" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+  report:'<rect x="3" y="3" width="18" height="18" rx="2"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',
+  clip:'<path d="M9 3h6v3H9z"/><path d="M15 4.5h3v16H6v-16h3"/><path d="M9 13l2 2 4-4"/>',
+  clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5h4"/>',
+  users:'<circle cx="9" cy="8" r="3.2"/><path d="M3 20a6 6 0 0112 0"/><path d="M16 5.5a3.2 3.2 0 010 6M17 20a6 6 0 00-1.6-4"/>',
+  tag:'<path d="M3 11V4h7l10 10-7 7z"/><circle cx="7.5" cy="7.5" r="1.3"/>',
+  cal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M8 3v4M16 3v4M3 10h18M8 14h.01M12 14h.01M16 14h.01M8 18h.01M12 18h.01"/>',
+  wallet:'<rect x="3" y="6" width="18" height="13" rx="2"/><path d="M3 10h18"/><circle cx="17" cy="14.5" r="1.2"/>',
+  hist:'<path d="M3 12a9 9 0 109-9 9 9 0 00-6.4 2.6L3 8"/><path d="M3 4v4h4"/><path d="M12 8v4.5l3 1.8"/>'
+};
+const NAV = [
+  ['Overview','dash'],['Reports & Payroll','report'],['Leave Requests','clip'],['Attendance','clock'],
+  ['Employees','users'],['Leave Types','tag'],['Holidays','cal'],['Salary Rates','wallet'],['Salary History','hist']
+];
+const KPIS = [
+  ['Total Staff', 48, 'Active accounts', '', 100],
+  ['Present',     39, 'Marked in today', 'ok', 81],
+  ['Half Day',     3, 'Approved short day', '', 6],
+  ['Travel',       2, 'On client site', '', 4],
+  ['Absent',       1, 'Unapproved', 'bad', 2],
+  ['Not Marked',   3, 'Awaiting entry', 'warn', 6]
+];
+const ROWS = [
+  ['AD','Aarti Deshmukh','Sick Leave','18 – 19 Aug','2','p','Pending'],
+  ['RK','Rohit Kulkarni','Casual Leave','21 Aug','1','p','Pending'],
+  ['SI','Sneha Iyer','Earned Leave','25 – 29 Aug','5','p','Pending'],
+  ['VR','Vikram Rao','Sick Leave','14 Aug','1','a','Approved'],
+  ['PN','Priya Nair','Casual Leave','12 Aug','1','r','Rejected']
+];
+
+const DIRECTIONS = [
+  {
+    id:'aurora', num:'01', name:'Aurora Glass',
+    thesis:'Frosted panels floating over slow-drifting light. The premium-SaaS read — and the cheapest to build, because your existing indigo-on-near-black tokens already point here.',
+    palette:[['#0A0C13','Ground'],['#7C7CFF','Indigo'],['#46D6C8','Teal'],['#F0B45C','Amber'],['#FF7A8A','Rose'],['#EEEFF7','Ivory text']],
+    type:'Segoe UI / system-ui\n700 · −0.02em headings\n650 · 9.5px · 0.11em labels',
+    motion:'Three blurred orbs drifting on 26–37s loops. Cards rise and fade in sequence, counters tick up, bars sweep. Hover lifts a card 3px into an indigo glow.',
+    fit:'The whole admin console. Reads well on a projector and in a dark office.',
+    effort:'Low — a glass layer and one stagger helper on top of your current tokens.'
+  },
+  {
+    id:'swiss', num:'02', name:'Swiss Signal',
+    thesis:'White paper, hairline rules, Helvetica set tight, and exactly one red reserved for things that are wrong. No radius, no shadow, no decoration — density as the whole point.',
+    palette:[['#FFFFFF','Paper'],['#0A0B0D','Ink'],['#D9271C','Signal red'],['#DCDEE2','Rule'],['#767E89','Secondary'],['#0B7A46','Positive']],
+    type:'Helvetica Neue / Arial\n34px −0.05em figures\nUppercase 0.13em labels',
+    motion:'Deliberately mechanical. Bars draw left-to-right, figures count up, and hover lays a single red hairline under the row. Nothing eases, nothing bounces.',
+    fit:'Attendance, Salary History, payroll exports — anywhere rows-per-screen matters more than mood.',
+    effort:'Low-medium — a light theme plus one honest table restyle.'
+  },
+  {
+    id:'console', num:'03', name:'Ops Console',
+    thesis:'Attendance treated as infrastructure monitoring. Monospace throughout, amber phosphor as the primary, green and red kept strictly for state, and a log that actually streams.',
+    palette:[['#07090C','Terminal'],['#F5A524','Amber'],['#3FB950','OK'],['#F85149','Alert'],['#1C242E','Rule'],['#D4DBE3','Readout']],
+    type:'Cascadia Mono / Consolas\nUppercase 0.14em headers\nTabular by default',
+    motion:'A blinking cursor on the title, a clock ticking in the top bar, and a live event log appending real lines as employees mark in.',
+    fit:'One screen — a live attendance wallboard. Genuinely great there, exhausting across nine pages.',
+    effort:'Medium — the log stream and clock are real behaviour, not decoration.'
+  },
+  {
+    id:'blocks', num:'04', name:'Bold Blocks',
+    thesis:'Neo-brutalist. Three-pixel black borders, hard offset shadows, saturated primaries, and buttons that physically press into their own shadow when you click them.',
+    palette:[['#FFFDF9','Off-white'],['#000000','Border'],['#FFD100','Yellow'],['#2563FF','Blue'],['#FF5A3C','Coral'],['#B9F0CE','Mint']],
+    type:'Arial Black display\nSegoe UI 800 for labels\nUppercase headlines',
+    motion:'Everything snaps rather than glides. Cards travel into their shadow on hover, nav items pop out on approach, and the pending sticker wobbles on a 3.4s loop.',
+    fit:'The employee-facing side, if it wants a warmer identity than the admin console.',
+    effort:'Medium — needs discipline. Loud designs age fastest when applied everywhere.'
+  },
+  {
+    id:'nocturne', num:'05', name:'Nocturne',
+    thesis:'No cards at all. Content separated by thin gold rules on warm ink, with the numbers set large in a serif — the register of a printed statement rather than a dashboard.',
+    palette:[['#131110','Warm ink'],['#C9A227','Gold'],['#F3EEE4','Ivory'],['#8FA76B','Sage'],['#C4756A','Clay'],['#8B8477','Muted']],
+    type:'Iowan Old Style / Georgia\n42px 400-weight figures\nSans small-caps at 0.2em',
+    motion:'Restrained by design. Rules and figures fade upward once, slowly, and stop. Hover is a barely-there gold wash — the page should feel still.',
+    fit:'Payroll, salary reports, anything printed or emailed to an employee.',
+    effort:'Medium-high — serif numerals need real typographic care to stay legible at data sizes.'
+  }
+];
+
+const ico = k => `<svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[k]}</svg>`;
+
+function mockup(){
+  const nav = NAV.map(([label,k],i)=>
+    `<span class="ux-navitem ${i===0?'is-active':''}" style="--d:${60+i*32}ms">${ico(k)}${label}</span>`).join('');
+  const kpis = KPIS.map(([lab,val,sub,tone,pct],i)=>
+    `<div class="ux-kpi ${tone}" style="--d:${340+i*70}ms">
+       <span class="lab">${lab}</span>
+       <span class="val" data-count="${val}">0</span>
+       <span class="sub">${sub}</span>
+       <span class="ux-bar" style="--w:${pct}%"><i></i></span>
+     </div>`).join('');
+  const rows = ROWS.map(([ini,name,type,dates,days,tone,state],i)=>
+    `<tr style="--d:${820+i*80}ms">
+       <td><span class="ux-who"><i>${ini}</i><b>${name}</b></span></td>
+       <td>${type}</td>
+       <td class="ux-num">${dates}</td>
+       <td class="ux-num">${days}</td>
+       <td><span class="ux-badge ${tone}">${state}</span></td>
+       <td><span class="ux-acts">${tone==='p'
+          ? '<button class="ux-btn pri">Approve</button><button class="ux-btn">Reject</button>'
+          : '<button class="ux-btn">View</button>'}</span></td>
+     </tr>`).join('');
+  return `
+  <div class="ux-fx"><span class="orb orb-a"></span><span class="orb orb-b"></span><span class="orb orb-c"></span><span class="ux-grid"></span><span class="ux-scan"></span></div>
+  <aside class="ux-side">
+    <div class="ux-brand"><span class="ux-mark">E</span><span class="ux-brandtext">Ergo<em>HR Operations</em></span></div>
+    <nav class="ux-nav">${nav}</nav>
+    <div class="ux-user"><span class="ux-av">N</span><span class="ux-uname">Niranjan<em>Administrator</em></span></div>
+  </aside>
+  <div class="ux-main">
+    <div class="ux-top">
+      <span class="ux-crumb">Admin / <b>Overview</b></span>
+      <span class="sp"></span>
+      <span class="ux-chip">IST <span data-clock>10:42:07</span></span>
+      <span class="ux-chip">Aug 2026</span>
+    </div>
+    <div class="ux-body">
+      <div class="ux-hero" style="--d:40ms">
+        <span class="ux-sticker">5 pending</span>
+        <span class="greet">Welcome back, Niranjan</span>
+        <h1>Workforce &amp; HR Operations Control</h1>
+        <p>Today is <b>Friday, 14 August 2026</b> — real-time attendance monitoring, leave approvals and workforce administration.</p>
+      </div>
+      <div class="ux-sec"><h2>Today's presence</h2><span class="sp"></span><a>Open Attendance Manager →</a></div>
+      <div class="ux-kpis">${kpis}</div>
+      <div class="ux-log" aria-hidden="true"></div>
+      <div class="ux-panel" style="--d:760ms">
+        <div class="ux-phead"><h3>Leave requests</h3><span class="ux-count">5 awaiting you</span><span class="sp"></span><a class="ux-btn">Open queue</a></div>
+        <table class="ux-table">
+          <thead><tr><th>Employee</th><th>Type</th><th>Dates</th><th>Days</th><th>Status</th><th style="text-align:right">Action</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
+    </div>
+  </div>`;
+}
+
+// ── render ────────────────────────────────────────────────────────────────
+document.getElementById('jump').innerHTML = DIRECTIONS
+  .map(d=>`<a href="#${d.id}"><b>${d.num}</b>${d.name}</a>`).join('');
+
+document.getElementById('directions').innerHTML = DIRECTIONS.map(d=>`
+  <section class="dir" id="${d.id}">
+    <div class="dir-head">
+      <span class="dir-num">${d.num}</span>
+      <div>
+        <h2>${d.name}</h2>
+        <p class="dir-thesis">${d.thesis}</p>
+      </div>
+      <span class="spacer"></span>
+      <button class="replay" data-for="${d.id}">Replay motion</button>
+    </div>
+    <div class="frame">
+      <div class="frame-bar"><i></i><i></i><i></i><span class="frame-url">ergo.local/admin/dashboard</span></div>
+      <div class="frame-scroll"><div class="ux ux--${d.id}" data-skin="${d.id}">${mockup()}</div></div>
+    </div>
+    <div class="dir-meta">
+      <div class="meta-block"><h3>Palette</h3><div class="swatches">
+        ${d.palette.map(([hex,n])=>`<span class="sw" style="background:${hex}" data-hex="${hex} · ${n}" title="${n} ${hex}"></span>`).join('')}
+      </div></div>
+      <div class="meta-block"><h3>Type</h3><p class="stack">${d.type.replace(/\n/g,'<br>')}</p></div>
+      <div class="meta-block"><h3>Motion</h3><p>${d.motion}</p></div>
+      <div class="meta-block"><h3>Best for</h3><p>${d.fit}</p></div>
+      <div class="meta-block"><h3>Build effort</h3><p>${d.effort}</p></div>
+    </div>
+  </section>`).join('');
+
+// ── motion ────────────────────────────────────────────────────────────────
+const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function countUp(ux){
+  ux.querySelectorAll('[data-count]').forEach(el=>{
+    const target = +el.dataset.count;
+    if (reduce){ el.textContent = target; return; }
+    const delay = 340 + [...el.closest('.ux-kpis').children].indexOf(el.closest('.ux-kpi')) * 70;
+    el.textContent = 0;
+    setTimeout(()=>{
+      const dur = 700, t0 = performance.now();
+      (function step(t){
+        const p = Math.min(1,(t-t0)/dur);
+        el.textContent = Math.round(target * (1-Math.pow(1-p,3)));
+        if (p < 1) requestAnimationFrame(step);
+      })(t0);
+    }, delay);
+  });
+}
+
+function play(ux){
+  ux.classList.remove('is-in');
+  void ux.offsetWidth;
+  ux.classList.add('is-in');
+  countUp(ux);
+}
+
+const seen = new WeakSet();
+const io = new IntersectionObserver(entries=>{
+  entries.forEach(e=>{
+    if (e.isIntersecting && !seen.has(e.target)){ seen.add(e.target); play(e.target); }
+  });
+},{threshold:.2});
+document.querySelectorAll('.ux').forEach(ux=>io.observe(ux));
+
+document.querySelectorAll('.replay').forEach(btn=>{
+  btn.addEventListener('click',()=>play(document.querySelector(`#${btn.dataset.for} .ux`)));
+});
+
+// ── live bits (console skin only) ─────────────────────────────────────────
+const clocks = document.querySelectorAll('[data-clock]');
+setInterval(()=>{
+  const t = new Date().toLocaleTimeString('en-GB',{hour12:false});
+  clocks.forEach(c=>c.textContent = t);
+}, 1000);
+
+const LOGS = [
+  ['ok','ATTEND','kulkarni.r marked IN · 09:58 IST'],
+  ['ok','ATTEND','iyer.s marked IN · 10:02 IST'],
+  ['','LEAVE ','deshmukh.a filed SICK 18–19 Aug · queued'],
+  ['bad','ALERT ','patil.m no entry · 41 min past window'],
+  ['ok','ACCRUE','monthly credit posted · 48 accounts'],
+  ['','TRAVEL','rao.v marked ON-SITE · Pune client'],
+  ['ok','ATTEND','nair.p marked IN · 10:11 IST'],
+  ['bad','ALERT ','2 correction requests awaiting review']
+];
+const logBox = document.querySelector('#console .ux-log');
+if (logBox && !reduce){
+  let n = 0;
+  const push = ()=>{
+    const [tone,tag,msg] = LOGS[n++ % LOGS.length];
+    const line = document.createElement('span');
+    line.innerHTML = `<b>${tag}</b> <span class="${tone}">${msg}</span>`;
+    logBox.appendChild(line);
+    while (logBox.children.length > 4) logBox.firstChild.remove();
+  };
+  for (let i=0;i<4;i++) push();
+  setInterval(()=>{ if (!document.hidden) push(); }, 2600);
+} else if (logBox){
+  logBox.innerHTML = LOGS.slice(0,4).map(([tone,tag,msg])=>
+    `<span><b>${tag}</b> <span class="${tone}">${msg}</span></span>`).join('');
+}
+</script>

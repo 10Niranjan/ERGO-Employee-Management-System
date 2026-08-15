@@ -40,34 +40,58 @@ on first login — that's the `RequirePasswordReset` flow in
 `npm run lint` in `frontend/` is currently a no-op — `eslint` was never
 installed as a devDependency. Pre-existing gap, not fixed yet.
 
-## Frontend redesign — what's been done
+## Frontend design system — "Ops Console" (current, 15 Aug 2026)
 
-The entire frontend was audited and redesigned (see `FRONTEND_REDESIGN_PLAN.md`
-for the original audit and phase plan). All 12 pages plus `AdminLayout` and
-`LoginPage` now follow one consistent system:
+The whole frontend runs one visual direction: **Ops Console** — "attendance
+treated as infrastructure monitoring." Picked from five options mocked up in
+`ergo-ui-directions.html` (kept at repo root as a design reference; not part
+of the build). This **replaced** an in-progress, never-shipped neo-brutalist
+"Bold Blocks" theme (hard 3px offset shadows, Arial Black, thick ink
+borders) — if you see any trace of that language (hard drop shadows, `translate(Npx,Npx)`
+hover "press" effects, `#000000`/`#fff` hardcoded instead of tokens), it's a
+regression, not a feature.
 
-- **Icons**: every emoji was replaced with a `lucide-react` icon. Don't
-  reintroduce emoji as UI icons (a lone 👋 in the Admin Dashboard greeting
-  prose is intentional — that's copy, not an icon).
-- **`.icon-chip` utility** (`frontend/src/index.css`): colored icon badges.
-  Classes: `icon-chip-sm|md|lg` for size, `icon-chip-primary|success|warning|danger`
-  for color. Used everywhere a status needs a colored icon (KPI cards, leave
-  balance cards, prompt modals). Reuse this instead of inventing new badge
-  styles.
-- **`.alert-info` / `.alert-error`** (`frontend/src/index.css`): both take an
-  icon (`Info`/`AlertCircle`) + `<span>` as children, laid out via the shared
-  `.alert` flex rule. `.alert-info` didn't exist until this pass — it was
-  referenced in 5 places across the codebase with zero styling. If you add a
-  new alert variant, define it in `index.css`, not in a page file.
+- **All tokens live in `frontend/src/index.css`**: `:root` is dark (default),
+  `:root[data-theme="light"]` overrides for light. Never hardcode a color,
+  border width, radius, or shadow in a page/component CSS file — use the
+  `--color-*` / `--border-w*` / `--radius-*` / `--shadow-*` custom
+  properties so both themes stay correct automatically.
+- **Font is monospace, everywhere** (`--font-sans` / `--font-display`, both
+  point at the same system stack: `ui-monospace, Cascadia Mono, Consolas, SF
+  Mono, monospace` — no webfont, nothing to load). Because of this, any
+  multi-column CSS grid with bare `1fr 1fr` tracks needs `min-width: 0` on
+  the grid children — monospace inputs have a wider intrinsic min-content
+  width than a proportional font did, and without it a column silently
+  overflows its container (bit `EmployeesPage.css` `.form-grid-2` once;
+  already fixed there, watch for it in any new multi-column form).
+- **Color meaning is strict**: `--color-primary` / `--color-accent` /
+  `--color-warning` are all the same amber — it's the one brand/interactive/
+  attention color. `--color-success` (green) and `--color-danger` (red) are
+  reserved *only* for genuine pass/fail state (attendance present/absent,
+  active/inactive, approved/declined). Don't reach for green or red to
+  decorate something that isn't a state.
+- **`.icon-chip` utility**: colored icon badges — `icon-chip-sm|md|lg` for
+  size, `icon-chip-primary|success|warning|danger` for color. Reuse instead
+  of inventing new badge styles.
+- **Live behavior, not decoration**: `AdminDashboardPage.jsx` polls the
+  existing `getTodayAttendance()` + `getLeaveApplications({status:'pending'})`
+  endpoints every 20s and appends genuinely new events to a `.ops-log-panel`
+  feed (diffed via a `seenIds` ref — don't replace this with fake/static
+  log lines). `AdminLayout.jsx` has a real `setInterval(1000)` IST clock
+  chip in the header. Both reuse endpoints that already existed — no new
+  backend routes were added for this.
 - **Dark/light theme**: `frontend/src/context/ThemeContext.jsx` +
   `frontend/src/components/ThemeToggle.jsx`. Toggles `data-theme` on
-  `<html>`; light overrides live in `index.css` under
-  `:root[data-theme="light"]`. Applied synchronously in `main.jsx` before
-  React mounts (no flash-of-wrong-theme). Default is dark. The Login page's
-  left brand panel is *intentionally* always-dark regardless of theme — that
-  was a deliberate design call, not a bug.
-- **Login page**: split-panel layout (dark brand story panel + form panel),
-  not a plain centered card. If asked to touch it again, keep that pattern.
+  `<html>`, applied synchronously in `main.jsx` before React mounts (no
+  flash-of-wrong-theme). Default is dark. The Login page's left brand panel
+  uses its own local CSS variables (`--lp-*` in `LoginPage.css`) and is
+  *intentionally* always dark regardless of theme, like a fixed terminal
+  boot screen — that's a deliberate design call, not a bug.
+- **Login page**: split-panel layout (dark brand rail + form panel), not a
+  plain centered card. Keep that pattern if asked to touch it again.
+- Emoji are not used as icons anywhere (`lucide-react` only). The one
+  decorative 👋 that used to sit in the Admin Dashboard greeting copy was
+  removed to match the deadpan "ops console" tone — don't add it back.
 
 ## Architecture quirk you need to know about
 

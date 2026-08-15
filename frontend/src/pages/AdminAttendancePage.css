@@ -2,10 +2,11 @@
 .tab-pill-switcher {
   display: flex;
   background-color: var(--color-surface-2);
-  border: 1px solid var(--color-border);
+  border: var(--border-w) solid var(--color-ink);
+  box-shadow: var(--shadow-sm);
   padding: 3px;
   border-radius: var(--radius-md);
-  gap: 2px;
+  gap: 3px;
 }
 
 .tab-pill-btn {
@@ -13,24 +14,27 @@
   align-items: center;
   gap: var(--space-2);
   background: transparent;
-  color: var(--color-text-muted);
-  border: none;
+  color: var(--color-text);
+  border: var(--border-w-thin) solid transparent;
   padding: var(--space-2) var(--space-4);
   font-size: var(--font-size-sm);
-  font-weight: 500;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
   border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all var(--transition-fast);
 }
 
 .tab-pill-btn:hover {
-  color: var(--color-text);
+  background-color: var(--color-surface);
+  border-color: var(--color-ink);
 }
 
 .tab-pill-btn.active {
   background-color: var(--color-primary);
-  color: #fff;
-  font-weight: 600;
+  color: var(--color-on-primary);
+  border-color: var(--color-ink);
 }
 
 .date-picker-group {

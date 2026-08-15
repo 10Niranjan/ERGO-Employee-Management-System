@@ -1,25 +1,42 @@
 /* AdminDashboardPage.css */
+/* The hero reads like a status header: quiet surface, one amber rule down the edge */
 .admin-welcome-hero {
-  background: linear-gradient(135deg, rgba(99, 102, 241, 0.15) 0%, rgba(34, 197, 94, 0.05) 100%),
-              var(--color-surface);
-  border: 1px solid var(--color-border);
+  background: var(--color-surface);
+  border: var(--border-w) solid var(--color-border);
+  border-left: 2px solid var(--color-primary);
   padding: var(--space-6);
 }
 
 .hero-greeting {
-  font-size: var(--font-size-sm);
+  font-size: var(--font-size-xs);
   color: var(--color-primary);
-  font-weight: 600;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.14em;
   display: block;
   margin-bottom: var(--space-1);
 }
 
 .hero-title {
+  font-family: var(--font-display);
   font-size: var(--font-size-2xl);
   font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.01em;
   color: var(--color-text);
+}
+
+.hero-title::after {
+  content: '_';
+  color: var(--color-primary);
+  animation: hero-cursor 1.1s steps(1) infinite;
+}
+
+@keyframes hero-cursor { 50% { opacity: 0; } }
+
+.admin-welcome-hero .hero-subtitle strong {
+  color: var(--color-primary);
+  font-weight: 700;
 }
 
 .hero-subtitle {
@@ -41,12 +58,18 @@
   flex-direction: column;
   gap: var(--space-2);
   padding: var(--space-5);
-  transition: transform var(--transition-fast), border-color var(--transition-fast);
+  border-left: 2px solid var(--color-border);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
 }
 
 .kpi-card:hover {
-  border-color: var(--color-border-focus);
+  background-color: var(--color-surface-2);
+  border-color: var(--color-primary);
 }
+
+.kpi-card.ok      { border-left-color: var(--color-success); }
+.kpi-card.warn    { border-left-color: var(--color-warning); }
+.kpi-card.bad     { border-left-color: var(--color-danger); }
 
 .kpi-header {
   display: flex;
@@ -55,18 +78,24 @@
 }
 
 .kpi-title {
-  font-weight: 500;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
 }
 
 .kpi-value {
+  font-family: var(--font-display);
   font-size: var(--font-size-3xl);
   font-weight: 700;
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
   color: var(--color-text);
   line-height: 1.1;
 }
 
 .kpi-sub {
   color: var(--color-text-muted);
+  font-weight: 500;
 }
 
 .kpi-inline-link {
@@ -95,14 +124,14 @@
   gap: var(--space-3);
   padding: var(--space-6);
   text-decoration: none;
-  transition: all var(--transition-fast);
-  border: 1px solid var(--color-border);
+  transition: background-color var(--transition-fast), border-color var(--transition-fast);
+  border: var(--border-w) solid var(--color-border);
 }
 
 .module-card:hover {
-  transform: translateY(-2px);
+  background-color: var(--color-surface-2);
   border-color: var(--color-primary);
-  box-shadow: var(--shadow-md);
+  text-decoration: none;
 }
 
 .module-card:hover .module-link-arrow svg {
@@ -131,6 +160,103 @@
 }
 
 .section-title {
-  font-size: var(--font-size-xl);
-  font-weight: 600;
+  font-family: var(--font-display);
+  font-size: var(--font-size-lg);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ─── Live activity log ──────────────────────────────────────────
+   A genuine event stream: newest attendance marks and leave filings,
+   appended as the underlying data changes (polled), not decorative. */
+.ops-log-panel {
+  background: var(--color-surface);
+  border: var(--border-w) solid var(--color-border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.ops-log-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-w) solid var(--color-border);
+  background: var(--color-surface-2);
+}
+
+.ops-log-head h3 {
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--color-text);
+}
+
+.ops-log-live-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--color-success);
+  box-shadow: 0 0 0 3px var(--color-success-light);
+  animation: ops-log-pulse 2s ease-in-out infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ops-log-pulse {
+  0%, 100% { opacity: 1; }
+  50%      { opacity: 0.35; }
+}
+
+.ops-log-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 44px;
+  max-height: 220px;
+  overflow-y: auto;
+  font-size: var(--font-size-xs);
+}
+
+.ops-log-line {
+  display: flex;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  border-bottom: var(--border-w) solid var(--color-border);
+  animation: ops-log-in 0.3s ease both;
+}
+.ops-log-line:last-child { border-bottom: none; }
+
+@keyframes ops-log-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ops-log-time {
+  color: var(--color-text-subtle);
+  flex-shrink: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ops-log-tag {
+  flex-shrink: 0;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--color-text-muted);
+}
+
+.ops-log-tag.ok  { color: var(--color-success); }
+.ops-log-tag.bad { color: var(--color-danger); }
+
+.ops-log-msg {
+  color: var(--color-text-muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-log-empty {
+  padding: var(--space-4);
+  color: var(--color-text-subtle);
+  font-size: var(--font-size-xs);
 }

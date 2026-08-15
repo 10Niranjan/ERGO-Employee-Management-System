@@ -15,9 +15,11 @@
 }
 
 .page-title {
+  font-family: var(--font-display);
   font-size: var(--font-size-2xl);
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: -0.03em;
 }
 
 .page-subtitle {
@@ -113,17 +115,22 @@
 
 .data-table th {
   background-color: var(--color-surface-2);
-  color: var(--color-text-muted);
-  font-weight: 600;
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-w) solid var(--color-ink);
   white-space: nowrap;
 }
 
+/* Row rules stay thinner than panel outlines, or a long table turns into a wall */
 .data-table td {
   padding: var(--space-3) var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-w-thin) solid var(--color-ink);
   vertical-align: middle;
+  font-weight: 600;
 }
 
 .data-table tbody tr {
@@ -131,7 +138,11 @@
 }
 
 .data-table tbody tr:hover {
-  background-color: rgba(255, 255, 255, 0.02);
+  background-color: var(--color-surface-2);
+}
+
+.data-table tbody tr:last-child td {
+  border-bottom: none;
 }
 
 .row-inactive td {
@@ -141,9 +152,10 @@
 .emp-id-badge {
   font-family: monospace;
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-primary);
   background-color: var(--color-primary-light);
+  border: var(--border-w-thin) solid var(--color-ink);
   padding: var(--space-1) var(--space-2);
   border-radius: var(--radius-sm);
 }
@@ -162,40 +174,38 @@
 }
 
 /* Status Pills */
+/* Status is a solid block with an ink outline — never a tinted pill */
 .status-pill {
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
   padding: 2px var(--space-3);
+  border: var(--border-w-thin) solid var(--color-ink);
   border-radius: var(--radius-full);
   font-size: var(--font-size-xs);
-  font-weight: 600;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.06em;
 }
 
 .status-active {
-  background-color: rgba(34, 197, 94, 0.15);
+  background-color: var(--color-success-light);
   color: var(--color-success);
-  border: 1px solid rgba(34, 197, 94, 0.3);
 }
 
 .status-inactive {
-  background-color: rgba(239, 68, 68, 0.15);
+  background-color: var(--color-danger-light);
   color: var(--color-danger);
-  border: 1px solid rgba(239, 68, 68, 0.3);
 }
 
 .status-paid {
-  background-color: rgba(99, 102, 241, 0.15);
+  background-color: var(--color-primary-light);
   color: var(--color-primary);
-  border: 1px solid rgba(99, 102, 241, 0.3);
 }
 
 .status-unpaid {
-  background-color: rgba(245, 158, 11, 0.15);
+  background-color: var(--color-warning-light);
   color: var(--color-warning);
-  border: 1px solid rgba(245, 158, 11, 0.3);
 }
 
 /* Action Buttons */
@@ -208,7 +218,7 @@
 
 .action-icon-btn {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-text);
   width: 32px;
   height: 32px;
   border-radius: var(--radius-md);
@@ -216,24 +226,31 @@
   align-items: center;
   justify-content: center;
   font-size: var(--font-size-md);
-  border: 1px solid transparent;
+  border: var(--border-w-thin) solid transparent;
   transition: all var(--transition-fast);
 }
 
 .action-icon-btn:hover {
-  background-color: var(--color-surface-2);
-  border-color: var(--color-border);
-  color: var(--color-text);
+  background-color: var(--color-accent);
+  border-color: var(--color-ink);
+  color: var(--color-on-accent);
+  box-shadow: var(--shadow-sm);
+  transform: translate(-1px, -1px);
+}
+
+.action-icon-btn:active {
+  transform: translate(var(--press), var(--press));
+  box-shadow: var(--shadow-flat);
 }
 
 .action-deactivate:hover {
+  background-color: var(--color-danger-light);
   color: var(--color-danger);
-  border-color: rgba(239, 68, 68, 0.3);
 }
 
 .action-reactivate:hover {
+  background-color: var(--color-success-light);
   color: var(--color-success);
-  border-color: rgba(34, 197, 94, 0.3);
 }
 
 /* Pagination Bar */
@@ -243,7 +260,7 @@
   justify-content: space-between;
   padding: var(--space-3) var(--space-4);
   background-color: var(--color-surface-2);
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-w) solid var(--color-border);
   flex-wrap: wrap;
   gap: var(--space-3);
 }
@@ -283,6 +300,13 @@
   gap: var(--space-4);
 }
 
+/* Grid tracks don't shrink below a child's intrinsic content width by default —
+   monospace inputs have a wider min-content than the old proportional font did,
+   so without this the right column overflowed past the modal edge. */
+.form-grid-2 > * {
+  min-width: 0;
+}
+
 @media (max-width: 600px) {
   .form-grid-2 {
     grid-template-columns: 1fr;
@@ -295,7 +319,7 @@
   justify-content: flex-end;
   gap: var(--space-3);
   padding-top: var(--space-4);
-  border-top: 1px solid var(--color-border);
+  border-top: var(--border-w) solid var(--color-border);
   margin-top: var(--space-2);
 }
 
@@ -311,26 +335,34 @@
   align-items: center;
   gap: var(--space-4);
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-w) solid var(--color-border);
 }
 
 .profile-avatar {
   width: 52px;
   height: 52px;
   border-radius: var(--radius-full);
-  background: linear-gradient(135deg, var(--color-primary), #818cf8);
-  color: #fff;
+  background: var(--color-accent);
+  border: var(--border-w) solid var(--color-ink);
+  box-shadow: var(--shadow-sm);
+  color: var(--color-on-accent);
+  font-family: var(--font-display);
   font-size: var(--font-size-xl);
-  font-weight: 700;
+  font-weight: 900;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .profile-details-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: var(--space-4);
+}
+
+.profile-details-grid > * {
+  min-width: 0;
 }
 
 .profile-detail-item {
@@ -343,7 +375,8 @@
   font-size: var(--font-size-xs);
   color: var(--color-text-muted);
   text-transform: uppercase;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.11em;
+  font-weight: 800;
 }
 
 .profile-detail-value {
@@ -366,6 +399,8 @@
 
 .creds-box {
   background-color: var(--color-surface-2);
+  border: var(--border-w) solid var(--color-ink);
+  box-shadow: var(--shadow-sm);
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
@@ -391,11 +426,13 @@
 }
 
 .cred-password {
-  background-color: rgba(99, 102, 241, 0.15);
-  color: var(--color-primary);
+  background-color: var(--color-accent);
+  color: var(--color-on-accent);
+  border: var(--border-w-thin) solid var(--color-ink);
   padding: var(--space-1) var(--space-3);
   border-radius: var(--radius-sm);
-  font-weight: 700;
+  font-family: monospace;
+  font-weight: 800;
   font-size: var(--font-size-md);
   letter-spacing: 0.05em;
   flex: 1;

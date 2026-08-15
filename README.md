@@ -12,7 +12,7 @@ An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Managem
 - **🧮 Deterministic Salary Computation Engine**: Per-day rate calculation evaluating actual attendance, approved leaves, and company holidays. Mid-month historical salary rate revisions are automatically resolved day-by-day.
 - **📄 Official PDF Payslips & Consolidated Excel Reports**: One-click immutable payslip generation with vector PDF downloads (`pdfkit`) and styled company-wide payroll exports (`exceljs`).
 - **🕒 Asia/Kolkata (IST) Timezone Enforcement**: Every date check, attendance cutoff, and holiday evaluation strictly runs in `Asia/Kolkata`.
-- **🎨 Themeable, Icon-Driven UI**: Consistent dark/light theme (toggle in every header) built on CSS custom properties, with a `lucide-react` icon system and shared `icon-chip` / status-pill design tokens across all admin and employee screens.
+- **🎛️ "Ops Console" UI**: Attendance treated as infrastructure monitoring — monospace type throughout, one amber accent color, and green/red reserved strictly for pass/fail state (present/absent, active/inactive, approved/declined). Dark/light theme toggle in every header, built entirely on CSS custom properties (`frontend/src/index.css`), with a live-polling activity feed and a real-time IST clock on the Admin Overview screen.
 
 ---
 
@@ -128,6 +128,20 @@ Every `DATE` column read from Postgres — attendance dates, holiday dates, leav
 ### ✅ Quality Bar
 
 Both the **Salary** and **Attendance** modules were independently re-audited end-to-end after these changes — live functional tests through the real API (mixed attendance types, mid-month rate revisions, the full correction workflow, RBAC boundaries) confirmed every number and every permission check comes out correct. See the [Automated Testing](#-automated-testing--production-build) section below.
+
+---
+
+## 🖥️ UI Redesign — 15 Aug 2026: "Ops Console"
+
+The entire frontend (admin + employee, all screens, both themes) was re-skinned to a single new visual direction — picked from a five-option mockup gallery (`ergo-ui-directions.html`, kept at the repo root as a reference, not part of the build).
+
+**The idea:** attendance is infrastructure, so the UI should read like one — monospace type everywhere, one amber "phosphor" accent for brand and interactive elements, and green/red used *only* to signal genuine state (present vs. absent, active vs. inactive, approved vs. declined) — never decoratively.
+
+What's real, not decorative:
+- The Admin Overview page's **Live Feed** panel polls the existing attendance and leave-request endpoints on an interval and appends genuinely new events as they happen — no fake data.
+- The header clock is a real ticking `Asia/Kolkata` clock, not a static timestamp.
+
+Everything is driven by CSS custom properties in `frontend/src/index.css`, so the whole app re-skins from one file — no page hardcodes a color, border, or shadow. See `AGENTS.md` for the full token/contract details if you're extending it.
 
 ---
 

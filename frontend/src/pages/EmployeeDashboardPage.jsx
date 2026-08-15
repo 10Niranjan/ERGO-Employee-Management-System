@@ -341,7 +341,7 @@ export default function EmployeeDashboardPage() {
 
   const employeeNavItems = [
     { id: 'attendance', label: 'Attendance & Calendar', icon: Clock4 },
-    { id: 'leaves', label: 'Leave Balances & Requests', icon: Palmtree },
+    { id: 'leaves', label: 'Leave & Requests', icon: Palmtree },
     { id: 'payslips', label: 'Salary & Payslips', icon: Wallet },
   ];
 

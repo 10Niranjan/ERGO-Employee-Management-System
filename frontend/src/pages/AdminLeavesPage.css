@@ -1,9 +1,10 @@
 /* AdminLeavesPage.css */
 .badge-working-days {
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: 800;
   color: var(--color-primary);
   background-color: var(--color-primary-light);
+  border: var(--border-w-thin) solid var(--color-ink);
   padding: 2px var(--space-2);
   border-radius: var(--radius-sm);
 }

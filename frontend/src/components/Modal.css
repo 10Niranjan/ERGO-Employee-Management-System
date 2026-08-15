@@ -2,8 +2,7 @@
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background-color: rgba(0, 0, 0, 0.75);
-  backdrop-filter: blur(4px);
+  background-color: rgba(0, 0, 0, 0.78);
   z-index: 999;
   display: flex;
   align-items: center;
@@ -20,7 +19,7 @@
 .modal-content {
   width: 100%;
   background-color: var(--color-surface);
-  border: 1px solid var(--color-border);
+  border: var(--border-w) solid var(--color-border);
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
@@ -29,9 +28,10 @@
   animation: modalScale 0.25s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+/* Blocks snap into place — they do not ease in */
 @keyframes modalScale {
-  from { transform: scale(0.95) translateY(10px); opacity: 0; }
-  to   { transform: scale(1) translateY(0); opacity: 1; }
+  from { transform: translate(-10px, -10px); box-shadow: var(--shadow-flat); opacity: 0; }
+  to   { transform: translate(0, 0);        box-shadow: var(--shadow-lg);   opacity: 1; }
 }
 
 .modal-header {
@@ -39,7 +39,7 @@
   align-items: center;
   justify-content: space-between;
   padding-bottom: var(--space-4);
-  border-bottom: 1px solid var(--color-border);
+  border-bottom: var(--border-w) solid var(--color-border);
 }
 
 .modal-title {
@@ -50,10 +50,12 @@
 
 .modal-close-btn {
   background: transparent;
-  color: var(--color-text-muted);
+  color: var(--color-text);
   font-size: 1.5rem;
+  font-weight: 800;
   line-height: 1;
   padding: 0;
+  border: var(--border-w-thin) solid transparent;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
@@ -63,8 +65,12 @@
 }
 
 .modal-close-btn:hover {
-  background-color: var(--color-surface-2);
-  color: var(--color-text);
+  background-color: var(--color-danger-light);
+  color: var(--color-danger);
+}
+
+.modal-close-btn:active {
+  transform: translateY(var(--press));
 }
 
 .modal-body {

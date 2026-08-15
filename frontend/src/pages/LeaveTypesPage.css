@@ -4,7 +4,9 @@
   align-items: center;
   gap: var(--space-4);
   background-color: var(--color-surface-2);
-  border-left: 4px solid var(--color-primary);
+  border: var(--border-w) solid var(--color-ink);
+  border-left: 12px solid var(--color-primary);
+  box-shadow: var(--shadow-sm);
   padding: var(--space-4);
   font-size: var(--font-size-sm);
   line-height: 1.5;
@@ -13,11 +15,12 @@
 .policy-icon {
   font-size: 1.5rem;
   flex-shrink: 0;
-  color: var(--color-primary);
+  color: var(--color-text);
 }
 
 .policy-text {
   color: var(--color-text);
+  font-weight: 600;
 }
 
 .radio-options-row {

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   AlertTriangle,
@@ -20,6 +20,39 @@ import { getHolidays } from '../api/holidayApi';
 import { getLeaveApplications } from '../api/leaveApi';
 import './AdminDashboardPage.css';
 
+const LOG_POLL_MS = 20000;
+const LOG_MAX_LINES = 20;
+const LOG_SEED_LINES = 6;
+
+/** Turns a today-attendance + pending-leaves snapshot into a flat, sorted event list. */
+function buildEvents(todayAtt, leavesData) {
+  const events = [];
+
+  (todayAtt?.employees || []).forEach((emp) => {
+    if (!emp.attendance?.marked_at) return;
+    const status = emp.current_status;
+    events.push({
+      id: `att-${emp.attendance.attendance_id}`,
+      time: emp.attendance.marked_at,
+      tag: status === 'absent' ? 'ABSENT' : 'ATTEND',
+      tone: status === 'absent' ? 'bad' : 'ok',
+      msg: `${emp.name} marked ${status.replace('_', ' ')}${emp.attendance.is_admin_override ? ' (admin override)' : ''}`,
+    });
+  });
+
+  (leavesData?.applications || []).forEach((app) => {
+    events.push({
+      id: `leave-${app.id}`,
+      time: app.created_at,
+      tag: 'LEAVE',
+      tone: '',
+      msg: `${app.employee_name} filed ${app.leave_type_name} (${app.working_days_count}d) — pending review`,
+    });
+  });
+
+  return events.sort((a, b) => new Date(b.time) - new Date(a.time));
+}
+
 export default function AdminDashboardPage() {
   const { user } = useAuth();
 
@@ -30,6 +63,29 @@ export default function AdminDashboardPage() {
     pendingLeavesCount: 0,
   });
   const [loading, setLoading] = useState(true);
+  const [logEntries, setLogEntries] = useState([]);
+  const seenIds = useRef(new Set());
+
+  // Polls the same endpoints the page already loads with and appends only
+  // genuinely new attendance marks / leave filings to the live feed.
+  const pollLog = useCallback(async () => {
+    try {
+      const [todayAtt, leavesData] = await Promise.all([
+        getTodayAttendance(),
+        getLeaveApplications({ status: 'pending' }),
+      ]);
+      setTodayData(todayAtt);
+      setStats((s) => ({ ...s, pendingLeavesCount: leavesData.applications?.length || 0 }));
+
+      const events = buildEvents(todayAtt, leavesData);
+      const fresh = events.filter((e) => !seenIds.current.has(e.id));
+      if (fresh.length === 0) return;
+      fresh.forEach((e) => seenIds.current.add(e.id));
+      setLogEntries((prev) => [...fresh, ...prev].slice(0, LOG_MAX_LINES));
+    } catch {
+      // Silent — this is a background refresh, the page already has data on screen.
+    }
+  }, []);
 
   useEffect(() => {
     async function loadOverview() {
@@ -47,6 +103,11 @@ export default function AdminDashboardPage() {
           holidaysCount: holData.holidays?.length || 0,
           pendingLeavesCount: leavesData.applications?.length || 0,
         });
+
+        const events = buildEvents(todayAtt, leavesData);
+        const seed = events.slice(0, LOG_SEED_LINES);
+        seed.forEach((e) => seenIds.current.add(e.id));
+        setLogEntries(seed);
       } catch (err) {
         console.error('Failed to load dashboard overview stats', err);
       } finally {
@@ -55,7 +116,9 @@ export default function AdminDashboardPage() {
     }
 
     loadOverview();
-  }, []);
+    const interval = setInterval(pollLog, LOG_POLL_MS);
+    return () => clearInterval(interval);
+  }, [pollLog]);
 
   const todayStats = todayData?.stats || {
     total_active_employees: 0,
@@ -72,7 +135,7 @@ export default function AdminDashboardPage() {
       {/* Welcome Hero */}
       <div className="admin-welcome-hero card">
         <div className="hero-content">
-          <span className="hero-greeting">Welcome back, {user?.name} 👋</span>
+          <span className="hero-greeting">Welcome back, {user?.name}</span>
           <h1 className="hero-title">Workforce & HR Operations Control</h1>
           <p className="hero-subtitle text-muted">
             Today is{' '}
@@ -114,7 +177,7 @@ export default function AdminDashboardPage() {
             <span className="kpi-sub text-muted text-xs">Active accounts</span>
           </div>
 
-          <div className="kpi-card card">
+          <div className="kpi-card card ok">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Present</span>
               <span className="icon-chip icon-chip-sm icon-chip-success">
@@ -127,7 +190,7 @@ export default function AdminDashboardPage() {
             <span className="kpi-sub text-muted text-xs">Full day marked</span>
           </div>
 
-          <div className="kpi-card card">
+          <div className="kpi-card card warn">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Half-Day</span>
               <span className="icon-chip icon-chip-sm icon-chip-warning">
@@ -153,7 +216,7 @@ export default function AdminDashboardPage() {
             <span className="kpi-sub text-muted text-xs">Client duty</span>
           </div>
 
-          <div className="kpi-card card">
+          <div className="kpi-card card bad">
             <div className="kpi-header">
               <span className="kpi-title text-muted text-xs">Not Marked</span>
               <span className="icon-chip icon-chip-sm icon-chip-danger">
@@ -186,6 +249,31 @@ export default function AdminDashboardPage() {
               )}
             </span>
           </div>
+        </div>
+      </div>
+
+      {/* Live Activity Feed — polls attendance & leave data every 20s */}
+      <div className="ops-log-panel">
+        <div className="ops-log-head">
+          <span className="ops-log-live-dot" aria-hidden="true" />
+          <h3>Live Feed</h3>
+        </div>
+        <div className="ops-log-body">
+          {logEntries.length === 0 ? (
+            <p className="ops-log-empty">
+              {loading ? 'Connecting…' : 'No attendance or leave activity yet today.'}
+            </p>
+          ) : (
+            logEntries.map((e) => (
+              <div className="ops-log-line" key={e.id}>
+                <span className="ops-log-time">
+                  {new Date(e.time).toLocaleTimeString('en-GB', { hour12: false })}
+                </span>
+                <span className={`ops-log-tag ${e.tone}`}>{e.tag}</span>
+                <span className="ops-log-msg">{e.msg}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
