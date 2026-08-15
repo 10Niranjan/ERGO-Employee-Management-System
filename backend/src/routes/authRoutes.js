@@ -15,19 +15,26 @@ const { authenticate } = require('../middleware/auth');
 
 const router = Router();
 
-// ─── Rate limiter: max 10 login attempts per 15 minutes per IP ───────────────
-const loginLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 10,
-  message: { message: 'Too many login attempts. Please try again in 15 minutes.' },
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-
 // Rate-limit counters are per-process and persist across test cases, so one
 // suite would exhaust the budget for every later case. Limits stay fully
 // active in dev and production; the live behaviour is verified separately.
 const skipInTests = () => process.env.NODE_ENV === 'test';
+
+// ─── Rate limiter: failed login attempts per 15 minutes per IP ───────────────
+// Only FAILED attempts count. Counting successful ones too meant a whole
+// office behind a single NAT — or one person legitimately signing in and out
+// a few times — would lock everyone out, which is not what this is defending
+// against. The point is to slow password guessing, and a guess that succeeds
+// isn't a guess.
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skipSuccessfulRequests: true,
+  skip: skipInTests,
+});
 
 // Per-IP cap on code requests. The matching per-account cap is enforced in the
 // controller, since one attacker can rotate IPs and one NAT can hide many users.
