@@ -85,7 +85,7 @@ async function getLeaveBalances(req, res, next) {
 
     const { rows } = await query(
       `SELECT lb.id, lb.user_id, lb.leave_type_id, lb.year, lb.allotted, lb.used, lb.remaining,
-              lt.name, lt.is_paid, lt.yearly_quota
+              lt.name, lt.is_paid, lt.yearly_quota, lt.is_active
        FROM leave_balances lb
        JOIN leave_types lt ON lt.id = lb.leave_type_id
        WHERE lb.user_id = $1 AND lb.year = $2
@@ -518,6 +518,7 @@ async function getLeaveLedger(req, res, next) {
        FROM leave_ledger ll
        JOIN leave_types lt ON lt.id = ll.leave_type_id
        WHERE ${conditions.join(' AND ')}
+         AND (lt.is_active = TRUE OR ll.entry_type != 'INITIAL_ALLOCATION')
        ORDER BY ll.created_at DESC`,
       params
     );

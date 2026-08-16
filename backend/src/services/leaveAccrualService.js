@@ -23,7 +23,6 @@ const { getNextPeriod, getMostRecentlyCompletedPeriod } = require('../utils/time
 
 const ATTENDANCE_BONUS_THRESHOLD = 70;
 const DEFAULT_BASE_QUOTA = 6;
-const PAID_LEAVE_TYPE_NAME = 'Paid Leave';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Pure calculation helpers — no DB access, fully unit-testable.
@@ -97,10 +96,9 @@ async function recordInitialAllocation(client, { userId, leaveTypeId, year, allo
 
 async function getPaidLeaveType(client) {
   const { rows } = await client.query(
-    `SELECT id, max_balance_cap FROM leave_types WHERE name = $1 AND is_active = TRUE LIMIT 1`,
-    [PAID_LEAVE_TYPE_NAME]
+    `SELECT id, max_balance_cap FROM leave_types WHERE is_earned_leave = TRUE AND is_active = TRUE LIMIT 1`
   );
-  if (!rows.length) throw new Error(`Active '${PAID_LEAVE_TYPE_NAME}' leave type not found.`);
+  if (!rows.length) throw new Error(`No active leave type is designated as the earned leave target (is_earned_leave). Please configure one in settings.`);
   return rows[0];
 }
 
@@ -318,7 +316,6 @@ async function runAccrualForMostRecentlyCompletedPeriod(opts = {}) {
 module.exports = {
   ATTENDANCE_BONUS_THRESHOLD,
   DEFAULT_BASE_QUOTA,
-  PAID_LEAVE_TYPE_NAME,
   computeAttendancePercent,
   qualifiesForBonus,
   applyLedgerEntry,

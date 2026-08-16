@@ -19,7 +19,7 @@ jest.mock('../db/pool', () => {
   return {
     query: queryMock,
     getClient: jest.fn(),
-    pool: { query: jest.fn(), end: jest.fn(), on: jest.fn() },
+    pool: { query: jest.fn().mockResolvedValue({ rows: [{ status: 'active', first_login: false, password_changed_at: null }] }), end: jest.fn(), on: jest.fn() },
   };
 });
 

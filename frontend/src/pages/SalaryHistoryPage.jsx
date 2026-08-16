@@ -35,7 +35,7 @@ export default function SalaryHistoryPage() {
         <div>
           <h1 className="page-title">Salary Revision Audit Log</h1>
           <p className="page-subtitle text-muted">
-            Immutable company-wide audit trail of all employee per-day salary rate adjustments.
+            Immutable company-wide audit trail of all employee monthly salary adjustments.
           </p>
         </div>
         <Link to="/admin/salaries" className="btn btn-ghost">
@@ -74,8 +74,8 @@ export default function SalaryHistoryPage() {
                   <th>Timestamp</th>
                   <th>Employee</th>
                   <th>Designation</th>
-                  <th>Previous Rate</th>
-                  <th>New Rate</th>
+                  <th>Previous Salary</th>
+                  <th>New Salary</th>
                   <th>Difference</th>
                   <th>Authorized By</th>
                   <th>Audit Note</th>
@@ -83,8 +83,8 @@ export default function SalaryHistoryPage() {
               </thead>
               <tbody>
                 {history.map((item) => {
-                  const oldR = parseFloat(item.old_rate);
-                  const newR = parseFloat(item.new_rate);
+                  const oldR = parseFloat(item.old_monthly_salary);
+                  const newR = parseFloat(item.new_monthly_salary);
                   const diff = newR - oldR;
                   return (
                     <tr key={item.id}>

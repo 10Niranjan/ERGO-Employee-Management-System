@@ -61,14 +61,14 @@ function generatePayslipPDF(data) {
       doc.text(employee.designation || 'Staff', 145, 139);
 
       doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-      doc.text('Base Per-Day Rate:', 320, 105);
-      doc.text('Working Days in Month:', 320, 122);
-      doc.text('Payment Currency:', 320, 139);
+      doc.text('Monthly Salary:', 320, 105);
+      doc.text('Per-Day Rate (this month):', 320, 122);
+      doc.text('Working Days in Month:', 320, 139);
 
       doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a');
-      doc.text(`INR ${parseFloat(summary.per_day_salary).toFixed(2)} / day`, 440, 105);
-      doc.text(`${summary.working_days} days`, 440, 122);
-      doc.text('INR (₹)', 440, 139);
+      doc.text(`INR ${parseFloat(summary.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 440, 105);
+      doc.text(`INR ${parseFloat(summary.per_day_salary).toFixed(2)} / day`, 440, 122);
+      doc.text(`${summary.working_days} days`, 440, 139);
 
       // Attendance & Leave Summary Section
       doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text('Attendance & Leave Units Summary', 40, 175);
@@ -88,7 +88,7 @@ function generatePayslipPDF(data) {
         ['Paid Leaves (Casual/Sick/Earned)', summary.paid_leave_days, '100%', `${summary.paid_leave_days} days`],
         ['Unpaid Leaves', summary.unpaid_leave_days, '0%', '0.0 days'],
         ['Absent / Unmarked', summary.absent_days, '0%', '0.0 days'],
-        ['Holidays & Weekends (Exempt)', summary.holiday_count + summary.weekend_count, 'Non-Working', 'Excluded'],
+        ['Holidays & Weekends (Paid)', summary.holiday_count + summary.weekend_count, '100%', `${summary.holiday_count + summary.weekend_count} days`],
       ];
 
       let currentY = tableTop + 20;
@@ -151,7 +151,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
   const sheet = workbook.addWorksheet(`Salary_${monthName}_${year}`);
 
   // Header Title Row
-  sheet.mergeCells('A1:N1');
+  sheet.mergeCells('A1:O1');
   const titleRow = sheet.getCell('A1');
   titleRow.value = `Ergo Management System — Consolidated Salary Report (${monthName} ${year})`;
   titleRow.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -165,7 +165,8 @@ async function generateConsolidatedExcel(reportData, year, month) {
     'Employee Name',
     'Designation',
     'Email',
-    'Base Rate (₹)',
+    'Monthly Salary (₹)',
+    'Per-Day Rate (₹)',
     'Working Days',
     'Present Days',
     'Half-Days',
@@ -173,7 +174,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
     'Paid Leave Days',
     'Unpaid Leave Days',
     'Absent Days',
-    'Holidays & Weekends',
+    'Holidays & Weekends (Paid)',
     'Net Payable Salary (₹)',
   ];
 
@@ -203,6 +204,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
       item.employee.name,
       item.employee.designation || '—',
       item.employee.email,
+      parseFloat(item.summary.monthly_salary),
       parseFloat(item.summary.per_day_salary),
       item.summary.working_days,
       item.summary.present_days,
@@ -224,10 +226,10 @@ async function generateConsolidatedExcel(reportData, year, month) {
         bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       };
-      if (colNumber === 5 || colNumber === 14) {
+      if (colNumber === 5 || colNumber === 6 || colNumber === 15) {
         cell.numFmt = '₹#,##0.00';
         cell.alignment = { horizontal: 'right' };
-      } else if (colNumber >= 6 && colNumber <= 13) {
+      } else if (colNumber >= 7 && colNumber <= 14) {
         cell.alignment = { horizontal: 'center' };
       }
     });
@@ -248,16 +250,17 @@ async function generateConsolidatedExcel(reportData, year, month) {
     '',
     '',
     '',
+    '',
     grandTotal,
   ]);
   totalRow.height = 24;
-  sheet.mergeCells(`A${totalRow.number}:M${totalRow.number}`);
+  sheet.mergeCells(`A${totalRow.number}:N${totalRow.number}`);
   const totalLabelCell = sheet.getCell(`A${totalRow.number}`);
   totalLabelCell.value = 'GRAND TOTAL PAYROLL (INR)';
   totalLabelCell.font = { name: 'Arial', size: 10, bold: true };
   totalLabelCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  const totalValueCell = sheet.getCell(`N${totalRow.number}`);
+  const totalValueCell = sheet.getCell(`O${totalRow.number}`);
   totalValueCell.numFmt = '₹#,##0.00';
   totalValueCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF166534' } };
   totalValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
@@ -268,6 +271,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
     { width: 22 },
     { width: 20 },
     { width: 24 },
+    { width: 18 },
     { width: 16 },
     { width: 14 },
     { width: 14 },
@@ -276,7 +280,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
     { width: 16 },
     { width: 18 },
     { width: 14 },
-    { width: 20 },
+    { width: 22 },
     { width: 22 },
   ];
 

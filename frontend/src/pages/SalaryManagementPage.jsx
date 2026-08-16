@@ -45,9 +45,15 @@ export default function SalaryManagementPage() {
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [selectedEmployee, setSelectedEmployee] = useState(null);
 
-  // Form states
-  const [newRate, setNewRate] = useState('');
-  const [note, setNote] = useState('');
+  // Form states for salary update
+  const [salaryForm, setSalaryForm] = useState({
+    monthly_salary: '',
+    note: '',
+    basic: '', hra: '', education_allowance: '', conveyance: '',
+    professional_development: '', other_allowance: '', lta: '',
+    employer_pf: '', bonus: '',
+    pf_deduction: '', professional_tax: '', tds: '', pan: '',
+  });
   const [submitting, setSubmitting] = useState(false);
 
   // History modal state
@@ -133,8 +139,23 @@ export default function SalaryManagementPage() {
 
   function handleOpenUpdate(emp) {
     setSelectedEmployee(emp);
-    setNewRate(emp.per_day_salary || '');
-    setNote('');
+    setSalaryForm({
+      monthly_salary:           emp.monthly_salary           || '',
+      note:                     '',
+      basic:                    emp.basic                    || '',
+      hra:                      emp.hra                      || '',
+      education_allowance:      emp.education_allowance      || '',
+      conveyance:               emp.conveyance               || '',
+      professional_development: emp.professional_development || '',
+      other_allowance:          emp.other_allowance          || '',
+      lta:                      emp.lta                      || '',
+      employer_pf:              emp.employer_pf              || '',
+      bonus:                    emp.bonus                    || '',
+      pf_deduction:             emp.pf_deduction             || '',
+      professional_tax:         emp.professional_tax         || '',
+      tds:                      emp.tds                      || '',
+      pan:                      emp.pan                      || '',
+    });
     setIsUpdateModalOpen(true);
   }
 
@@ -154,18 +175,31 @@ export default function SalaryManagementPage() {
 
   async function handleUpdateSubmit(e) {
     e.preventDefault();
-    const rateVal = parseFloat(newRate);
+    const rateVal = parseFloat(salaryForm.monthly_salary);
     if (isNaN(rateVal) || rateVal < 0) {
-      showToast('Please enter a valid positive salary rate', 'error');
+      showToast('Please enter a valid positive monthly salary', 'error');
       return;
     }
     setSubmitting(true);
     try {
       await updateSalaryRate(selectedEmployee.id, {
-        per_day_salary: rateVal,
-        note: note.trim() || undefined,
+        monthly_salary:           rateVal,
+        note:                     salaryForm.note.trim() || undefined,
+        basic:                    salaryForm.basic                    !== '' ? parseFloat(salaryForm.basic)                    : undefined,
+        hra:                      salaryForm.hra                      !== '' ? parseFloat(salaryForm.hra)                      : undefined,
+        education_allowance:      salaryForm.education_allowance      !== '' ? parseFloat(salaryForm.education_allowance)      : undefined,
+        conveyance:               salaryForm.conveyance               !== '' ? parseFloat(salaryForm.conveyance)               : undefined,
+        professional_development: salaryForm.professional_development !== '' ? parseFloat(salaryForm.professional_development) : undefined,
+        other_allowance:          salaryForm.other_allowance          !== '' ? parseFloat(salaryForm.other_allowance)          : undefined,
+        lta:                      salaryForm.lta                      !== '' ? parseFloat(salaryForm.lta)                      : undefined,
+        employer_pf:              salaryForm.employer_pf              !== '' ? parseFloat(salaryForm.employer_pf)              : undefined,
+        bonus:                    salaryForm.bonus                    !== '' ? parseFloat(salaryForm.bonus)                    : undefined,
+        pf_deduction:             salaryForm.pf_deduction             !== '' ? parseFloat(salaryForm.pf_deduction)             : undefined,
+        professional_tax:         salaryForm.professional_tax         !== '' ? parseFloat(salaryForm.professional_tax)         : undefined,
+        tds:                      salaryForm.tds                      !== '' ? parseFloat(salaryForm.tds)                      : undefined,
+        pan:                      salaryForm.pan?.trim().toUpperCase() || undefined,
       });
-      showToast('Salary rate updated and recorded in audit log!', 'success');
+      showToast('Monthly salary updated and recorded in audit log!', 'success');
       setIsUpdateModalOpen(false);
       fetchRates();
     } catch (err) {
@@ -209,9 +243,9 @@ export default function SalaryManagementPage() {
       {/* Header */}
       <div className="page-header-row">
         <div>
-          <h1 className="page-title">Per-Day Salary & Payroll</h1>
+          <h1 className="page-title">Monthly Salary & Payroll</h1>
           <p className="page-subtitle text-muted">
-            Configure employee daily rates, preview deterministic monthly compensation, and generate official payslip snapshots.
+            Set each employee's monthly salary, preview deterministic compensation, and generate official payslip snapshots.
           </p>
         </div>
         <div className="action-buttons-group">
@@ -231,7 +265,7 @@ export default function SalaryManagementPage() {
           className={`emp-tab-btn ${activeTab === 'rates' ? 'active' : ''}`}
           onClick={() => setActiveTab('rates')}
         >
-          <Wallet size={15} aria-hidden="true" /> Employee Base Rates
+          <Wallet size={15} aria-hidden="true" /> Employee Salaries
         </button>
         <button
           type="button"
@@ -248,7 +282,7 @@ export default function SalaryManagementPage() {
           <div className="policy-banner card">
             <Wallet className="policy-icon" size={20} aria-hidden="true" />
             <div className="policy-text">
-              <strong>Per-Day Rate Architecture:</strong> In V1, monthly gross salary is computed strictly from actual attendance and approved leave records: <code>(Per-Day Rate × Days Present) + (Half-Day Rate × Half-Days) + (Per-Day Rate × Paid Leaves)</code>. Weekends and holidays are non-working and excluded.
+              <strong>Calendar-Days Salary Model:</strong> Each employee has one monthly salary figure. The per-day rate is derived from it each month — <code>Monthly Salary ÷ Days in That Month</code> — so it floats slightly with month length. Weekends, holidays, present, travel, and paid-leave days are all paid at the full derived rate; half-days pay 50%; unpaid leave and unmarked/absent working days pay 0%.
             </div>
           </div>
 
@@ -304,7 +338,8 @@ export default function SalaryManagementPage() {
                       <th>Employee ID</th>
                       <th>Name</th>
                       <th>Designation</th>
-                      <th>Current Per-Day Rate</th>
+                      <th>Monthly Salary</th>
+                      <th>Derived Rate (this month)</th>
                       <th>Status</th>
                       <th>Last Updated</th>
                       <th style={{ textAlign: 'right' }}>Actions</th>
@@ -327,8 +362,14 @@ export default function SalaryManagementPage() {
                         </td>
                         <td>
                           <strong className="salary-rate-highlight">
-                            ₹{parseFloat(emp.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                            ₹{parseFloat(emp.monthly_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                           </strong>
+                          <span className="text-muted text-xs"> / mo</span>
+                        </td>
+                        <td>
+                          <span className="text-muted">
+                            ₹{parseFloat(emp.derived_per_day_rate || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                          </span>
                           <span className="text-muted text-xs"> / day</span>
                         </td>
                         <td>
@@ -384,7 +425,7 @@ export default function SalaryManagementPage() {
               >
                 {employees.map((e) => (
                   <option key={e.id} value={e.id}>
-                    {e.name} ({e.employee_id}) — ₹{parseFloat(e.per_day_salary).toFixed(0)}/day
+                    {e.name} ({e.employee_id}) — ₹{parseFloat(e.monthly_salary).toFixed(0)}/mo
                   </option>
                 ))}
               </select>
@@ -495,7 +536,8 @@ export default function SalaryManagementPage() {
                   ₹{parseFloat(calcResult.summary.net_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                 </div>
                 <span className="kpi-sub text-muted text-xs">
-                  Deterministic rate calculation for {calcResult.employee.name}
+                  ₹{parseFloat(calcResult.employee.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}/mo
+                  {' '}(₹{parseFloat(calcResult.summary.per_day_salary).toFixed(2)}/day this month)
                 </span>
               </div>
             </div>
@@ -642,6 +684,7 @@ export default function SalaryManagementPage() {
         isOpen={isUpdateModalOpen}
         onClose={() => !submitting && setIsUpdateModalOpen(false)}
         title={`Update Salary Rate (${selectedEmployee?.employee_id})`}
+        maxWidth="660px"
       >
         <form onSubmit={handleUpdateSubmit} className="modal-form">
           <div className="profile-hero-badge" style={{ paddingBottom: 'var(--space-2)' }}>
@@ -651,53 +694,94 @@ export default function SalaryManagementPage() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Current Per-Day Rate</label>
-            <input
-              type="text"
-              disabled
-              value={`₹${parseFloat(selectedEmployee?.per_day_salary || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`}
-            />
+          <div className="form-grid-2">
+            <div className="form-group">
+              <label className="form-label" htmlFor="new-rate-input">Monthly Salary (₹) *</label>
+              <input id="new-rate-input" type="number" min="0" step="0.01" required
+                placeholder="e.g. 50000"
+                value={salaryForm.monthly_salary}
+                onChange={(e) => setSalaryForm({ ...salaryForm, monthly_salary: e.target.value })}
+                disabled={submitting} />
+            </div>
+            <div className="form-group">
+              <label className="form-label" htmlFor="salary-pan-input">PAN Number</label>
+              <input id="salary-pan-input" type="text" placeholder="e.g. ABCDE1234F" maxLength={10}
+                value={salaryForm.pan}
+                onChange={(e) => setSalaryForm({ ...salaryForm, pan: e.target.value.toUpperCase() })}
+                disabled={submitting} />
+            </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label" htmlFor="new-rate-input">
-              New Per-Day Rate (₹) *
-            </label>
-            <input
-              id="new-rate-input"
-              type="number"
-              min="0"
-              step="0.01"
-              required
-              placeholder="e.g. 2000"
-              value={newRate}
-              onChange={(e) => setNewRate(e.target.value)}
-              disabled={submitting}
-            />
+          <p className="salary-section-heading">Earnings</p>
+          <div className="form-grid-2">
+            {[['sr-basic','Basic Pay (₹)','basic'],['sr-hra','HRA (₹)','hra'],
+              ['sr-edu','Education Allowance (₹)','education_allowance'],['sr-conv','Conveyance (₹)','conveyance'],
+              ['sr-pd','Professional Development (₹)','professional_development'],['sr-oa','Other Allowance (₹)','other_allowance'],
+              ['sr-lta','LTA (₹)','lta'],['sr-epf','Employer PF (₹)','employer_pf'],
+              ['sr-bonus','Bonus (₹)','bonus']].map(([id, label, key]) => (
+              <div className="form-group" key={key}>
+                <label className="form-label" htmlFor={id}>{label}</label>
+                <input id={id} type="number" min="0" step="0.01" placeholder="0.00"
+                  value={salaryForm[key]}
+                  onChange={(e) => setSalaryForm({ ...salaryForm, [key]: e.target.value })}
+                  disabled={submitting} />
+              </div>
+            ))}
           </div>
 
+          <p className="salary-section-heading">Deductions</p>
+          <div className="form-grid-2">
+            {[['sr-pfd','PF Deduction (₹)','pf_deduction'],['sr-pt','Professional Tax (₹)','professional_tax'],
+              ['sr-tds','TDS (₹)','tds']].map(([id, label, key]) => (
+              <div className="form-group" key={key}>
+                <label className="form-label" htmlFor={id}>{label}</label>
+                <input id={id} type="number" min="0" step="0.01" placeholder="0.00"
+                  value={salaryForm[key]}
+                  onChange={(e) => setSalaryForm({ ...salaryForm, [key]: e.target.value })}
+                  disabled={submitting} />
+              </div>
+            ))}
+          </div>
+
+          {/* Live summary */}
+          {(() => {
+            const f = salaryForm;
+            const gross = [f.basic, f.hra, f.education_allowance, f.conveyance,
+              f.professional_development, f.other_allowance, f.lta, f.employer_pf, f.bonus]
+              .reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            const deductions = [f.pf_deduction, f.professional_tax, f.tds]
+              .reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            const net = gross - deductions;
+            const fmt = (n) => n.toLocaleString('en-IN', { minimumFractionDigits: 2 });
+            return (
+              <div className="salary-summary-strip">
+                <div className="salary-summary-item">
+                  <span className="salary-summary-label">Gross Income</span>
+                  <strong className="salary-summary-value">₹{fmt(gross)}</strong>
+                </div>
+                <div className="salary-summary-item">
+                  <span className="salary-summary-label">Total Deduction</span>
+                  <strong className="salary-summary-value text-danger">₹{fmt(deductions)}</strong>
+                </div>
+                <div className="salary-summary-item">
+                  <span className="salary-summary-label">Net Salary</span>
+                  <strong className="salary-summary-value salary-rate-text">₹{fmt(net)}</strong>
+                </div>
+              </div>
+            );
+          })()}
+
           <div className="form-group">
-            <label className="form-label" htmlFor="salary-note-input">
-              Audit Reason / Note (Optional)
-            </label>
-            <input
-              id="salary-note-input"
-              type="text"
+            <label className="form-label" htmlFor="salary-note-input">Audit Reason / Note (Optional)</label>
+            <input id="salary-note-input" type="text"
               placeholder="e.g. Annual appraisal, Promotion to Senior Dev"
-              value={note}
-              onChange={(e) => setNote(e.target.value)}
-              disabled={submitting}
-            />
+              value={salaryForm.note}
+              onChange={(e) => setSalaryForm({ ...salaryForm, note: e.target.value })}
+              disabled={submitting} />
           </div>
 
           <div className="modal-actions-row">
-            <button
-              type="button"
-              className="btn btn-ghost"
-              onClick={() => setIsUpdateModalOpen(false)}
-              disabled={submitting}
-            >
+            <button type="button" className="btn btn-ghost" onClick={() => setIsUpdateModalOpen(false)} disabled={submitting}>
               Cancel
             </button>
             <button type="submit" className="btn btn-primary" disabled={submitting}>
@@ -731,8 +815,8 @@ export default function SalaryManagementPage() {
               <thead>
                 <tr>
                   <th>Date & Time</th>
-                  <th>Previous Rate</th>
-                  <th>New Rate</th>
+                  <th>Previous Salary</th>
+                  <th>New Salary</th>
                   <th>Changed By</th>
                   <th>Note</th>
                 </tr>
@@ -753,12 +837,12 @@ export default function SalaryManagementPage() {
                     </td>
                     <td>
                       <span className="text-muted text-sm">
-                        ₹{parseFloat(rev.old_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{parseFloat(rev.old_monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </span>
                     </td>
                     <td>
                       <strong className="salary-rate-text">
-                        ₹{parseFloat(rev.new_rate).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
+                        ₹{parseFloat(rev.new_monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                       </strong>
                     </td>
                     <td>

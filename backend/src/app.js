@@ -5,6 +5,7 @@ const helmet = require('helmet');
 const cors = require('cors');
 
 const authRoutes       = require('./routes/authRoutes');
+const adminRoutes      = require('./routes/adminRoutes');
 const userRoutes       = require('./routes/userRoutes');
 const leaveTypeRoutes  = require('./routes/leaveTypeRoutes');
 const holidayRoutes    = require('./routes/holidayRoutes');
@@ -13,6 +14,7 @@ const attendanceRoutes = require('./routes/attendanceRoutes');
 const leaveRoutes      = require('./routes/leaveRoutes');
 const reportRoutes     = require('./routes/reportRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
+const { authenticate, blockUntilPasswordChanged } = require('./middleware/auth');
 
 const app = express();
 
@@ -71,14 +73,23 @@ app.get('/api/db-health', async (_req, res, next) => {
 });
 
 // ─── API routes ─────────────────────────────────────────────────────────────────────────────
-app.use('/api/auth',        authRoutes);
-app.use('/api/users',       userRoutes);
-app.use('/api/leave-types', leaveTypeRoutes);
-app.use('/api/holidays',    holidayRoutes);
-app.use('/api/salary',      salaryRoutes);
-app.use('/api/attendance',  attendanceRoutes);
-app.use('/api/leaves',      leaveRoutes);
-app.use('/api/reports',     reportRoutes);
+// /api/auth is intentionally NOT guarded below — it carries login and the
+// password-change endpoints, which a first_login user must still be able to
+// reach in order to leave that state.
+app.use('/api/auth', authRoutes);
+
+// Every business route is blocked while a password change is outstanding, so
+// the mandatory reset screen can't be sidestepped by calling the API directly.
+const requirePasswordSettled = [authenticate, blockUntilPasswordChanged];
+
+app.use('/api/admin',       requirePasswordSettled, adminRoutes);
+app.use('/api/users',       requirePasswordSettled, userRoutes);
+app.use('/api/leave-types', requirePasswordSettled, leaveTypeRoutes);
+app.use('/api/holidays',    requirePasswordSettled, holidayRoutes);
+app.use('/api/salary',      requirePasswordSettled, salaryRoutes);
+app.use('/api/attendance',  requirePasswordSettled, attendanceRoutes);
+app.use('/api/leaves',      requirePasswordSettled, leaveRoutes);
+app.use('/api/reports',     requirePasswordSettled, reportRoutes);
 
 // ─── 404 handler ─────────────────────────────────────────────────────────────
 app.use((_req, res) => {

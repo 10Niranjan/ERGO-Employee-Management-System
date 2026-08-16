@@ -33,6 +33,7 @@ export default function LeaveTypesPage() {
     name: '',
     is_paid: true,
     yearly_quota: 12,
+    is_earned_leave: false,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -58,6 +59,7 @@ export default function LeaveTypesPage() {
       name: '',
       is_paid: true,
       yearly_quota: 10,
+      is_earned_leave: false,
     });
     setIsAddModalOpen(true);
   }
@@ -68,6 +70,7 @@ export default function LeaveTypesPage() {
       name: lt.name,
       is_paid: lt.is_paid,
       yearly_quota: lt.yearly_quota,
+      is_earned_leave: lt.is_earned_leave,
     });
     setIsEditModalOpen(true);
   }
@@ -84,6 +87,7 @@ export default function LeaveTypesPage() {
         name: formData.name.trim(),
         is_paid: Boolean(formData.is_paid),
         yearly_quota: parseInt(formData.yearly_quota, 10) || 0,
+        is_earned_leave: Boolean(formData.is_earned_leave),
       });
       showToast('Leave type created successfully!', 'success');
       setIsAddModalOpen(false);
@@ -107,6 +111,7 @@ export default function LeaveTypesPage() {
         name: formData.name.trim(),
         is_paid: Boolean(formData.is_paid),
         yearly_quota: parseInt(formData.yearly_quota, 10) || 0,
+        is_earned_leave: Boolean(formData.is_earned_leave),
       });
       showToast('Leave type updated successfully!', 'success');
       setIsEditModalOpen(false);
@@ -200,6 +205,11 @@ export default function LeaveTypesPage() {
                   <tr key={lt.id} className={!lt.is_active ? 'row-inactive' : ''}>
                     <td>
                       <strong className="emp-fullname">{lt.name}</strong>
+                      {lt.is_earned_leave && (
+                        <span className="status-pill status-active" style={{ marginLeft: 'var(--space-2)' }}>
+                          Earned Target
+                        </span>
+                      )}
                     </td>
                     <td>
                       <span className={`status-pill ${lt.is_paid ? 'status-paid' : 'status-unpaid'}`}>
@@ -308,6 +318,21 @@ export default function LeaveTypesPage() {
             </div>
           </div>
 
+          <div className="form-group">
+            <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <input
+                type="checkbox"
+                checked={formData.is_earned_leave}
+                onChange={(e) => setFormData({ ...formData, is_earned_leave: e.target.checked })}
+                disabled={submitting}
+              />
+              <span>Set as "Earned Leave" target (Receives the +1 monthly attendance bonus)</span>
+            </label>
+            <p className="text-muted text-xs" style={{ marginTop: 'var(--space-1)' }}>
+              Note: Only one leave type can be the earned leave target. Checking this will remove the target from any other leave type.
+            </p>
+          </div>
+
           <div className="modal-actions-row">
             <button
               type="button"
@@ -385,6 +410,21 @@ export default function LeaveTypesPage() {
                 <span>Unpaid (Salary deducted)</span>
               </label>
             </div>
+          </div>
+
+          <div className="form-group">
+            <label className="checkbox-label" style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)' }}>
+              <input
+                type="checkbox"
+                checked={formData.is_earned_leave}
+                onChange={(e) => setFormData({ ...formData, is_earned_leave: e.target.checked })}
+                disabled={submitting}
+              />
+              <span>Set as "Earned Leave" target (Receives the +1 monthly attendance bonus)</span>
+            </label>
+            <p className="text-muted text-xs" style={{ marginTop: 'var(--space-1)' }}>
+              Note: Only one leave type can be the earned leave target. Checking this will remove the target from any other leave type.
+            </p>
           </div>
 
           <div className="modal-actions-row">

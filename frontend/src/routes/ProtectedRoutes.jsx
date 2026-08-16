@@ -7,11 +7,15 @@ import { useAuth } from '../context/AuthContext';
  * Remembers the attempted URL to redirect back after login.
  */
 export function RequireAuth({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.first_login) {
+    return <Navigate to="/reset-password" replace />;
   }
 
   return children ?? <Outlet />;
@@ -23,11 +27,17 @@ export function RequireAuth({ children }) {
  * Redirects employees to their dashboard.
  */
 export function RequireAdmin({ children }) {
-  const { isAuthenticated, isAdmin } = useAuth();
+  const { isAuthenticated, isAdmin, user } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  // A pending password change outranks everything else — without this, typing
+  // a dashboard URL walks straight past the mandatory reset screen.
+  if (user?.first_login) {
+    return <Navigate to="/reset-password" replace />;
   }
 
   if (!isAdmin) {
@@ -43,11 +53,15 @@ export function RequireAdmin({ children }) {
  * Redirects unauthenticated users to /login.
  */
 export function RequireEmployee({ children }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const location = useLocation();
 
   if (!isAuthenticated) {
     return <Navigate to="/login" state={{ from: location }} replace />;
+  }
+
+  if (user?.first_login) {
+    return <Navigate to="/reset-password" replace />;
   }
 
   return children ?? <Outlet />;

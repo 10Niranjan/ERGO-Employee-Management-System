@@ -18,7 +18,7 @@ jest.mock('../db/pool', () => {
   return {
     query: q,
     getClient: jest.fn().mockResolvedValue(mockClient),
-    pool: { query: jest.fn(), end: jest.fn(), on: jest.fn() },
+    pool: { query: jest.fn().mockResolvedValue({ rows: [{ status: 'active', first_login: false, password_changed_at: null }] }), end: jest.fn(), on: jest.fn() },
     _mockClient: mockClient,
   };
 });
@@ -34,7 +34,7 @@ const SAFE_USER = {
   id: 2, employee_id: 'EMP001', role: 'employee',
   name: 'Test Employee', email: 'test@ergo.com', phone: '9999999999',
   designation: 'Developer', date_of_joining: '2025-01-01',
-  per_day_salary: '1500.00', first_login: true, status: 'active',
+  monthly_salary: '31000.00', first_login: true, status: 'active',
   created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
 };
 
@@ -145,7 +145,7 @@ describe('POST /api/users', () => {
         name: 'Test Employee',
         email: 'test@ergo.com',
         designation: 'Developer',
-        per_day_salary: 1500,
+        monthly_salary: 31000,
       });
     expect(res.status).toBe(201);
     expect(res.body.user).toBeDefined();
@@ -155,34 +155,6 @@ describe('POST /api/users', () => {
     expect(res.body.user.password_hash).toBeUndefined();
   });
 
-  test('creates employee with custom leaves_this_year', async () => {
-    setupCreateMocks();
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({
-        name: 'Test Employee Two',
-        email: 'test2@ergo.com',
-        designation: 'Designer',
-        per_day_salary: 1200,
-        leaves_this_year: 20,
-      });
-    expect(res.status).toBe(201);
-    expect(res.body.user).toBeDefined();
-    expect(res.body.temp_password).toBeDefined();
-  });
-
-  test('returns 400 if leaves_this_year is negative', async () => {
-    const res = await request(app)
-      .post('/api/users')
-      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({
-        name: 'Test',
-        email: 'test@ergo.com',
-        leaves_this_year: -5,
-      });
-    expect(res.status).toBe(400);
-  });
 
   test('returns 400 if name is missing', async () => {
     const res = await request(app)

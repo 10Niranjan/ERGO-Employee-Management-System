@@ -41,6 +41,8 @@ export default function AdminLeavesPage() {
   const [isDeclineModalOpen, setIsDeclineModalOpen] = useState(false);
   const [isBalancesModalOpen, setIsBalancesModalOpen] = useState(false);
   const [selectedApplication, setSelectedApplication] = useState(null);
+  const [currentBalance, setCurrentBalance] = useState(null);
+  const [balanceLoading, setBalanceLoading] = useState(false);
 
   // Review inputs
   const [adminNotes, setAdminNotes] = useState('');
@@ -95,17 +97,45 @@ export default function AdminLeavesPage() {
   }, [fetchApplications]);
 
   // Open Approve Modal
-  function handleOpenApprove(app) {
+  async function handleOpenApprove(app) {
     setSelectedApplication(app);
     setAdminNotes('');
     setIsApproveModalOpen(true);
+    if (app.is_paid) {
+      setBalanceLoading(true);
+      setCurrentBalance(null);
+      try {
+        const year = new Date(app.start_date).getFullYear();
+        const data = await getLeaveBalances({ user_id: app.user_id, year });
+        const bal = data.balances?.find(b => b.leave_type_id === app.leave_type_id);
+        setCurrentBalance(bal || null);
+      } catch (err) {
+        console.error('Failed to fetch balance', err);
+      } finally {
+        setBalanceLoading(false);
+      }
+    }
   }
 
   // Open Decline Modal
-  function handleOpenDecline(app) {
+  async function handleOpenDecline(app) {
     setSelectedApplication(app);
     setDeclineReason('');
     setIsDeclineModalOpen(true);
+    if (app.is_paid) {
+      setBalanceLoading(true);
+      setCurrentBalance(null);
+      try {
+        const year = new Date(app.start_date).getFullYear();
+        const data = await getLeaveBalances({ user_id: app.user_id, year });
+        const bal = data.balances?.find(b => b.leave_type_id === app.leave_type_id);
+        setCurrentBalance(bal || null);
+      } catch (err) {
+        console.error('Failed to fetch balance', err);
+      } finally {
+        setBalanceLoading(false);
+      }
+    }
   }
 
   // Open Balances Modal
@@ -429,6 +459,24 @@ export default function AdminLeavesPage() {
             </span>
           </div>
 
+          {selectedApplication?.is_paid && (
+            <div className="alert alert-warning" style={{ marginTop: 'var(--space-3)' }}>
+              <Calculator size={16} aria-hidden="true" />
+              <span>
+                {balanceLoading ? (
+                  'Fetching current balance...'
+                ) : currentBalance ? (
+                  <>
+                    Employee currently has <strong>{currentBalance.remaining} day(s)</strong> remaining.
+                    After approval, the balance will be <strong>{currentBalance.remaining - selectedApplication.working_days_count} day(s)</strong>.
+                  </>
+                ) : (
+                  'Could not fetch current balance.'
+                )}
+              </span>
+            </div>
+          )}
+
           <div className="form-group">
             <label className="form-label">Date Range</label>
             <input
@@ -478,8 +526,25 @@ export default function AdminLeavesPage() {
       >
         <form onSubmit={handleDeclineSubmit} className="modal-form">
           <p className="text-muted text-sm">
-            Please provide a mandatory reason for declining this request. No leave balance will be deducted.
+            Please provide a reason for declining this request. This will be visible to the employee.
           </p>
+
+          {selectedApplication?.is_paid && (
+            <div className="alert alert-info" style={{ marginTop: 'var(--space-3)', marginBottom: 'var(--space-4)' }}>
+              <Calculator size={16} aria-hidden="true" />
+              <span>
+                {balanceLoading ? (
+                  'Fetching current balance...'
+                ) : currentBalance ? (
+                  <>
+                    Employee currently has <strong>{currentBalance.remaining} day(s)</strong> remaining.
+                  </>
+                ) : (
+                  'Could not fetch current balance.'
+                )}
+              </span>
+            </div>
+          )}
 
           <div className="form-group">
             <label className="form-label" htmlFor="admin-decline-reason">

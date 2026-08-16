@@ -12,7 +12,7 @@ jest.mock('../db/pool', () => {
   return {
     query: q,
     getClient: jest.fn().mockResolvedValue(mockClient),
-    pool: { query: jest.fn(), end: jest.fn(), on: jest.fn() },
+    pool: { query: jest.fn().mockResolvedValue({ rows: [{ status: 'active', first_login: false, password_changed_at: null }] }), end: jest.fn(), on: jest.fn() },
     _mockClient: mockClient,
   };
 });
@@ -60,9 +60,11 @@ describe('GET /api/leave-types', () => {
 
 describe('POST /api/leave-types', () => {
   test('admin creates a leave type', async () => {
-    query
+    mockClient.query
+      .mockResolvedValueOnce({})                     // BEGIN
       .mockResolvedValueOnce({ rows: [] })           // name uniqueness check
-      .mockResolvedValueOnce({ rows: [LEAVE_TYPE] }); // INSERT
+      .mockResolvedValueOnce({ rows: [LEAVE_TYPE] }) // INSERT
+      .mockResolvedValueOnce({});                    // COMMIT
     const res = await request(app)
       .post('/api/leave-types')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -89,7 +91,10 @@ describe('POST /api/leave-types', () => {
   });
 
   test('returns 409 for duplicate name', async () => {
-    query.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // name exists
+    mockClient.query
+      .mockResolvedValueOnce({})                     // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 2 }] }); // Name exists
+
     const res = await request(app)
       .post('/api/leave-types')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -100,10 +105,12 @@ describe('POST /api/leave-types', () => {
 
 describe('PUT /api/leave-types/:id', () => {
   test('admin updates leave type quota (no name change)', async () => {
-    // Sending only yearly_quota (no name) → 2 DB calls: exists check + UPDATE
-    query
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })  // exists check
-      .mockResolvedValueOnce({ rows: [{ ...LEAVE_TYPE, yearly_quota: 15 }] }); // UPDATE
+    mockClient.query
+      .mockResolvedValueOnce({})                                         // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1, yearly_quota: 12 }] })    // exists check
+      .mockResolvedValueOnce({ rows: [] })                               // CASCADE update leave_balances
+      .mockResolvedValueOnce({ rows: [{ ...LEAVE_TYPE, yearly_quota: 15 }] }) // UPDATE leave_types
+      .mockResolvedValueOnce({});                                        // COMMIT
     const res = await request(app)
       .put('/api/leave-types/1')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -113,7 +120,9 @@ describe('PUT /api/leave-types/:id', () => {
   });
 
   test('returns 404 for non-existent leave type', async () => {
-    query.mockResolvedValueOnce({ rows: [] }); // exists check returns empty
+    mockClient.query
+      .mockResolvedValueOnce({})                    // BEGIN
+      .mockResolvedValueOnce({ rows: [] });         // exists check returns empty
     const res = await request(app)
       .put('/api/leave-types/999')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -248,7 +257,7 @@ describe('DELETE /api/holidays/:id', () => {
 describe('GET /api/salary', () => {
   test('returns employee salary rates for admin', async () => {
     query.mockResolvedValueOnce({
-      rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', per_day_salary: '1500.00', status: 'active' }],
+      rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', monthly_salary: '31000.00', status: 'active' }],
     });
     const res = await request(app)
       .get('/api/salary')
@@ -269,20 +278,20 @@ describe('PUT /api/salary/:userId', () => {
   test('admin updates employee salary and logs history', async () => {
     mockClient.query
       .mockResolvedValueOnce({})  // BEGIN
-      .mockResolvedValueOnce({ rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', per_day_salary: '1500.00' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', per_day_salary: '2000.00', designation: 'Dev', email: 'test@ergo.com', status: 'active' }] })
-      .mockResolvedValueOnce({ rows: [{ id: 1, user_id: 2, old_rate: '1500.00', new_rate: '2000.00', changed_by: 1, note: null, changed_at: new Date().toISOString() }] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', monthly_salary: '31000.00' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 2, employee_id: 'EMP001', name: 'Test', monthly_salary: '62000.00', designation: 'Dev', email: 'test@ergo.com', status: 'active' }] })
+      .mockResolvedValueOnce({ rows: [{ id: 1, user_id: 2, old_monthly_salary: '31000.00', new_monthly_salary: '62000.00', changed_by: 1, note: null, changed_at: new Date().toISOString() }] })
       .mockResolvedValueOnce({});  // COMMIT
 
     const res = await request(app)
       .put('/api/salary/2')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ per_day_salary: 2000 });
+      .send({ monthly_salary: 62000 });
 
     expect(res.status).toBe(200);
-    expect(res.body.employee.per_day_salary).toBe('2000.00');
+    expect(res.body.employee.monthly_salary).toBe('62000.00');
     expect(res.body.revision).toBeDefined();
-    expect(parseFloat(res.body.revision.new_rate)).toBe(2000);
+    expect(parseFloat(res.body.revision.new_monthly_salary)).toBe(62000);
   });
 
   test('returns 400 for negative salary', async () => {
@@ -290,7 +299,7 @@ describe('PUT /api/salary/:userId', () => {
     const res = await request(app)
       .put('/api/salary/2')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ per_day_salary: -500 });
+      .send({ monthly_salary: -500 });
     expect(res.status).toBe(400);
   });
 
@@ -298,7 +307,7 @@ describe('PUT /api/salary/:userId', () => {
     const res = await request(app)
       .put('/api/salary/2')
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
-      .send({ per_day_salary: 2000 });
+      .send({ monthly_salary: 62000 });
     expect(res.status).toBe(403);
   });
 });
@@ -308,7 +317,7 @@ describe('GET /api/salary/history', () => {
     query
       .mockResolvedValueOnce({ rows: [{ total: '3' }] })
       .mockResolvedValueOnce({ rows: [
-        { id: 1, old_rate: '1000.00', new_rate: '1500.00', employee_name: 'Test', changed_by_name: 'Admin' },
+        { id: 1, old_monthly_salary: '30000.00', new_monthly_salary: '31000.00', employee_name: 'Test', changed_by_name: 'Admin' },
       ] });
     const res = await request(app)
       .get('/api/salary/history')
@@ -323,7 +332,7 @@ describe('GET /api/salary/:userId/history', () => {
   test('returns per-employee salary history', async () => {
     query
       .mockResolvedValueOnce({ rows: [{ id: 2, name: 'Test', employee_id: 'EMP001' }] }) // emp check
-      .mockResolvedValueOnce({ rows: [{ id: 1, old_rate: '1000.00', new_rate: '1500.00', changed_by_name: 'Admin', changed_at: new Date().toISOString() }] });
+      .mockResolvedValueOnce({ rows: [{ id: 1, old_monthly_salary: '30000.00', new_monthly_salary: '31000.00', changed_by_name: 'Admin', changed_at: new Date().toISOString() }] });
     const res = await request(app)
       .get('/api/salary/2/history')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
