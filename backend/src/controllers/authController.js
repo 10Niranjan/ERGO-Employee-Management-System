@@ -125,7 +125,7 @@ async function resetPassword(req, res, next) {
 async function getMe(req, res, next) {
   try {
     const { rows } = await query(
-      `SELECT id, employee_id, role, name, email, designation, date_of_joining, first_login, status
+      `SELECT id, employee_id, role, name, email, phone, designation, date_of_joining, gender, bank_name, first_login, status
        FROM users
        WHERE id = $1`,
       [req.user.id]

@@ -48,6 +48,7 @@ import { getHolidays } from '../api/holidayApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import ThemeToggle from '../components/ThemeToggle';
+import HeaderUserMenu from '../components/HeaderUserMenu';
 import './EmployeeDashboardPage.css';
 
 export default function EmployeeDashboardPage() {
@@ -125,11 +126,6 @@ export default function EmployeeDashboardPage() {
   const [holidays, setHolidays] = useState([]);
   const [holidaysLoading, setHolidaysLoading] = useState(false);
   const [holidayYear, setHolidayYear] = useState(now.getFullYear());
-
-  function handleLogout() {
-    logout();
-    navigate('/login', { replace: true });
-  }
 
   // Fetch today's status
   const fetchTodayStatus = useCallback(async () => {
@@ -480,22 +476,7 @@ export default function EmployeeDashboardPage() {
 
           <div className="employee-header-right">
             <ThemeToggle />
-            <div className="user-profile-badge">
-              <div className="user-avatar-circle">{user?.name?.charAt(0) || 'E'}</div>
-              <div className="user-info-text">
-                <span className="user-name">{user?.name}</span>
-                <span className="user-meta">{user?.employee_id} • {user?.designation || 'Staff'}</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="employee-logout-btn"
-              className="btn btn-ghost btn-sm"
-              onClick={handleLogout}
-            >
-              <LogOut size={14} aria-hidden="true" />
-              <span className="logout-btn-label">Log out</span>
-            </button>
+            <HeaderUserMenu user={user} logout={logout} />
           </div>
         </header>
 

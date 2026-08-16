@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import ThemeToggle from './ThemeToggle';
+import HeaderUserMenu from './HeaderUserMenu';
 import './AdminLayout.css';
 
 export default function AdminLayout() {
@@ -46,11 +47,6 @@ export default function AdminLayout() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [sidebarOpen]);
-
-  function handleLogout() {
-    logout();
-    navigate('/login', { replace: true });
-  }
 
   const navItems = [
     { to: '/admin/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -158,25 +154,10 @@ export default function AdminLayout() {
 
           <div className="admin-header-right">
             <span className="ops-clock-chip" title="Asia/Kolkata">
-              IST {clock.toLocaleTimeString('en-GB', { hour12: false })}
+              IST {clock.toLocaleTimeString('en-GB', { hour12: true })}
             </span>
             <ThemeToggle />
-            <div className="user-profile-badge">
-              <div className="user-avatar-circle">{user?.name?.charAt(0) || 'A'}</div>
-              <div className="user-info-text">
-                <span className="user-name">{user?.name}</span>
-                <span className="user-meta">{user?.employee_id} • Administrator</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="admin-logout-btn"
-              className="btn btn-ghost btn-sm"
-              onClick={handleLogout}
-            >
-              <LogOut size={14} aria-hidden="true" />
-              <span className="logout-btn-label">Log out</span>
-            </button>
+            <HeaderUserMenu user={user} logout={logout} />
           </div>
         </header>
 
