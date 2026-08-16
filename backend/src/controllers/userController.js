@@ -12,6 +12,9 @@ const SAFE_USER_FIELDS = `
   date_of_joining, monthly_salary, first_login, status,
   gender, date_of_birth, address, bank_name, bank_account_no,
   ifsc_code, emergency_contact_name, emergency_contact_phone,
+  basic, hra, education_allowance, conveyance, professional_development,
+  other_allowance, lta, employer_pf, bonus,
+  pf_deduction, professional_tax, tds, pan,
   created_at, updated_at
 `;
 
@@ -108,6 +111,10 @@ async function createUser(req, res, next) {
       gender, date_of_birth, address,
       bank_name, bank_account_no, ifsc_code,
       emergency_contact_name, emergency_contact_phone,
+      // Salary components
+      basic, hra, education_allowance, conveyance, professional_development,
+      other_allowance, lta, employer_pf, bonus,
+      pf_deduction, professional_tax, tds, pan,
     } = req.body;
 
     // Check email uniqueness
@@ -134,10 +141,15 @@ async function createUser(req, res, next) {
          (employee_id, role, name, email, phone, designation,
           date_of_joining, monthly_salary, password_hash, first_login, status,
           gender, date_of_birth, address, bank_name, bank_account_no,
-          ifsc_code, emergency_contact_name, emergency_contact_phone)
+          ifsc_code, emergency_contact_name, emergency_contact_phone,
+          basic, hra, education_allowance, conveyance, professional_development,
+          other_allowance, lta, employer_pf, bonus,
+          pf_deduction, professional_tax, tds, pan)
        VALUES
          ($1, 'employee', $2, $3, $4, $5, $6, $7, $8, TRUE, 'active',
-          $9, $10, $11, $12, $13, $14, $15, $16)
+          $9, $10, $11, $12, $13, $14, $15, $16,
+          $17, $18, $19, $20, $21, $22, $23, $24, $25,
+          $26, $27, $28, $29)
        RETURNING ${SAFE_USER_FIELDS}`,
       [
         employee_id,
@@ -156,34 +168,32 @@ async function createUser(req, res, next) {
         ifsc_code?.trim() || null,
         emergency_contact_name?.trim() || null,
         emergency_contact_phone?.trim() || null,
+        // Salary components
+        parseFloat(basic) || 0,
+        parseFloat(hra) || 0,
+        parseFloat(education_allowance) || 0,
+        parseFloat(conveyance) || 0,
+        parseFloat(professional_development) || 0,
+        parseFloat(other_allowance) || 0,
+        parseFloat(lta) || 0,
+        parseFloat(employer_pf) || 0,
+        parseFloat(bonus) || 0,
+        parseFloat(pf_deduction) || 0,
+        parseFloat(professional_tax) || 0,
+        parseFloat(tds) || 0,
+        pan?.trim().toUpperCase() || null,
       ]
     );
     const newUser = userRows[0];
 
     // Initialize leave balances for the current year (IST — server TZ is set)
     const currentYear = new Date().getFullYear();
-    const customLeaves =
-      req.body.leaves_this_year !== undefined &&
-      req.body.leaves_this_year !== '' &&
-      req.body.leaves_this_year !== null
-        ? parseInt(req.body.leaves_this_year, 10)
-        : null;
-
     const { rows: leaveTypes } = await client.query(
       'SELECT id, name, is_paid, yearly_quota FROM leave_types WHERE is_active = TRUE'
     );
 
     for (const lt of leaveTypes) {
       let allotted = lt.yearly_quota;
-      if (customLeaves !== null) {
-        if (lt.name === 'Paid Leave' || lt.name === 'Annual Leave') {
-          allotted = customLeaves;
-        } else if (lt.is_paid && !leaveTypes.some((t) => t.is_paid && (t.name === 'Paid Leave' || t.name === 'Annual Leave'))) {
-          if (lt.id === leaveTypes.find((t) => t.is_paid)?.id) {
-            allotted = customLeaves;
-          }
-        }
-      }
 
       const { rows: inserted } = await client.query(
         `INSERT INTO leave_balances (user_id, leave_type_id, year, allotted, used)
@@ -225,6 +235,10 @@ async function updateUser(req, res, next) {
     const {
       name, email, phone, designation,
       date_of_joining, monthly_salary,
+      // Salary components
+      basic, hra, education_allowance, conveyance, professional_development,
+      other_allowance, lta, employer_pf, bonus,
+      pf_deduction, professional_tax, tds, pan,
     } = req.body;
 
     // Check the employee exists
@@ -250,14 +264,27 @@ async function updateUser(req, res, next) {
     const { rows } = await query(
       `UPDATE users
        SET
-         name            = COALESCE($1, name),
-         email           = COALESCE(LOWER($2), email),
-         phone           = COALESCE($3, phone),
-         designation     = COALESCE($4, designation),
-         date_of_joining = COALESCE($5, date_of_joining),
-         monthly_salary  = COALESCE($6, monthly_salary),
-         updated_at      = NOW()
-       WHERE id = $7
+         name                    = COALESCE($1, name),
+         email                   = COALESCE(LOWER($2), email),
+         phone                   = COALESCE($3, phone),
+         designation             = COALESCE($4, designation),
+         date_of_joining         = COALESCE($5, date_of_joining),
+         monthly_salary          = COALESCE($6, monthly_salary),
+         basic                   = COALESCE($7, basic),
+         hra                     = COALESCE($8, hra),
+         education_allowance     = COALESCE($9, education_allowance),
+         conveyance              = COALESCE($10, conveyance),
+         professional_development= COALESCE($11, professional_development),
+         other_allowance         = COALESCE($12, other_allowance),
+         lta                     = COALESCE($13, lta),
+         employer_pf             = COALESCE($14, employer_pf),
+         bonus                   = COALESCE($15, bonus),
+         pf_deduction            = COALESCE($16, pf_deduction),
+         professional_tax        = COALESCE($17, professional_tax),
+         tds                     = COALESCE($18, tds),
+         pan                     = COALESCE(UPPER($19), pan),
+         updated_at              = NOW()
+       WHERE id = $20
        RETURNING ${SAFE_USER_FIELDS}`,
       [
         name?.trim() || null,
@@ -266,6 +293,19 @@ async function updateUser(req, res, next) {
         designation?.trim() ?? null,
         date_of_joining || null,
         monthly_salary !== undefined ? parseFloat(monthly_salary) : null,
+        basic       !== undefined ? parseFloat(basic)        : null,
+        hra         !== undefined ? parseFloat(hra)          : null,
+        education_allowance      !== undefined ? parseFloat(education_allowance)      : null,
+        conveyance               !== undefined ? parseFloat(conveyance)               : null,
+        professional_development !== undefined ? parseFloat(professional_development) : null,
+        other_allowance          !== undefined ? parseFloat(other_allowance)          : null,
+        lta                      !== undefined ? parseFloat(lta)                      : null,
+        employer_pf              !== undefined ? parseFloat(employer_pf)              : null,
+        bonus                    !== undefined ? parseFloat(bonus)                    : null,
+        pf_deduction             !== undefined ? parseFloat(pf_deduction)             : null,
+        professional_tax         !== undefined ? parseFloat(professional_tax)         : null,
+        tds                      !== undefined ? parseFloat(tds)                      : null,
+        pan?.trim() || null,
         id,
       ]
     );

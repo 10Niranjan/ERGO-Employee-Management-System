@@ -53,10 +53,6 @@ router.post(
       .optional()
       .isFloat({ min: 0 })
       .withMessage('Monthly salary must be a non-negative number.'),
-    body('leaves_this_year')
-      .optional({ nullable: true })
-      .isInt({ min: 0 })
-      .withMessage('Leaves this year must be a non-negative integer.'),
     body('gender').optional({ nullable: true, checkFalsy: true }).trim().isIn(['male', 'female', 'other']).withMessage('Gender must be male, female, or other.'),
     body('date_of_birth').optional({ nullable: true, checkFalsy: true }).isISO8601().withMessage('Date of birth must be YYYY-MM-DD.'),
     body('address').optional({ nullable: true }).trim(),
@@ -69,6 +65,21 @@ router.post(
       .matches(/^[a-zA-Z\s]+$/).withMessage('Emergency contact name must contain letters only.'),
     body('emergency_contact_phone').optional({ nullable: true, checkFalsy: true }).trim()
       .matches(/^[0-9]+$/).withMessage('Emergency contact phone must contain numbers only.'),
+    // Salary components
+    body('basic').optional().isFloat({ min: 0 }).withMessage('Basic must be a non-negative number.'),
+    body('hra').optional().isFloat({ min: 0 }).withMessage('HRA must be a non-negative number.'),
+    body('education_allowance').optional().isFloat({ min: 0 }).withMessage('Education allowance must be a non-negative number.'),
+    body('conveyance').optional().isFloat({ min: 0 }).withMessage('Conveyance must be a non-negative number.'),
+    body('professional_development').optional().isFloat({ min: 0 }).withMessage('Professional development must be a non-negative number.'),
+    body('other_allowance').optional().isFloat({ min: 0 }).withMessage('Other allowance must be a non-negative number.'),
+    body('lta').optional().isFloat({ min: 0 }).withMessage('LTA must be a non-negative number.'),
+    body('employer_pf').optional().isFloat({ min: 0 }).withMessage('Employer PF must be a non-negative number.'),
+    body('bonus').optional().isFloat({ min: 0 }).withMessage('Bonus must be a non-negative number.'),
+    body('pf_deduction').optional().isFloat({ min: 0 }).withMessage('PF deduction must be a non-negative number.'),
+    body('professional_tax').optional().isFloat({ min: 0 }).withMessage('Professional tax must be a non-negative number.'),
+    body('tds').optional().isFloat({ min: 0 }).withMessage('TDS must be a non-negative number.'),
+    body('pan').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[A-Z0-9]{10}$/i).withMessage('PAN must be 10 alphanumeric characters.'),
   ],
   validate,
   createUser
@@ -89,6 +100,21 @@ router.put(
       .optional()
       .isFloat({ min: 0 })
       .withMessage('Monthly salary must be a non-negative number.'),
+    // Salary components
+    body('basic').optional().isFloat({ min: 0 }).withMessage('Basic must be a non-negative number.'),
+    body('hra').optional().isFloat({ min: 0 }).withMessage('HRA must be a non-negative number.'),
+    body('education_allowance').optional().isFloat({ min: 0 }).withMessage('Education allowance must be a non-negative number.'),
+    body('conveyance').optional().isFloat({ min: 0 }).withMessage('Conveyance must be a non-negative number.'),
+    body('professional_development').optional().isFloat({ min: 0 }).withMessage('Professional development must be a non-negative number.'),
+    body('other_allowance').optional().isFloat({ min: 0 }).withMessage('Other allowance must be a non-negative number.'),
+    body('lta').optional().isFloat({ min: 0 }).withMessage('LTA must be a non-negative number.'),
+    body('employer_pf').optional().isFloat({ min: 0 }).withMessage('Employer PF must be a non-negative number.'),
+    body('bonus').optional().isFloat({ min: 0 }).withMessage('Bonus must be a non-negative number.'),
+    body('pf_deduction').optional().isFloat({ min: 0 }).withMessage('PF deduction must be a non-negative number.'),
+    body('professional_tax').optional().isFloat({ min: 0 }).withMessage('Professional tax must be a non-negative number.'),
+    body('tds').optional().isFloat({ min: 0 }).withMessage('TDS must be a non-negative number.'),
+    body('pan').optional({ nullable: true, checkFalsy: true }).trim()
+      .matches(/^[A-Z0-9]{10}$/i).withMessage('PAN must be 10 alphanumeric characters.'),
   ],
   validate,
   updateUser

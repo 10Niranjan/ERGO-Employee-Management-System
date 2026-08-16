@@ -3,11 +3,31 @@
 const { query, getClient } = require('../db/pool');
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: build a component snapshot object from a user row
+// ─────────────────────────────────────────────────────────────────────────────
+function buildComponentSnapshot(row) {
+  return {
+    basic:                    parseFloat(row.basic                   || 0),
+    hra:                      parseFloat(row.hra                     || 0),
+    education_allowance:      parseFloat(row.education_allowance     || 0),
+    conveyance:               parseFloat(row.conveyance              || 0),
+    professional_development: parseFloat(row.professional_development || 0),
+    other_allowance:          parseFloat(row.other_allowance         || 0),
+    lta:                      parseFloat(row.lta                     || 0),
+    employer_pf:              parseFloat(row.employer_pf             || 0),
+    bonus:                    parseFloat(row.bonus                   || 0),
+    pf_deduction:             parseFloat(row.pf_deduction            || 0),
+    professional_tax:         parseFloat(row.professional_tax        || 0),
+    tds:                      parseFloat(row.tds                     || 0),
+    pan:                      row.pan || null,
+    monthly_salary:           parseFloat(row.monthly_salary          || 0),
+  };
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // GET /api/salary
-// Admin only — list all employees with their monthly salary and the
-// derived per-day rate for the current calendar month (read-only; it's
-// monthly_salary / days-in-this-month, shown so admins can see why the
-// rate floats slightly month to month for an unchanged monthly figure).
+// Admin only — list all employees with their monthly salary, derived per-day
+// rate, and all salary component breakdown fields.
 // ─────────────────────────────────────────────────────────────────────────────
 async function getSalaryRates(req, res, next) {
   try {
@@ -21,7 +41,11 @@ async function getSalaryRates(req, res, next) {
     }
 
     const { rows } = await query(
-      `SELECT id, employee_id, name, designation, email, monthly_salary, status, updated_at
+      `SELECT id, employee_id, name, designation, email, status, updated_at,
+              monthly_salary,
+              basic, hra, education_allowance, conveyance, professional_development,
+              other_allowance, lta, employer_pf, bonus,
+              pf_deduction, professional_tax, tds, pan
        FROM users
        ${whereClause}
        ORDER BY name ASC`,
@@ -45,7 +69,8 @@ async function getSalaryRates(req, res, next) {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PUT /api/salary/:userId
-// Admin only — update a single employee's monthly salary and log the change
+// Admin only — update a single employee's monthly salary AND component fields.
+// Logs the revision + full component snapshot to salary_history.
 // ─────────────────────────────────────────────────────────────────────────────
 async function updateSalaryRate(req, res, next) {
   const client = await getClient();
@@ -53,7 +78,12 @@ async function updateSalaryRate(req, res, next) {
     await client.query('BEGIN');
 
     const { userId } = req.params;
-    const { monthly_salary, note } = req.body;
+    const {
+      monthly_salary, note,
+      basic, hra, education_allowance, conveyance, professional_development,
+      other_allowance, lta, employer_pf, bonus,
+      pf_deduction, professional_tax, tds, pan,
+    } = req.body;
     const adminId = req.user.id;
 
     const newSalary = parseFloat(monthly_salary);
@@ -62,9 +92,12 @@ async function updateSalaryRate(req, res, next) {
       return res.status(400).json({ message: 'Monthly salary must be a non-negative number.' });
     }
 
-    // Fetch current salary
+    // Fetch current salary + components for audit
     const { rows: empRows } = await client.query(
-      `SELECT id, employee_id, name, monthly_salary
+      `SELECT id, employee_id, name, monthly_salary,
+              basic, hra, education_allowance, conveyance, professional_development,
+              other_allowance, lta, employer_pf, bonus,
+              pf_deduction, professional_tax, tds, pan
        FROM users
        WHERE id = $1 AND role = 'employee'`,
       [userId]
@@ -76,22 +109,66 @@ async function updateSalaryRate(req, res, next) {
     }
 
     const oldSalary = parseFloat(empRows[0].monthly_salary);
+    const oldSnapshot = buildComponentSnapshot(empRows[0]);
 
-    // Update user's monthly salary
+    // Update user: monthly_salary + all 13 component fields
     const { rows: updatedRows } = await client.query(
       `UPDATE users
-       SET monthly_salary = $1, updated_at = NOW()
-       WHERE id = $2
-       RETURNING id, employee_id, name, designation, email, monthly_salary, status`,
-      [newSalary, userId]
+       SET monthly_salary           = $1,
+           basic                    = COALESCE($2, basic),
+           hra                      = COALESCE($3, hra),
+           education_allowance      = COALESCE($4, education_allowance),
+           conveyance               = COALESCE($5, conveyance),
+           professional_development = COALESCE($6, professional_development),
+           other_allowance          = COALESCE($7, other_allowance),
+           lta                      = COALESCE($8, lta),
+           employer_pf              = COALESCE($9, employer_pf),
+           bonus                    = COALESCE($10, bonus),
+           pf_deduction             = COALESCE($11, pf_deduction),
+           professional_tax         = COALESCE($12, professional_tax),
+           tds                      = COALESCE($13, tds),
+           pan                      = COALESCE(UPPER($14), pan),
+           updated_at               = NOW()
+       WHERE id = $15
+       RETURNING id, employee_id, name, designation, email, monthly_salary, status,
+                 basic, hra, education_allowance, conveyance, professional_development,
+                 other_allowance, lta, employer_pf, bonus,
+                 pf_deduction, professional_tax, tds, pan`,
+      [
+        newSalary,
+        basic       !== undefined ? parseFloat(basic)        : null,
+        hra         !== undefined ? parseFloat(hra)          : null,
+        education_allowance      !== undefined ? parseFloat(education_allowance)      : null,
+        conveyance               !== undefined ? parseFloat(conveyance)               : null,
+        professional_development !== undefined ? parseFloat(professional_development) : null,
+        other_allowance          !== undefined ? parseFloat(other_allowance)          : null,
+        lta                      !== undefined ? parseFloat(lta)                      : null,
+        employer_pf              !== undefined ? parseFloat(employer_pf)              : null,
+        bonus                    !== undefined ? parseFloat(bonus)                    : null,
+        pf_deduction             !== undefined ? parseFloat(pf_deduction)             : null,
+        professional_tax         !== undefined ? parseFloat(professional_tax)         : null,
+        tds                      !== undefined ? parseFloat(tds)                      : null,
+        pan?.trim() || null,
+        userId,
+      ]
     );
 
-    // Record the revision in salary_history (always, even if same salary — for audit trail)
+    const newSnapshot = buildComponentSnapshot(updatedRows[0]);
+
+    // Record revision in salary_history with full component snapshots
     const { rows: historyRows } = await client.query(
-      `INSERT INTO salary_history (user_id, old_monthly_salary, new_monthly_salary, changed_by, note)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, user_id, old_monthly_salary, new_monthly_salary, changed_by, note, changed_at`,
-      [userId, oldSalary, newSalary, adminId, note?.trim() || null]
+      `INSERT INTO salary_history
+         (user_id, old_monthly_salary, new_monthly_salary, changed_by, note, components_snapshot)
+       VALUES ($1, $2, $3, $4, $5, $6)
+       RETURNING id, user_id, old_monthly_salary, new_monthly_salary, changed_by, note, changed_at, components_snapshot`,
+      [
+        userId,
+        oldSalary,
+        newSalary,
+        adminId,
+        note?.trim() || null,
+        JSON.stringify({ before: oldSnapshot, after: newSnapshot }),
+      ]
     );
 
     await client.query('COMMIT');
@@ -118,9 +195,6 @@ async function getSalaryHistory(req, res, next) {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 30));
     const offset = (page - 1) * limit;
 
-    // Only revisions under the monthly-salary model — legacy per-day-rate
-    // revisions (old_rate/new_rate, pre-migration) stay in the table for
-    // historical reference but aren't surfaced through this endpoint.
     const countResult = await query(
       'SELECT COUNT(*) AS total FROM salary_history WHERE new_monthly_salary IS NOT NULL'
     );
@@ -129,6 +203,7 @@ async function getSalaryHistory(req, res, next) {
     const { rows } = await query(
       `SELECT
          sh.id, sh.old_monthly_salary, sh.new_monthly_salary, sh.note, sh.changed_at,
+         sh.components_snapshot,
          u.employee_id, u.name AS employee_name, u.designation,
          a.name AS changed_by_name, a.employee_id AS changed_by_employee_id
        FROM salary_history sh
@@ -157,7 +232,6 @@ async function getEmployeeSalaryHistory(req, res, next) {
   try {
     const { userId } = req.params;
 
-    // Verify employee exists
     const { rows: empCheck } = await query(
       "SELECT id, name, employee_id FROM users WHERE id = $1 AND role = 'employee'",
       [userId]
@@ -169,6 +243,7 @@ async function getEmployeeSalaryHistory(req, res, next) {
     const { rows } = await query(
       `SELECT
          sh.id, sh.old_monthly_salary, sh.new_monthly_salary, sh.note, sh.changed_at,
+         sh.components_snapshot,
          a.name AS changed_by_name, a.employee_id AS changed_by_employee_id
        FROM salary_history sh
        JOIN users a ON a.id = sh.changed_by
@@ -186,9 +261,54 @@ async function getEmployeeSalaryHistory(req, res, next) {
   }
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// GET /api/salary/my
+// Employee (or admin) — returns the calling user's own salary components ONLY.
+// Hard-scoped to req.user.id — cannot leak another employee's data.
+// ─────────────────────────────────────────────────────────────────────────────
+async function getMySalaryComponents(req, res, next) {
+  try {
+    const { rows } = await query(
+      `SELECT monthly_salary,
+              basic, hra, education_allowance, conveyance, professional_development,
+              other_allowance, lta, employer_pf, bonus,
+              pf_deduction, professional_tax, tds, pan
+       FROM users
+       WHERE id = $1`,
+      [req.user.id]
+    );
+
+    if (!rows.length) {
+      return res.status(404).json({ message: 'User not found.' });
+    }
+
+    const emp = rows[0];
+    const gross = [
+      emp.basic, emp.hra, emp.education_allowance, emp.conveyance,
+      emp.professional_development, emp.other_allowance, emp.lta,
+      emp.employer_pf, emp.bonus,
+    ].reduce((sum, v) => sum + parseFloat(v || 0), 0);
+
+    const totalDeduction = [emp.pf_deduction, emp.professional_tax, emp.tds]
+      .reduce((sum, v) => sum + parseFloat(v || 0), 0);
+
+    return res.status(200).json({
+      components: {
+        ...buildComponentSnapshot(emp),
+        gross_income:    Math.round(gross * 100) / 100,
+        total_deduction: Math.round(totalDeduction * 100) / 100,
+        net_salary:      Math.round((gross - totalDeduction) * 100) / 100,
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   getSalaryRates,
   updateSalaryRate,
   getSalaryHistory,
   getEmployeeSalaryHistory,
+  getMySalaryComponents,
 };

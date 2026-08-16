@@ -234,8 +234,8 @@ export default function LoginPage() {
           </form>
 
           <div className="login-form-footer">
-            Trouble signing in? Contact IT support at<br />
-            <a href="mailto:it@ergo-asia.co">it@ergo-asia.co</a>
+            Trouble signing in? Contact Administrator<br />
+            {/* <a href="mailto:it@ergo-asia.co">it@ergo-asia.co</a> */}
           </div>
         </div>
       </div>

@@ -60,9 +60,11 @@ describe('GET /api/leave-types', () => {
 
 describe('POST /api/leave-types', () => {
   test('admin creates a leave type', async () => {
-    query
+    mockClient.query
+      .mockResolvedValueOnce({})                     // BEGIN
       .mockResolvedValueOnce({ rows: [] })           // name uniqueness check
-      .mockResolvedValueOnce({ rows: [LEAVE_TYPE] }); // INSERT
+      .mockResolvedValueOnce({ rows: [LEAVE_TYPE] }) // INSERT
+      .mockResolvedValueOnce({});                    // COMMIT
     const res = await request(app)
       .post('/api/leave-types')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -89,7 +91,10 @@ describe('POST /api/leave-types', () => {
   });
 
   test('returns 409 for duplicate name', async () => {
-    query.mockResolvedValueOnce({ rows: [{ id: 1 }] }); // name exists
+    mockClient.query
+      .mockResolvedValueOnce({})                     // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 2 }] }); // Name exists
+
     const res = await request(app)
       .post('/api/leave-types')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -100,10 +105,12 @@ describe('POST /api/leave-types', () => {
 
 describe('PUT /api/leave-types/:id', () => {
   test('admin updates leave type quota (no name change)', async () => {
-    // Sending only yearly_quota (no name) → 2 DB calls: exists check + UPDATE
-    query
-      .mockResolvedValueOnce({ rows: [{ id: 1 }] })  // exists check
-      .mockResolvedValueOnce({ rows: [{ ...LEAVE_TYPE, yearly_quota: 15 }] }); // UPDATE
+    mockClient.query
+      .mockResolvedValueOnce({})                                         // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1, yearly_quota: 12 }] })    // exists check
+      .mockResolvedValueOnce({ rows: [] })                               // CASCADE update leave_balances
+      .mockResolvedValueOnce({ rows: [{ ...LEAVE_TYPE, yearly_quota: 15 }] }) // UPDATE leave_types
+      .mockResolvedValueOnce({});                                        // COMMIT
     const res = await request(app)
       .put('/api/leave-types/1')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
@@ -113,7 +120,9 @@ describe('PUT /api/leave-types/:id', () => {
   });
 
   test('returns 404 for non-existent leave type', async () => {
-    query.mockResolvedValueOnce({ rows: [] }); // exists check returns empty
+    mockClient.query
+      .mockResolvedValueOnce({})                    // BEGIN
+      .mockResolvedValueOnce({ rows: [] });         // exists check returns empty
     const res = await request(app)
       .put('/api/leave-types/999')
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)

@@ -1,4 +1,4 @@
-﻿# Ergo Employee Management System (HRMS)
+# Ergo Employee Management System (HRMS)
 
 An enterprise-ready, auditable Employee Salary, Leave & Daily Attendance Management System built with Node.js, Express, PostgreSQL, and React + Vite.
 
@@ -128,6 +128,28 @@ Every `DATE` column read from Postgres — attendance dates, holiday dates, leav
 ### ✅ Quality Bar
 
 Both the **Salary** and **Attendance** modules were independently re-audited end-to-end after these changes — live functional tests through the real API (mixed attendance types, mid-month rate revisions, the full correction workflow, RBAC boundaries) confirmed every number and every permission check comes out correct. See the [Automated Testing](#-automated-testing--production-build) section below.
+
+## 🚀 Sprint 3 Updates — 16 Aug 2026
+
+Sprint 3 focused on making the leave engine completely dynamic, fixing edge cases in balance tracking, and certifying the codebase as production-ready with zero hardcoded data.
+
+### 1. ⚙️ Dynamic Earned Leave Target
+The attendance bonus engine is no longer hardcoded to credit "Paid Leave". Admins can now designate **any active leave type** as the "Earned Leave" target. 
+- Introduced a new `is_earned_leave` boolean flag on the `leave_types` table (Migration `015`).
+- The `node-cron` scheduled accrual job dynamically queries this flag to know where to deposit the monthly attendance bonus.
+- The UI exposes a simple toggle for the admin on the Leave Types configuration page to swap the target instantly.
+
+### 2. 🔄 Cascading Quota Updates & Ledger Integrity
+Fixed a critical bug where changing a leave type's base quota didn't retroactively apply to existing employees' balances.
+- The backend now actively computes the delta when an admin updates a `yearly_quota` and cascades that difference across all active `leave_balances` for the current year.
+- A one-time database migration script cleaned up orphaned `INITIAL_ALLOCATION` ledger entries for deactivated leave types.
+- The employee dashboard ledger query now automatically filters out inactive leave types unless there is genuine historical usage, keeping the UI perfectly clean.
+
+### 3. 🛡️ Industry-Level Codebase Certification
+Completed a comprehensive end-to-end audit of the entire frontend and backend to guarantee zero static data:
+- **No Mock Arrays**: Every list, dropdown, and dashboard KPI is strictly database-driven via secure API endpoints.
+- **No Hardcoded Employees**: Removed all assumptions about user names or dummy emails. All data relies purely on real PostgreSQL state.
+- **Secure Configuration**: Validated that all secrets (JWT keys, DB passwords, Mailer configs) are safely bound to `process.env`.
 
 ---
 

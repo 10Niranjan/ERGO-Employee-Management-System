@@ -25,6 +25,7 @@ router.post(
   [
     body('name').trim().notEmpty().withMessage('Leave type name is required.'),
     body('is_paid').isBoolean().withMessage("'is_paid' must be true or false."),
+    body('is_earned_leave').optional().isBoolean().withMessage("'is_earned_leave' must be true or false."),
     body('yearly_quota')
       .isInt({ min: 0 })
       .withMessage('Yearly quota must be a non-negative integer.'),
@@ -40,6 +41,7 @@ router.put(
     param('id').isInt({ min: 1 }).withMessage('Invalid leave type ID.'),
     body('name').optional().trim().notEmpty().withMessage('Name cannot be empty.'),
     body('is_paid').optional().isBoolean().withMessage("'is_paid' must be true or false."),
+    body('is_earned_leave').optional().isBoolean().withMessage("'is_earned_leave' must be true or false."),
     body('yearly_quota').optional().isInt({ min: 0 }).withMessage('Yearly quota must be >= 0.'),
   ],
   validate,
