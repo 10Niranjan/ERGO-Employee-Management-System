@@ -354,3 +354,4 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 - 2026-08-17: Salary module verified — rate updates, revision audit log, monthly payroll preview.
 - 2026-08-17: Holidays and Reports modules verified — CRUD, consolidated payroll view.
 - 2026-08-17: Password Resets flow verified end-to-end — employee request → admin temp password → forced change.
+- 2026-08-17: Employee-side dashboard, leave application, and check-in flows verified.
