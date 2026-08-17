@@ -339,3 +339,9 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 4. **HTTPS & Security**:
    - Ensure an SSL/TLS reverse proxy (e.g., Nginx, Caddy, Cloudflare) handles HTTPS termination.
    - Set cookie/token transport over secure headers.
+
+---
+
+## 🛠️ Maintenance Log
+
+- 2026-08-17: Full functional test pass across all modules (admin + employee flows).
