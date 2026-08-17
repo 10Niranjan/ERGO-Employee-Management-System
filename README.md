@@ -352,3 +352,4 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 - 2026-08-17: Leave Types and Leave Requests modules verified — approve/decline flows, balance ledger.
 - 2026-08-17: Attendance module verified — manual override, correction-request submit/approve.
 - 2026-08-17: Salary module verified — rate updates, revision audit log, monthly payroll preview.
+- 2026-08-17: Holidays and Reports modules verified — CRUD, consolidated payroll view.
