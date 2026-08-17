@@ -348,3 +348,4 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 - 2026-08-17: Backend Jest suite verified — 184/184 tests passing.
 - 2026-08-17: Fixed `/api/auth/login` to return full profile fields (phone, designation, date of joining, gender, bank name).
 - 2026-08-17: Fixed the salary form's Gross Income summary to fall back to Monthly Salary when the itemized breakdown is blank.
+- 2026-08-17: Admin Employees module verified — create, view, edit, deactivate/reactivate, search.
