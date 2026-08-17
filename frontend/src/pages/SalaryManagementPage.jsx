@@ -746,9 +746,12 @@ export default function SalaryManagementPage() {
           {/* Live summary */}
           {(() => {
             const f = salaryForm;
-            const gross = [f.basic, f.hra, f.education_allowance, f.conveyance,
+            const componentsSum = [f.basic, f.hra, f.education_allowance, f.conveyance,
               f.professional_development, f.other_allowance, f.lta, f.employer_pf, f.bonus]
               .reduce((s, v) => s + (parseFloat(v) || 0), 0);
+            // Component breakdown is optional — fall back to the monthly salary itself
+            // so the summary doesn't show a misleading ₹0.00 when it's left blank.
+            const gross = componentsSum || (parseFloat(f.monthly_salary) || 0);
             const deductions = [f.pf_deduction, f.professional_tax, f.tds]
               .reduce((s, v) => s + (parseFloat(v) || 0), 0);
             const net = gross - deductions;

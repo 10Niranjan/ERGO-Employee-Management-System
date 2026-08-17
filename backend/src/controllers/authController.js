@@ -22,7 +22,8 @@ async function login(req, res, next) {
 
     // Look up by email OR employee_id
     const { rows } = await query(
-      `SELECT id, employee_id, role, name, email, password_hash, first_login, status
+      `SELECT id, employee_id, role, name, email, phone, designation, date_of_joining,
+              gender, bank_name, password_hash, first_login, status
        FROM users
        WHERE (LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1))
        LIMIT 1`,
@@ -62,6 +63,11 @@ async function login(req, res, next) {
         role: user.role,
         name: user.name,
         email: user.email,
+        phone: user.phone,
+        designation: user.designation,
+        date_of_joining: user.date_of_joining,
+        gender: user.gender,
+        bank_name: user.bank_name,
         first_login: user.first_login,
       },
     });
