@@ -12,6 +12,7 @@ const {
   evaluateEmployeeForPeriod, runAccrualForPeriod,
 } = require('../services/leaveAccrualService');
 const { getMostRecentlyCompletedPeriod } = require('../utils/time');
+const { audit, EVENTS } = require('../services/auditLog');
 
 /**
  * Ensures that leave balances exist for a user in the given year.
@@ -476,6 +477,14 @@ async function reviewLeaveApplication(req, res, next) {
     }
 
     await client.query('COMMIT');
+
+    await audit({
+      event: EVENTS.LEAVE_APPLICATION_REVIEWED,
+      actorUserId: req.user.id,
+      targetUserId: application.user_id,
+      req,
+      meta: { application_id: parseInt(id, 10), leave_type: application.leave_type_name, status },
+    });
 
     return res.status(200).json({
       message: `Leave application ${status} successfully.`,

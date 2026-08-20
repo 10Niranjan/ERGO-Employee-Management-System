@@ -354,6 +354,10 @@ describe('Admin: Corrections & Overrides', () => {
     expect(res.status).toBe(200);
     expect(res.body.attendance.status).toBe('half_day');
     expect(res.body.attendance.correction_status).toBe('approved');
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['attendance.correction_reviewed'])
+    );
   });
 
   test('admin declines correction request with reason', async () => {
@@ -426,6 +430,10 @@ describe('Admin: Corrections & Overrides', () => {
     expect(res.status).toBe(200);
     expect(res.body.attendance.status).toBe('travel');
     expect(res.body.attendance.is_admin_override).toBe(true);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['attendance.overridden'])
+    );
   });
 
   test('employee cannot perform admin override', async () => {

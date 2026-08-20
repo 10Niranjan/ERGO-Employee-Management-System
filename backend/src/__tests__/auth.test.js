@@ -58,6 +58,8 @@ describe('POST /api/auth/login', () => {
     password_hash: hashedPassword,
     first_login: true,
     status: 'active',
+    failed_login_attempts: 0,
+    login_locked_until: null,
     ...overrides,
   });
 
@@ -120,6 +122,44 @@ describe('POST /api/auth/login', () => {
       .send({ identifier: 'ADMIN001', password: VALID_PASSWORD });
     expect(res.status).toBe(200);
     expect(res.body.token).toBeDefined();
+  });
+
+  test('locks the account on the 5th failed attempt (per-account, not per-IP)', async () => {
+    query.mockResolvedValueOnce({ rows: [makeUser({ failed_login_attempts: 4 })] }); // SELECT user
+    query.mockResolvedValueOnce({}); // UPDATE failed_login_attempts + login_locked_until
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: 'WrongPass99' });
+    expect(res.status).toBe(429);
+    expect(res.body.message).toMatch(/too many failed login attempts/i);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['login.locked'])
+    );
+  });
+
+  test('rejects a locked account even with the correct password', async () => {
+    query.mockResolvedValueOnce({
+      rows: [makeUser({ login_locked_until: new Date(Date.now() + 10 * 60 * 1000).toISOString() })],
+    });
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: VALID_PASSWORD });
+    expect(res.status).toBe(429);
+    expect(res.body.message).toMatch(/too many failed login attempts/i);
+  });
+
+  test('a successful login clears any accumulated failed attempts', async () => {
+    query.mockResolvedValueOnce({ rows: [makeUser({ failed_login_attempts: 3 })] }); // SELECT user
+    query.mockResolvedValueOnce({}); // UPDATE reset counters
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: VALID_PASSWORD });
+    expect(res.status).toBe(200);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('failed_login_attempts = 0'),
+      [1]
+    );
   });
 
   test('employee login works and returns role=employee', async () => {

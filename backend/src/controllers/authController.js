@@ -3,9 +3,17 @@
 const bcrypt = require('bcryptjs');
 const { query } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
+const { audit, EVENTS } = require('../services/auditLog');
 
 // Generic message used for ALL login failures — prevents user enumeration.
 const INVALID_CREDENTIALS_MSG = 'Invalid credentials. Please try again.';
+
+// Per-account lockout, on top of the per-IP rate limiter in authRoutes.js.
+// The IP limiter alone doesn't catch a slow, distributed guessing attempt
+// spread across many IPs against one specific employee_id — mirrors the
+// 5-attempt lock already used for admin OTP verification.
+const LOGIN_MAX_ATTEMPTS = 5;
+const LOGIN_LOCKOUT_MINUTES = 15;
 
 /**
  * POST /api/auth/login
@@ -23,7 +31,8 @@ async function login(req, res, next) {
     // Look up by email OR employee_id
     const { rows } = await query(
       `SELECT id, employee_id, role, name, email, phone, designation, date_of_joining,
-              gender, bank_name, password_hash, first_login, status
+              gender, bank_name, password_hash, first_login, status,
+              failed_login_attempts, login_locked_until
        FROM users
        WHERE (LOWER(email) = LOWER($1) OR LOWER(employee_id) = LOWER($1))
        LIMIT 1`,
@@ -42,10 +51,40 @@ async function login(req, res, next) {
       return res.status(401).json({ message: INVALID_CREDENTIALS_MSG });
     }
 
+    // Account-level lockout, independent of the per-IP rate limiter
+    if (user.login_locked_until && new Date(user.login_locked_until).getTime() > Date.now()) {
+      return res.status(429).json({ message: 'Too many failed login attempts. Please try again later.' });
+    }
+
     // Verify password
     const passwordMatches = await bcrypt.compare(password, user.password_hash);
     if (!passwordMatches) {
+      const attempts = user.failed_login_attempts + 1;
+      const locked = attempts >= LOGIN_MAX_ATTEMPTS;
+
+      await query(
+        `UPDATE users
+         SET failed_login_attempts = $1,
+             login_locked_until = ${locked ? `NOW() + INTERVAL '${LOGIN_LOCKOUT_MINUTES} minutes'` : 'login_locked_until'}
+         WHERE id = $2`,
+        [attempts, user.id]
+      );
+
+      if (locked) {
+        await audit({ event: EVENTS.LOGIN_LOCKED, targetUserId: user.id, req, meta: { attempts } });
+        return res.status(429).json({ message: 'Too many failed login attempts. Please try again later.' });
+      }
+
+      await audit({ event: EVENTS.LOGIN_FAILED, targetUserId: user.id, req, meta: { attempts } });
       return res.status(401).json({ message: INVALID_CREDENTIALS_MSG });
+    }
+
+    // Successful login clears any accumulated failures
+    if (user.failed_login_attempts > 0 || user.login_locked_until) {
+      await query(
+        `UPDATE users SET failed_login_attempts = 0, login_locked_until = NULL WHERE id = $1`,
+        [user.id]
+      );
     }
 
     // Sign JWT

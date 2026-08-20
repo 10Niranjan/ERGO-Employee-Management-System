@@ -5,6 +5,7 @@ const { query, getClient } = require('../db/pool');
 const { generateEmployeeId } = require('../utils/employeeId');
 const { generateTempPassword } = require('../utils/secureTokens');
 const { recordInitialAllocation } = require('../services/leaveAccrualService');
+const { audit, EVENTS } = require('../services/auditLog');
 
 // Fields returned to callers — password_hash is never included
 const SAFE_USER_FIELDS = `
@@ -346,6 +347,14 @@ async function updateUserStatus(req, res, next) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
 
+    await audit({
+      event: EVENTS.USER_STATUS_CHANGED,
+      actorUserId: req.user.id,
+      targetUserId: rows[0].id,
+      req,
+      meta: { employee_id: rows[0].employee_id, new_status: status },
+    });
+
     return res.status(200).json({ user: rows[0] });
   } catch (err) {
     next(err);
@@ -370,6 +379,16 @@ async function deleteUser(req, res, next) {
     if (!rows.length) {
       return res.status(404).json({ message: 'Employee not found.' });
     }
+
+    // No targetUserId here — the row is already gone, and target_user_id has
+    // an FK into users(id), so inserting a now-nonexistent id would just fail
+    // silently (audit() swallows errors). The deleted id lives in meta instead.
+    await audit({
+      event: EVENTS.USER_DELETED,
+      actorUserId: req.user.id,
+      req,
+      meta: { deleted_user_id: parseInt(id, 10), employee_id: rows[0].employee_id, name: rows[0].name },
+    });
 
     return res.status(200).json({
       message: `Employee ${rows[0].employee_id} (${rows[0].name}) permanently deleted.`,

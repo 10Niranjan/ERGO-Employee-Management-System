@@ -292,6 +292,10 @@ describe('PUT /api/salary/:userId', () => {
     expect(res.body.employee.monthly_salary).toBe('62000.00');
     expect(res.body.revision).toBeDefined();
     expect(parseFloat(res.body.revision.new_monthly_salary)).toBe(62000);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['salary.rate_changed'])
+    );
   });
 
   test('returns 400 for negative salary', async () => {

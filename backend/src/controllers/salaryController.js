@@ -2,6 +2,7 @@
 
 const { query, getClient } = require('../db/pool');
 const { buildComponentSnapshot } = require('../services/salaryService');
+const { audit, EVENTS } = require('../services/auditLog');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/salary
@@ -151,6 +152,17 @@ async function updateSalaryRate(req, res, next) {
     );
 
     await client.query('COMMIT');
+
+    // salary_history already carries the full before/after snapshot; this adds
+    // the change to the cross-cutting admin-action log so "what did this admin
+    // touch" doesn't require joining every domain table individually.
+    await audit({
+      event: EVENTS.SALARY_RATE_CHANGED,
+      actorUserId: adminId,
+      targetUserId: parseInt(userId, 10),
+      req,
+      meta: { old_monthly_salary: oldSalary, new_monthly_salary: newSalary, history_id: historyRows[0].id },
+    });
 
     return res.status(200).json({
       employee: updatedRows[0],
