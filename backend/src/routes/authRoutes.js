@@ -26,9 +26,19 @@ const skipInTests = () => process.env.NODE_ENV === 'test';
 // a few times — would lock everyone out, which is not what this is defending
 // against. The point is to slow password guessing, and a guess that succeeds
 // isn't a guess.
+//
+// Sized for a single large office sharing one outbound IP (500-1000
+// employees marking attendance from the same network), not a 10-person
+// team — at that headcount, ordinary daily typos alone can plausibly hit a
+// low ceiling and lock out legitimate employees, not attackers. The actual
+// anti-brute-force control is the per-ACCOUNT 5-attempt lock in
+// authController.js, which doesn't loosen at all as this number goes up —
+// this IP-level ceiling only needs to stop a script hammering many accounts
+// from one source, and 100 failed attempts in 15 minutes is still far below
+// what that would take against bcrypt-hashed passwords.
 const loginLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10,
+  max: 100,
   message: { message: 'Too many failed login attempts. Please try again in 15 minutes.' },
   standardHeaders: true,
   legacyHeaders: false,
@@ -58,12 +68,14 @@ const otpVerifyLimiter = rateLimit({
   skip: skipInTests,
 });
 
-// Deliberately a separate, more generous bucket from the admin OTP limiter.
-// Sharing one would mean a whole office behind a single NAT gets 3 password
-// requests per hour between them, locking out everyone after the third.
+// Deliberately a separate, more generous bucket from the admin OTP limiter —
+// this is per-employee self-service, not the single admin account, so it
+// needs to scale with headcount. At 500-1000 employees potentially sharing
+// one office IP, a batch of new hires or a post-rollout morning can
+// plausibly produce more than a handful of genuine requests in an hour.
 const employeeRequestLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: 50,
   message: { message: 'Too many reset requests. Please try again later.' },
   standardHeaders: true,
   legacyHeaders: false,

@@ -27,12 +27,14 @@ router.use(authenticate);
 
 // PDF/Excel generation is the most CPU/memory-expensive work in the app and,
 // unlike auth, had no rate limit — any single authenticated account could
-// hammer it to degrade service for everyone. Generous per-user budget since
-// this guards against abuse, not normal use.
+// hammer it to degrade service for everyone. This is keyed by IP, not
+// account, so it needs headroom for a large office sharing one outbound IP —
+// a genuine payday rush of hundreds of people checking payslips from the
+// same network shouldn't trip an abuse guard meant for one bad actor.
 const skipInTests = () => process.env.NODE_ENV === 'test';
 const downloadLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 60,
+  max: 300,
   message: { message: 'Too many report requests. Please try again in a few minutes.' },
   standardHeaders: true,
   legacyHeaders: false,

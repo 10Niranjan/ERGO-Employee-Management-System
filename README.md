@@ -312,11 +312,13 @@ npm run build
 |---|---|---|
 | `PORT` | Yes | API server port (default: `5000`) |
 | `TZ` | Yes | Must be `Asia/Kolkata` |
-| `DB_HOST` | Yes | PostgreSQL server host (`localhost`) |
-| `DB_PORT` | Yes | PostgreSQL port (`5432`) |
-| `DB_NAME` | Yes | Database name (`ergo_employee_management`) |
-| `DB_USER` | Yes | Database user (`postgres`) |
-| `DB_PASSWORD` | Yes | Database password |
+| `DATABASE_URL` | Vercel only | Single Postgres connection string — takes priority over the five `DB_*` vars below when set (`db/pool.js`). What Vercel Marketplace Postgres integrations (Neon, etc.) inject automatically. |
+| `DB_HOST` | Local dev | PostgreSQL server host (`localhost`) — ignored when `DATABASE_URL` is set |
+| `DB_PORT` | Local dev | PostgreSQL port (`5432`) — ignored when `DATABASE_URL` is set |
+| `DB_NAME` | Local dev | Database name (`ergo_employee_management`) — ignored when `DATABASE_URL` is set |
+| `DB_USER` | Local dev | Database user (`postgres`) — ignored when `DATABASE_URL` is set |
+| `DB_PASSWORD` | Local dev | Database password — ignored when `DATABASE_URL` is set |
+| `DB_MAX_CLIENTS` | No | Pool size cap. Default `20` (fine for one always-on process); on Vercel, size against your Postgres plan's connection limit and real traffic — see "Vercel Deployment" below. |
 | `JWT_SECRET` | Yes | Cryptographic secret for signing JWT tokens (min 32 chars) |
 | `JWT_EXPIRES_IN` | Yes | Token expiration duration (default: `8h`) |
 | `BCRYPT_SALT_ROUNDS` | Yes | Work factor for password hashing (default: `12`) |
@@ -352,30 +354,38 @@ This path runs `node src/server.js` as one long-lived process — `npm start` �
 
 The backend deploys as a serverless function, not a long-lived process — a few things behave differently from the traditional path above, so this section calls them out explicitly rather than leaving them implicit.
 
+### Sizing: this is calibrated for ~500-1000 employees at one company
+
+Not a 10-person demo. That changes two things concretely, both covered below:
+
+- **Vercel plan**: Hobby (free) is licensed for personal/non-commercial use and caps bandwidth and function invocations in ways that won't hold at this headcount — use **Pro** at minimum.
+- **Neon (or equivalent) plan**: the free tier auto-suspends its compute after inactivity (cold-start delay on the next request) and caps concurrent connections tightly. A real workforce this size — especially the daily attendance-marking rush around shift start — needs a paid tier with dedicated/autoscaling compute and a higher connection ceiling. Check Neon's current connection limits per plan against the `DB_MAX_CLIENTS` guidance below before committing to a tier.
+- Single-tenant: this is one company's own deployment, not a multi-client SaaS product. If that ever changes, the schema has no tenant-isolation boundary today and would need real changes before onboarding a second company — don't assume this scales to that without revisiting it first.
+
 ### What's different in serverless
 
 | Concern | Traditional server | On Vercel |
 |---|---|---|
 | Entry point | `src/server.js` (`app.listen()`) | `api/index.js` (exports the Express `app`; never calls `.listen()`) |
 | Scheduled leave-accrual job | In-process `node-cron`, runs inside the always-on process | **Vercel Cron** hits `POST /api/cron/leave-accrual` on a schedule (config in `vercel.json`) |
-| DB connections | One process, one pool — `DB_MAX_CLIENTS` can stay generous | Every function instance opens its own pool; **must** point at a pooled DB endpoint and cap `DB_MAX_CLIENTS` low |
+| DB connections | One process, one pool — `DB_MAX_CLIENTS` can stay generous | Every function instance opens its own pool; **must** point at a pooled DB endpoint and cap `DB_MAX_CLIENTS` |
 | HTTPS | Your reverse proxy's job | Automatic — Vercel terminates TLS for every deployment, nothing to configure |
 | `trust proxy` | Set to match your proxy's hop count | Already correct as `1` (`app.js`) — Vercel's edge is exactly one hop in front of the function |
 | `NODE_ENV` | You set it | Vercel sets `NODE_ENV=production` automatically for production deployments |
 
 ### Setup steps
 
-1. **Database — provision a serverless-friendly Postgres.**
-   [Neon](https://vercel.com/marketplace) is the natural fit here (Vercel Marketplace: `vercel integration add neon`, or the dashboard) — it auto-provisions and injects env vars into the linked project, and its connection strings come in two forms:
-   - A **pooled** endpoint (hostname contains `-pooler`, PgBouncer-backed) — use this for `DB_HOST`. This app talks to Postgres with plain `pg.Pool` (not `@neondatabase/serverless`), so the fix for "many function instances, each with their own pool" is the pooler doing connection multiplexing on the DB side, not a driver swap.
-   - A **direct** endpoint — only needed for `npm run migrate` (see step 3), not for the app itself.
+1. **Database — provision a serverless-friendly Postgres, on a paid tier** (see sizing note above).
+   [Neon](https://vercel.com/marketplace) is the natural fit (Vercel Marketplace: `vercel integration add neon`, or the dashboard) — it auto-provisions and injects a single `DATABASE_URL` connection string into the linked project. **`db/pool.js` reads `DATABASE_URL` directly when it's set** (SSL included) — no manual splitting into `DB_HOST`/`DB_PORT`/etc. required, that's only the local-dev fallback. Neon gives you two forms of it:
+   - A **pooled** connection string (hostname contains `-pooler`, PgBouncer-backed) — this is what `DATABASE_URL` should point at for the running app. This app talks to Postgres with plain `pg.Pool` (not `@neondatabase/serverless`), so the fix for "many function instances, each with their own pool" is the pooler doing connection multiplexing on the DB side, not a driver swap.
+   - A **direct** (non-pooled) connection string — only needed for `npm run migrate` (see step 3), not for the app itself.
 
    Any other managed Postgres with a pooled/PgBouncer connection mode works the same way — Neon is just the path with a one-click Vercel Marketplace integration.
 
 2. **Environment variables** — set these in the Vercel dashboard (`Project → Settings → Environment Variables`), scoped to Production (and Preview if you want preview deployments hitting a real DB):
    - Everything in the table above, plus `JWT_SECRET`, `OTP_PEPPER`, `BCRYPT_SALT_ROUNDS`, SMTP vars — same requirements as the traditional path.
-   - `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` from Neon's **pooled** connection string.
-   - `DB_MAX_CLIENTS=5` (or lower) — see the table above for why. `pool.js` reads this; it defaults to `20`, which is the traditional-server number, not the serverless one.
+   - `DATABASE_URL` from Neon's **pooled** connection string — Vercel's Neon Marketplace integration sets this automatically; confirm it's the pooled form, not direct.
+   - `DB_MAX_CLIENTS` — start around `10` and adjust from Neon's dashboard connection metrics under real load, not a guess made in advance. Too low throttles legitimate concurrent traffic (e.g. shift-start attendance marking); too high risks connection exhaustion during that same rush. Vercel's Fluid Compute (default) reuses warm instances across concurrent requests rather than spinning up one instance per request, which helps here, but doesn't eliminate the need for a real ceiling.
    - `CRON_SECRET` — `openssl rand -hex 32`. Used only by the cron endpoint below.
    - `FRONTEND_URL` — wherever the frontend ends up (its own Vercel project or elsewhere).
    - Locally, `vercel env pull .env.local --yes` pulls whatever's configured on Vercel into a gitignored file for local testing against the same values.
@@ -383,9 +393,9 @@ The backend deploys as a serverless function, not a long-lived process — a few
 3. **Run migrations against the production database before the first deploy** (and after every deploy that adds one). Vercel doesn't run this automatically:
    ```bash
    vercel env pull .env.production.local --environment=production --yes
-   # DATABASE_URL from Neon's *direct* (non-pooled) endpoint is safer for
-   # a schema migration than the pooled one — set it in .env.production.local
-   # if Neon only injected the pooled form.
+   # Swap in Neon's *direct* (non-pooled) connection string for DATABASE_URL
+   # in .env.production.local before running this — a schema migration
+   # holding a lock behaves better on a direct connection than a pooled one.
    npm run migrate
    ```
 
@@ -399,6 +409,8 @@ The backend deploys as a serverless function, not a long-lived process — a few
 5. **Scheduled job — verify Vercel Cron fired.** `vercel.json` schedules `POST /api/cron/leave-accrual` at `30 19 * * *`. **Vercel Cron always runs in UTC** (no per-job timezone setting, unlike the `node-cron` version this replaces) — `19:30 UTC` = `01:00 IST` the next calendar day, matching the original job's intent. The job is idempotent (safe to trigger more than once for the same period) and evaluates "the most recently completed period" rather than "exactly today," so a missed or delayed tick self-heals on the next run. Check `Vercel Dashboard → Project → Cron Jobs` for run history, or `vercel logs` for the `[leave-accrual] cron: ...` line.
 
 6. **Health checks + uptime monitoring.** `GET /api/health` and `GET /api/db-health` (both already exist) work unchanged on Vercel. Vercel's own dashboard shows deployment/function status but isn't an uptime monitor — point an external one (UptimeRobot, Better Uptime, Checkly, etc.) at `/api/health` if you want alerting on the API actually being reachable, not just "the last deploy succeeded."
+
+7. **Rate limits are sized for this headcount already, but re-check them once real traffic patterns are known.** The per-IP limiters in `authRoutes.js` and `reportRoutes.js` assume a large office can share one outbound IP (login, employee password-reset requests, report/payslip downloads all scale their ceilings accordingly) — the per-*account* 5-attempt login lockout is what actually carries the anti-brute-force weight, not these IP ceilings. If employees mostly connect from home/mobile instead of one office network, these could safely be tightened back down; if usage patterns turn out spikier than expected, they may need to go higher still.
 
 ---
 
@@ -462,3 +474,5 @@ Not something to assume — confirm explicitly with whichever provider ends up h
 - 2026-08-20: Security hardening Phase 0 — trust proxy, CSP, download rate limiting, strong temp-password generation.
 - 2026-08-20: Security hardening Phase 1 — audit logging on sensitive admin actions, per-account login lockout, GitHub Actions CI, frontend ESLint.
 - 2026-08-20: Security hardening Phase 2 — token-storage decision documented (kept `localStorage`); Vercel deployment path added (`api/index.js`, `vercel.json`, Vercel Cron for leave accrual, serverless-safe DB pooling); DB backup/restore drill documented. 193/193 backend tests green.
+- 2026-08-20: Unified password-change security posture across every endpoint — `POST /api/auth/reset-password` was silently skipping `password_changed_at` (the field that revokes other sessions on a password change), the reuse check, and audit logging that the other two flows already had. 194/194 backend tests green.
+- 2026-08-20: `db/pool.js` now accepts a single `DATABASE_URL` (what every Vercel Postgres Marketplace integration actually injects) instead of requiring it be split into 5 separate vars — fixes a real deployment blocker. Deployment sizing recalibrated in this README for a ~500-1000 employee single-company rollout (Vercel Pro + paid Postgres tier, not Hobby/free; per-IP rate-limit ceilings widened for a large office sharing one outbound IP, since the per-account lockout — not the IP ceiling — is what actually stops brute-forcing).

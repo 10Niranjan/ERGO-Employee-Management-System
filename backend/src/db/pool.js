@@ -18,18 +18,32 @@ types.setTypeParser(types.builtins.DATE, (val) => val);
 // opens its own pool, and many can run concurrently — with no cap that
 // multiplies into far more Postgres connections than a small managed DB
 // (e.g. Neon) allows. Set this low (e.g. 1-5) in Vercel's env vars and point
-// DB_HOST at the provider's *pooled* connection endpoint (PgBouncer-backed on
-// Neon) rather than raising this number.
-const pool = new Pool({
-  host: process.env.DB_HOST,
-  port: parseInt(process.env.DB_PORT, 10),
-  database: process.env.DB_NAME,
-  user: process.env.DB_USER,
-  password: process.env.DB_PASSWORD,
+// DATABASE_URL/DB_HOST at the provider's *pooled* connection endpoint
+// (PgBouncer-backed on Neon) rather than raising this number.
+const poolConfig = {
   max: parseInt(process.env.DB_MAX_CLIENTS, 10) || 20,
   idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS, 10) || 30000,
   connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT_MS, 10) || 5000,
-});
+};
+
+// Every Vercel Postgres Marketplace integration (Neon, Supabase, etc.) injects
+// a single DATABASE_URL connection string, not the five discrete DB_* vars
+// this app otherwise uses for local dev — prefer it when present so a fresh
+// Vercel deployment works without manually splitting that string apart.
+// Managed providers also require SSL, which a bare connection string doesn't
+// always get pg to negotiate on its own.
+if (process.env.DATABASE_URL) {
+  poolConfig.connectionString = process.env.DATABASE_URL;
+  poolConfig.ssl = { rejectUnauthorized: false };
+} else {
+  poolConfig.host = process.env.DB_HOST;
+  poolConfig.port = parseInt(process.env.DB_PORT, 10);
+  poolConfig.database = process.env.DB_NAME;
+  poolConfig.user = process.env.DB_USER;
+  poolConfig.password = process.env.DB_PASSWORD;
+}
+
+const pool = new Pool(poolConfig);
 
 pool.on('error', (err) => {
   console.error('Unexpected error on idle database client', err);
