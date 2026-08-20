@@ -2,6 +2,8 @@
 
 const bcrypt = require('bcryptjs');
 
+const saltRounds = () => parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
+
 /**
  * Strong password policy used by the password-reset flows.
  *
@@ -86,6 +88,32 @@ async function recordPasswordHistory(db, userId, passwordHash) {
   );
 }
 
+/**
+ * Applies a new password to a user and terminates every existing session.
+ * The one place every password-change flow must route through so the
+ * security-critical steps can't drift apart between them: hash → bump
+ * password_changed_at (invalidates every JWT issued before this moment,
+ * per middleware/auth.js) → clear the first-login flag → record history.
+ *
+ * @param {{ query: Function }} db - a pool client (inside a transaction) or the plain pool/query export
+ */
+async function applyNewPassword(db, userId, plainPassword, { firstLogin = false } = {}) {
+  const passwordHash = await bcrypt.hash(plainPassword, saltRounds());
+
+  await db.query(
+    `UPDATE users
+     SET password_hash = $1,
+         first_login = $2,
+         password_changed_at = NOW(),
+         updated_at = NOW()
+     WHERE id = $3`,
+    [passwordHash, firstLogin, userId]
+  );
+
+  await recordPasswordHistory(db, userId, passwordHash);
+  return passwordHash;
+}
+
 module.exports = {
   MIN_LENGTH,
   HISTORY_DEPTH,
@@ -93,4 +121,5 @@ module.exports = {
   validatePassword,
   isPasswordReused,
   recordPasswordHistory,
+  applyNewPassword,
 };

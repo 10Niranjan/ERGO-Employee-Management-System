@@ -1,8 +1,10 @@
 'use strict';
 
 const bcrypt = require('bcryptjs');
-const { query } = require('../db/pool');
+const { query, getClient } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
+const { validatePassword, isPasswordReused, applyNewPassword } = require('../utils/passwordPolicy');
+const { sendPasswordChangedEmail } = require('../services/mailer');
 const { audit, EVENTS } = require('../services/auditLog');
 
 // Generic message used for ALL login failures — prevents user enumeration.
@@ -119,46 +121,59 @@ async function login(req, res, next) {
  * POST /api/auth/reset-password
  * Requires: authenticate middleware (valid JWT)
  * Accepts: { new_password: string }
- * Forces re-login after a successful reset.
+ * Voluntary, anytime password change for an already-signed-in user — not the
+ * mandatory first-login change (that's POST /api/auth/employee/force-change-password).
+ * Routes through the same applyNewPassword() every other password-change flow
+ * uses, so this one doesn't quietly skip password_changed_at (which is what
+ * actually revokes every other still-valid session on a password change —
+ * see middleware/auth.js) or the reuse/history checks the other flows enforce.
  */
 async function resetPassword(req, res, next) {
+  const client = await getClient();
   try {
-    const { new_password } = req.body;
+    const newPassword = String(req.body.new_password || '');
     const userId = req.user.id;
 
-    if (!new_password) {
-      return res.status(400).json({ message: 'New password is required.' });
+    const policy = validatePassword(newPassword);
+    if (!policy.valid) {
+      return res.status(400).json({ message: policy.message, failed_rules: policy.failed });
     }
 
-    if (new_password.length < 8) {
-      return res.status(400).json({ message: 'Password must be at least 8 characters long.' });
+    await client.query('BEGIN');
+
+    const { rows } = await client.query(
+      'SELECT id, name, email FROM users WHERE id = $1 FOR UPDATE',
+      [userId]
+    );
+    if (rows.length === 0) {
+      await client.query('ROLLBACK');
+      return res.status(404).json({ message: 'User not found.' });
     }
 
-    // Enforce basic complexity: at least one letter, one number
-    if (!/[a-zA-Z]/.test(new_password) || !/[0-9]/.test(new_password)) {
+    if (await isPasswordReused(client, userId, newPassword)) {
+      await client.query('ROLLBACK');
       return res.status(400).json({
-        message: 'Password must contain at least one letter and one number.',
+        message: 'You cannot reuse one of your last 3 passwords. Please choose a different one.',
       });
     }
 
-    const saltRounds = parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
-    const passwordHash = await bcrypt.hash(new_password, saltRounds);
+    await applyNewPassword(client, userId, newPassword, { firstLogin: false });
 
-    await query(
-      `UPDATE users
-       SET password_hash = $1, first_login = FALSE, updated_at = NOW()
-       WHERE id = $2`,
-      [passwordHash, userId]
-    );
+    await client.query('COMMIT');
+
+    await audit({ event: EVENTS.PASSWORD_CHANGED, actorUserId: userId, targetUserId: userId, req });
+    await sendPasswordChangedEmail(rows[0].email, rows[0].name);
 
     // Return 200 with a message instructing the frontend to discard the current token
-    // and redirect to login (token is still technically valid until it expires,
-    // but first_login = FALSE so the reset page won't be accessible again).
+    // and redirect to login — password_changed_at now invalidates it server-side too.
     return res.status(200).json({
       message: 'Password updated successfully. Please log in with your new password.',
     });
   } catch (err) {
+    await client.query('ROLLBACK').catch(() => {});
     next(err);
+  } finally {
+    client.release();
   }
 }
 
