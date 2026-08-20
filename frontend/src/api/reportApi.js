@@ -26,6 +26,21 @@ export async function downloadPayslipPDF(id, filename = 'payslip.pdf') {
   window.URL.revokeObjectURL(url);
 }
 
+export async function downloadLiveSalaryPDF(params = {}, filename = 'payslip_provisional.pdf') {
+  const response = await api.get('/reports/salary/compute/download', {
+    params,
+    responseType: 'blob',
+  });
+  const url = window.URL.createObjectURL(new Blob([response.data], { type: 'application/pdf' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', filename);
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.URL.revokeObjectURL(url);
+}
+
 export async function downloadConsolidatedExcel(params = {}, filename = 'payroll_report.xlsx') {
   const response = await api.get('/reports/consolidated/excel', {
     params,

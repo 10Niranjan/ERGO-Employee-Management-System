@@ -352,6 +352,65 @@ describe('GET /api/reports/salary/compute', () => {
 });
 
 // =============================================================================
+// API Tests: GET /api/reports/salary/compute/download (live/provisional PDF)
+// =============================================================================
+describe('GET /api/reports/salary/compute/download', () => {
+  test('employee downloads own provisional PDF from the live calculation', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [SAMPLE_EMPLOYEE] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ date: '2026-08-03', status: 'present' }],
+      })
+      // getPayslipLeaveSummary: leave types, balances, earned, taken
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '4' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toMatch(/attachment; filename=.*Provisional/);
+    expect(res.body).toBeInstanceOf(Buffer);
+    expect(res.body.slice(0, 4).toString()).toBe('%PDF');
+  });
+
+  test('employee cannot download another employee\'s provisional PDF', async () => {
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8&user_id=3')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('admin downloads provisional PDF for any employee', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [SAMPLE_EMPLOYEE] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8&user_id=2')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+  });
+});
+
+// =============================================================================
 // API Tests: POST /api/reports/payslips/generate
 // =============================================================================
 describe('POST /api/reports/payslips/generate', () => {
@@ -494,9 +553,31 @@ describe('GET /api/reports/payslips/:id/download', () => {
           employee_name: 'John Doe',
           employee_id: 'EMP001',
           designation: 'Software Engineer',
+          date_of_joining: '2025-01-01',
+          pan: 'ABCDE1234F',
+          bank_name: 'HDFC Bank',
+          bank_account_no: '1234567890',
+          basic: '15000.00',
+          hra: '7500.00',
+          education_allowance: '1000.00',
+          conveyance: '1000.00',
+          professional_development: '500.00',
+          other_allowance: '500.00',
+          lta: '1000.00',
+          employer_pf: '1800.00',
+          bonus: '0.00',
+          pf_deduction: '1800.00',
+          professional_tax: '200.00',
+          tds: '0.00',
         },
       ],
     });
+    // getPayslipLeaveSummary: leave types, balances, earned, taken
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '4' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
 
     const res = await request(app)
       .get('/api/reports/payslips/50/download')

@@ -42,6 +42,7 @@ import {
   computeSalary,
   listPayslips,
   downloadPayslipPDF,
+  downloadLiveSalaryPDF,
 } from '../api/reportApi';
 import { getMySalaryComponents } from '../api/salaryApi';
 import { getHolidays } from '../api/holidayApi';
@@ -117,6 +118,7 @@ export default function EmployeeDashboardPage() {
   const [salaryYear, setSalaryYear] = useState(now.getFullYear());
   const [mySalaryCalc, setMySalaryCalc] = useState(null);
   const [salaryCalcLoading, setSalaryCalcLoading] = useState(false);
+  const [liveDownloading, setLiveDownloading] = useState(false);
   const [myPayslips, setMyPayslips] = useState([]);
   const [myPayslipsLoading, setMyPayslipsLoading] = useState(false);
   const [mySalaryComponents, setMySalaryComponents] = useState(null);
@@ -214,6 +216,22 @@ export default function EmployeeDashboardPage() {
       setSalaryCalcLoading(false);
     }
   }, [salaryYear, salaryMonth]);
+
+  // Download a PDF of the live (provisional) calculation currently on screen
+  const handleDownloadLivePDF = useCallback(async () => {
+    setLiveDownloading(true);
+    try {
+      await downloadLiveSalaryPDF(
+        { year: salaryYear, month: salaryMonth },
+        `Payslip_${user?.employee_id || 'employee'}_${monthNames[salaryMonth - 1]}_${salaryYear}_Provisional.pdf`
+      );
+    } catch (err) {
+      console.error('Failed to download provisional payslip', err);
+      showToast('Could not generate the provisional PDF. Please try again.', 'error');
+    } finally {
+      setLiveDownloading(false);
+    }
+  }, [salaryYear, salaryMonth, user, showToast]);
 
   // Fetch saved payslips
   const fetchMyPayslips = useCallback(async () => {
@@ -1097,6 +1115,17 @@ export default function EmployeeDashboardPage() {
                     onChange={(e) => setSalaryYear(parseInt(e.target.value, 10))}
                   />
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginLeft: 'auto' }}
+                  disabled={liveDownloading || !mySalaryCalc?.summary}
+                  onClick={handleDownloadLivePDF}
+                >
+                  <Download size={13} aria-hidden="true" />
+                  {liveDownloading ? ' Generating…' : ' Download Provisional PDF'}
+                </button>
               </div>
 
               {/* My Salary Breakdown */}

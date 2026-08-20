@@ -5,6 +5,7 @@ const { body, param, query: qv, validationResult } = require('express-validator'
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const {
   computeSalary,
+  downloadLiveSalaryPDF,
   generatePayslip,
   listPayslips,
   getPayslipById,
@@ -34,6 +35,18 @@ router.get(
   ],
   validate,
   computeSalary
+);
+
+// GET /api/reports/salary/compute/download (live/provisional PDF)
+router.get(
+  '/salary/compute/download',
+  [
+    qv('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Invalid year.'),
+    qv('month').optional().isInt({ min: 1, max: 12 }).withMessage('Invalid month.'),
+    qv('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.'),
+  ],
+  validate,
+  downloadLiveSalaryPDF
 );
 
 // ─── Payslips ────────────────────────────────────────────────────────────────

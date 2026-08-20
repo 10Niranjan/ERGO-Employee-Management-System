@@ -8,10 +8,19 @@ const MONTH_NAMES = [
   'July', 'August', 'September', 'October', 'November', 'December'
 ];
 
+const formatMoney = (v) => `INR ${(parseFloat(v) || 0).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`;
+const formatAmt = (v) => (parseFloat(v) || 0).toFixed(2);
+
 /**
- * Generates a professional payslip PDF buffer.
+ * Generates a payslip PDF buffer laid out to match the company's official
+ * "ERGO ASIA INC. — SALARY SLIP" template: employee/bank/PAN identity,
+ * date of joining, days-attended and CL+EL leave-ledger summary, a full
+ * Income/Deductions component breakdown, and the net salary line.
+ * @param {object} data
+ * @param {object} [options]
+ * @param {boolean} [options.provisional] - Stamp as a live, unfinalized calculation.
  */
-function generatePayslipPDF(data) {
+function generatePayslipPDF(data, options = {}) {
   return new Promise((resolve, reject) => {
     try {
       const doc = new PDFDocument({ size: 'A4', margin: 40 });
@@ -23,111 +32,146 @@ function generatePayslipPDF(data) {
         resolve(pdfData);
       });
 
-      const { employee, year, month, summary, days } = data;
+      const { employee, year, month, summary, components = {}, leave = {} } = data;
       const monthName = MONTH_NAMES[month - 1] || `Month ${month}`;
 
-      // Header Banner
-      doc
-        .fontSize(20)
-        .font('Helvetica-Bold')
-        .fillColor('#1e293b')
-        .text('ERGO MANAGEMENT SYSTEMS', 40, 40);
+      let y = 40;
 
-      doc
-        .fontSize(10)
-        .font('Helvetica')
-        .fillColor('#64748b')
-        .text('EMPLOYEE SALARY STATEMENT / PAYSLIP', 40, 65);
+      // ─── Header Banner ──────────────────────────────────────────────────
+      const bannerHeight = 55;
+      doc.rect(40, y, 515, bannerHeight).fill('#0e7490');
+      doc.fontSize(18).font('Helvetica-Bold').fillColor('#ffffff')
+        .text('ERGO ASIA INC.', 40, y + 12, { align: 'center', width: 515 });
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#e0f2fe')
+        .text('SALARY SLIP', 40, y + 34, { align: 'center', width: 515 });
+      y += bannerHeight + 8;
 
-      doc
-        .fontSize(10)
-        .font('Helvetica-Bold')
-        .fillColor('#4338ca')
-        .text(`PAY PERIOD: ${monthName.toUpperCase()} ${year}`, 350, 45, { align: 'right' });
+      if (options.provisional) {
+        doc.rect(40, y, 515, 16).fill('#fef3c7');
+        doc.fontSize(8).font('Helvetica-Bold').fillColor('#92400e')
+          .text('PROVISIONAL — LIVE CALCULATION, SUBJECT TO CHANGE UNTIL FINALIZED BY ADMIN', 40, y + 4, {
+            align: 'center',
+            width: 515,
+          });
+        y += 16 + 8;
+      }
 
-      doc.moveTo(40, 85).lineTo(555, 85).strokeColor('#e2e8f0').lineWidth(1).stroke();
+      // ─── Month ──────────────────────────────────────────────────────────
+      doc.fontSize(10).font('Helvetica-Bold').fillColor('#1e293b')
+        .text(`MONTH: ${monthName.toUpperCase()} ${year}`, 40, y);
+      y += 18;
 
-      // Employee Information Box
-      doc.rect(40, 95, 515, 65).fillAndStroke('#f8fafc', '#cbd5e1');
+      // ─── Employee & Payroll Info Grid ───────────────────────────────────
+      const totalDays = summary.working_days + summary.holiday_count + summary.weekend_count;
+      const attendedDays = summary.present_days + summary.travel_days + summary.half_days;
+      const leavesThisMonth = summary.paid_leave_days + summary.unpaid_leave_days;
 
-      doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-      doc.text('Employee Name:', 55, 105);
-      doc.text('Employee ID:', 55, 122);
-      doc.text('Designation:', 55, 139);
-
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a');
-      doc.text(employee.name, 145, 105);
-      doc.text(employee.employee_id, 145, 122);
-      doc.text(employee.designation || 'Staff', 145, 139);
-
-      doc.font('Helvetica').fontSize(9).fillColor('#64748b');
-      doc.text('Monthly Salary:', 320, 105);
-      doc.text('Per-Day Rate (this month):', 320, 122);
-      doc.text('Working Days in Month:', 320, 139);
-
-      doc.font('Helvetica-Bold').fontSize(9).fillColor('#0f172a');
-      doc.text(`INR ${parseFloat(summary.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 440, 105);
-      doc.text(`INR ${parseFloat(summary.per_day_salary).toFixed(2)} / day`, 440, 122);
-      doc.text(`${summary.working_days} days`, 440, 139);
-
-      // Attendance & Leave Summary Section
-      doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text('Attendance & Leave Units Summary', 40, 175);
-
-      const tableTop = 195;
-      doc.rect(40, tableTop, 515, 20).fill('#e0e7ff');
-      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#312e81');
-      doc.text('CATEGORY', 50, tableTop + 5);
-      doc.text('DAYS', 180, tableTop + 5, { width: 60, align: 'center' });
-      doc.text('RATE FACTOR', 280, tableTop + 5, { width: 90, align: 'center' });
-      doc.text('PAYABLE UNITS', 420, tableTop + 5, { width: 100, align: 'right' });
-
-      const rows = [
-        ['Present (Full Day)', summary.present_days, '100%', `${summary.present_days} days`],
-        ['On Duty / Travel', summary.travel_days, '100%', `${summary.travel_days} days`],
-        ['Half-Day', summary.half_days, '50%', `${summary.half_days * 0.5} days`],
-        ['Paid Leaves (Casual/Sick/Earned)', summary.paid_leave_days, '100%', `${summary.paid_leave_days} days`],
-        ['Unpaid Leaves', summary.unpaid_leave_days, '0%', '0.0 days'],
-        ['Absent / Unmarked', summary.absent_days, '0%', '0.0 days'],
-        ['Holidays & Weekends (Paid)', summary.holiday_count + summary.weekend_count, '100%', `${summary.holiday_count + summary.weekend_count} days`],
+      const leftRows = [
+        ['Employee Name', employee.name],
+        ['Employee Code', employee.employee_id],
+        ['Designation', employee.designation || 'Staff'],
+        ['PAN Number', employee.pan || '—'],
+        ['Bank Account Number', employee.bank_account_no || '—'],
+        ['Bank Name', employee.bank_name || '—'],
+      ];
+      const rightRows = [
+        ['Date of Joining', employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN') : '—'],
+        ['Total No. of Days', String(totalDays)],
+        ['No. of Days Attended', String(attendedDays)],
+        ['Leaves', String(leavesThisMonth)],
+        ['Previous CL + EL', String(leave.previous ?? 0)],
+        ['Leave Earned This Month', String(leave.earned_this_month ?? 0)],
+        ['Leave Taken This Month', String(leave.taken_this_month ?? 0)],
+        ['Net Balance', String(leave.net_balance ?? 0)],
       ];
 
-      let currentY = tableTop + 20;
-      doc.font('Helvetica').fontSize(8.5).fillColor('#334155');
+      const infoRowH = 16;
+      const infoBoxH = Math.max(leftRows.length, rightRows.length) * infoRowH + 10;
+      doc.rect(40, y, 515, infoBoxH).fillAndStroke('#f8fafc', '#cbd5e1');
 
-      rows.forEach((r, idx) => {
-        if (idx % 2 === 1) {
-          doc.rect(40, currentY, 515, 18).fill('#f8fafc');
-        }
-        doc.fillColor('#334155');
-        doc.text(String(r[0]), 50, currentY + 4);
-        doc.text(String(r[1]), 180, currentY + 4, { width: 60, align: 'center' });
-        doc.text(String(r[2]), 280, currentY + 4, { width: 90, align: 'center' });
-        doc.text(String(r[3]), 420, currentY + 4, { width: 100, align: 'right' });
-        currentY += 18;
+      let ly = y + 8;
+      leftRows.forEach(([label, value]) => {
+        doc.font('Helvetica').fontSize(8.5).fillColor('#64748b').text(label, 50, ly);
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a').text(String(value), 175, ly, { width: 105 });
+        ly += infoRowH;
       });
 
-      doc.moveTo(40, currentY).lineTo(555, currentY).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
+      let ry = y + 8;
+      rightRows.forEach(([label, value]) => {
+        doc.font('Helvetica').fontSize(8.5).fillColor('#64748b').text(label, 300, ry, { width: 145 });
+        doc.font('Helvetica-Bold').fontSize(8.5).fillColor('#0f172a').text(value, 455, ry, { width: 90, align: 'right' });
+        ry += infoRowH;
+      });
 
-      // Net Salary Highlight Box
-      currentY += 15;
-      doc.rect(40, currentY, 515, 45).fillAndStroke('#f1f5f9', '#94a3b8');
+      y += infoBoxH + 12;
 
-      doc.fontSize(11).font('Helvetica-Bold').fillColor('#0f172a').text('NET PAYABLE SALARY:', 55, currentY + 16);
-      doc
-        .fontSize(15)
-        .font('Helvetica-Bold')
-        .fillColor('#166534')
-        .text(`INR ${parseFloat(summary.net_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}`, 300, currentY + 14, {
-          align: 'right',
-          width: 240,
-        });
+      // ─── Income / Deductions Table ──────────────────────────────────────
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text('Earnings & Deductions', 40, y);
+      y += 18;
 
-      // Footer
+      const tableTop = y;
+      doc.rect(40, tableTop, 515, 20).fill('#e0e7ff');
+      doc.fontSize(8.5).font('Helvetica-Bold').fillColor('#312e81');
+      doc.text('INCOME PARTICULARS', 50, tableTop + 5, { width: 150 });
+      doc.text('AMOUNT (INR)', 200, tableTop + 5, { width: 85, align: 'right' });
+      doc.text('DEDUCTIONS PARTICULARS', 300, tableTop + 5, { width: 150 });
+      doc.text('AMOUNT (INR)', 460, tableTop + 5, { width: 85, align: 'right' });
+
+      const incomeRows = [
+        ['Basic Pay', components.basic],
+        ['House Rent Allowance', components.hra],
+        ['Education Allowance', components.education_allowance],
+        ['Conveyance Allowance', components.conveyance],
+        ['Professional Development Allowance', components.professional_development],
+        ['Other Allowance', components.other_allowance],
+        ['Leave Travel Allowance (LTA)', components.lta],
+        ['PF (Employer Contribution)', components.employer_pf],
+        ['Bonus', components.bonus],
+      ];
+      const deductionRows = [
+        ['PF', components.pf_deduction],
+        ['Professional Tax', components.professional_tax],
+        ['TDS', components.tds],
+      ];
+      const totalIncome = incomeRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
+      const totalDeductions = deductionRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
+
+      let cy = tableTop + 20;
+      incomeRows.forEach((row, idx) => {
+        if (idx % 2 === 1) doc.rect(40, cy, 515, 16).fill('#f8fafc');
+        doc.font('Helvetica').fontSize(8.5).fillColor('#334155');
+        doc.text(row[0], 50, cy + 3, { width: 150 });
+        doc.text(formatAmt(row[1]), 200, cy + 3, { width: 85, align: 'right' });
+        const ded = deductionRows[idx];
+        if (ded) {
+          doc.text(ded[0], 300, cy + 3, { width: 150 });
+          doc.text(formatAmt(ded[1]), 460, cy + 3, { width: 85, align: 'right' });
+        }
+        cy += 16;
+      });
+
+      doc.moveTo(40, cy).lineTo(555, cy).strokeColor('#cbd5e1').lineWidth(0.5).stroke();
+      doc.rect(40, cy, 515, 18).fill('#eef2ff');
+      doc.font('Helvetica-Bold').fontSize(9).fillColor('#1e1b4b');
+      doc.text('Total', 50, cy + 4, { width: 150 });
+      doc.text(formatAmt(totalIncome), 200, cy + 4, { width: 85, align: 'right' });
+      doc.text('Total', 300, cy + 4, { width: 150 });
+      doc.text(formatAmt(totalDeductions), 460, cy + 4, { width: 85, align: 'right' });
+      y = cy + 18 + 12;
+
+      // ─── Net Salary Highlight Box ───────────────────────────────────────
+      doc.rect(40, y, 515, 40).fillAndStroke('#f1f5f9', '#94a3b8');
+      doc.fontSize(11).font('Helvetica-Bold').fillColor('#0f172a').text('NET SALARY:', 55, y + 13);
+      doc.fontSize(14).font('Helvetica-Bold').fillColor('#166534')
+        .text(formatMoney(summary.net_salary), 300, y + 11, { align: 'right', width: 240 });
+      y += 40 + 20;
+
+      // ─── Footer ─────────────────────────────────────────────────────────
       doc
         .fontSize(8)
         .font('Helvetica-Oblique')
         .fillColor('#94a3b8')
-        .text('This is a system-generated salary slip and does not require a signature. Generated by Ergo Management System.', 40, 750, {
+        .text('This is a system-generated salary slip and does not require a signature. Generated by Ergo Management System.', 40, y, {
           align: 'center',
           width: 515,
         });

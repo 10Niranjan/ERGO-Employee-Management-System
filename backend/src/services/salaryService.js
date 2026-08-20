@@ -3,6 +3,89 @@
 const { getMonthDates, isWeekend } = require('../utils/time');
 
 /**
+ * Shapes a raw `users` row (or any row carrying the same 13 component
+ * columns) into the standard earnings/deductions component snapshot used
+ * across salary previews, payslips, and audit history.
+ */
+function buildComponentSnapshot(row) {
+  return {
+    basic:                    parseFloat(row.basic                   || 0),
+    hra:                      parseFloat(row.hra                     || 0),
+    education_allowance:      parseFloat(row.education_allowance     || 0),
+    conveyance:               parseFloat(row.conveyance              || 0),
+    professional_development: parseFloat(row.professional_development || 0),
+    other_allowance:          parseFloat(row.other_allowance         || 0),
+    lta:                      parseFloat(row.lta                     || 0),
+    employer_pf:              parseFloat(row.employer_pf             || 0),
+    bonus:                    parseFloat(row.bonus                   || 0),
+    pf_deduction:             parseFloat(row.pf_deduction            || 0),
+    professional_tax:         parseFloat(row.professional_tax        || 0),
+    tds:                      parseFloat(row.tds                     || 0),
+    pan:                      row.pan || null,
+    monthly_salary:           parseFloat(row.monthly_salary          || 0),
+  };
+}
+
+/**
+ * Summarizes an employee's combined Casual Leave + Earned Leave (the leave
+ * type flagged `is_earned_leave`) position for one payslip month: the
+ * balance carried in from before the month, what was earned/consumed during
+ * it, and the resulting balance.
+ *
+ * Caveat: LEAVE_TAKEN ledger entries aren't tagged with a `period` (only
+ * ATTENDANCE_BONUS entries are — see migration 010's applyLedgerEntry call
+ * sites), so "taken this month" is approximated by the entry's `created_at`
+ * (i.e. when the leave was approved) rather than the leave's actual dates.
+ * "Previous" is then derived algebraically so the four figures stay
+ * internally consistent: previous + earned − taken = net balance.
+ */
+async function getPayslipLeaveSummary(dbClient, userId, year, month) {
+  const period = `${year}-${String(month).padStart(2, '0')}`;
+  const monthDates = getMonthDates(year, month);
+  const monthStart = monthDates[0];
+  const monthEnd = monthDates[monthDates.length - 1];
+
+  const { rows: typeRows } = await dbClient.query(
+    `SELECT id FROM leave_types WHERE name = 'Casual Leave' OR is_earned_leave = TRUE`
+  );
+  const typeIds = typeRows.map((t) => t.id);
+  if (typeIds.length === 0) {
+    return { previous: 0, earned_this_month: 0, taken_this_month: 0, net_balance: 0 };
+  }
+
+  const { rows: balRows } = await dbClient.query(
+    `SELECT COALESCE(SUM(remaining), 0) AS total FROM leave_balances
+     WHERE user_id = $1 AND year = $2 AND leave_type_id = ANY($3::int[])`,
+    [userId, year, typeIds]
+  );
+  const netBalance = parseInt(balRows[0].total, 10) || 0;
+
+  const { rows: earnedRows } = await dbClient.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM leave_ledger
+     WHERE user_id = $1 AND leave_type_id = ANY($2::int[])
+       AND entry_type = 'ATTENDANCE_BONUS' AND period = $3`,
+    [userId, typeIds, period]
+  );
+  const earnedThisMonth = parseInt(earnedRows[0].total, 10) || 0;
+
+  const { rows: takenRows } = await dbClient.query(
+    `SELECT COALESCE(SUM(amount), 0) AS total FROM leave_ledger
+     WHERE user_id = $1 AND leave_type_id = ANY($2::int[])
+       AND entry_type = 'LEAVE_TAKEN'
+       AND created_at >= $3::date AND created_at < ($4::date + INTERVAL '1 day')`,
+    [userId, typeIds, monthStart, monthEnd]
+  );
+  const takenThisMonth = parseInt(takenRows[0].total, 10) || 0;
+
+  return {
+    previous: netBalance - earnedThisMonth + takenThisMonth,
+    earned_this_month: earnedThisMonth,
+    taken_this_month: takenThisMonth,
+    net_balance: netBalance,
+  };
+}
+
+/**
  * Determines the applicable *monthly* salary for a specific date by walking
  * the employee's revision history. The caller derives that day's per-day
  * rate by dividing this by however many calendar days are in that month —
@@ -65,7 +148,11 @@ function getApplicableMonthlySalary(dateStr, currentMonthlySalary, salaryHistory
 async function calculateMonthlySalary(dbClient, userId, year, month) {
   // 1. Fetch employee details
   const { rows: userRows } = await dbClient.query(
-    `SELECT id, employee_id, name, designation, email, monthly_salary, date_of_joining, status
+    `SELECT id, employee_id, name, designation, email, monthly_salary, date_of_joining, status,
+            pan, bank_name, bank_account_no,
+            basic, hra, education_allowance, conveyance, professional_development,
+            other_allowance, lta, employer_pf, bonus,
+            pf_deduction, professional_tax, tds
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -246,7 +333,12 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
       designation: employee.designation,
       email: employee.email,
       monthly_salary: currentMonthlySalary,
+      date_of_joining: employee.date_of_joining,
+      pan: employee.pan || null,
+      bank_name: employee.bank_name || null,
+      bank_account_no: employee.bank_account_no || null,
     },
+    components: buildComponentSnapshot(employee),
     year,
     month,
     summary: {
@@ -271,4 +363,6 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
 module.exports = {
   getApplicableMonthlySalary,
   calculateMonthlySalary,
+  buildComponentSnapshot,
+  getPayslipLeaveSummary,
 };

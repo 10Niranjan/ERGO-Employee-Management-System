@@ -1,28 +1,7 @@
 'use strict';
 
 const { query, getClient } = require('../db/pool');
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Helper: build a component snapshot object from a user row
-// ─────────────────────────────────────────────────────────────────────────────
-function buildComponentSnapshot(row) {
-  return {
-    basic:                    parseFloat(row.basic                   || 0),
-    hra:                      parseFloat(row.hra                     || 0),
-    education_allowance:      parseFloat(row.education_allowance     || 0),
-    conveyance:               parseFloat(row.conveyance              || 0),
-    professional_development: parseFloat(row.professional_development || 0),
-    other_allowance:          parseFloat(row.other_allowance         || 0),
-    lta:                      parseFloat(row.lta                     || 0),
-    employer_pf:              parseFloat(row.employer_pf             || 0),
-    bonus:                    parseFloat(row.bonus                   || 0),
-    pf_deduction:             parseFloat(row.pf_deduction            || 0),
-    professional_tax:         parseFloat(row.professional_tax        || 0),
-    tds:                      parseFloat(row.tds                     || 0),
-    pan:                      row.pan || null,
-    monthly_salary:           parseFloat(row.monthly_salary          || 0),
-  };
-}
+const { buildComponentSnapshot } = require('../services/salaryService');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // GET /api/salary
