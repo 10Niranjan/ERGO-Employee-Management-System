@@ -3,7 +3,7 @@
 const bcrypt = require('bcryptjs');
 const { query, getClient } = require('../db/pool');
 const { generateEmployeeId } = require('../utils/employeeId');
-const { generateTempPassword } = require('../utils/passwordGen');
+const { generateTempPassword } = require('../utils/secureTokens');
 const { recordInitialAllocation } = require('../services/leaveAccrualService');
 
 // Fields returned to callers — password_hash is never included

@@ -2,6 +2,7 @@
 
 const { Router } = require('express');
 const { body, param, query: qv, validationResult } = require('express-validator');
+const rateLimit = require('express-rate-limit');
 const { authenticate, authorizeAdmin } = require('../middleware/auth');
 const {
   computeSalary,
@@ -24,6 +25,20 @@ function validate(req, res, next) {
 // All report and salary routes require authentication
 router.use(authenticate);
 
+// PDF/Excel generation is the most CPU/memory-expensive work in the app and,
+// unlike auth, had no rate limit — any single authenticated account could
+// hammer it to degrade service for everyone. Generous per-user budget since
+// this guards against abuse, not normal use.
+const skipInTests = () => process.env.NODE_ENV === 'test';
+const downloadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 60,
+  message: { message: 'Too many report requests. Please try again in a few minutes.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+  skip: skipInTests,
+});
+
 // ─── Salary Computation ──────────────────────────────────────────────────────
 // GET /api/reports/salary/compute
 router.get(
@@ -40,6 +55,7 @@ router.get(
 // GET /api/reports/salary/compute/download (live/provisional PDF)
 router.get(
   '/salary/compute/download',
+  downloadLimiter,
   [
     qv('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Invalid year.'),
     qv('month').optional().isInt({ min: 1, max: 12 }).withMessage('Invalid month.'),
@@ -86,6 +102,7 @@ router.get(
 // GET /api/reports/payslips/:id/download (PDF download)
 router.get(
   '/payslips/:id/download',
+  downloadLimiter,
   [param('id').isInt({ min: 1 }).withMessage('Invalid payslip ID.')],
   validate,
   downloadPayslipPDF
@@ -96,6 +113,7 @@ router.get(
 router.get(
   '/consolidated/excel',
   authorizeAdmin,
+  downloadLimiter,
   [
     qv('year').optional().isInt({ min: 2000, max: 2100 }).withMessage('Invalid year.'),
     qv('month').optional().isInt({ min: 1, max: 12 }).withMessage('Invalid month.'),
