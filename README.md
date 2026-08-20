@@ -186,6 +186,9 @@ Everything is driven by CSS custom properties in `frontend/src/index.css`, so th
 ```
 employee_managment_system/
 ├── backend/
+│   ├── api/
+│   │   └── index.js          # Vercel serverless entry point (exports app.js, no .listen())
+│   ├── vercel.json           # Rewrites + Cron config for Vercel deployment
 │   ├── src/
 │   │   ├── __tests__/        # Automated test suites (auth, users, attendance, leaves, salary)
 │   │   ├── controllers/      # API controller handlers
@@ -318,16 +321,17 @@ npm run build
 | `JWT_EXPIRES_IN` | Yes | Token expiration duration (default: `8h`) |
 | `BCRYPT_SALT_ROUNDS` | Yes | Work factor for password hashing (default: `12`) |
 | `FRONTEND_URL` | Yes | Permitted CORS frontend origin (`http://localhost:5173`) |
+| `CRON_SECRET` | Vercel only | Bearer secret guarding `POST /api/cron/leave-accrual`. Not needed off Vercel. |
 
 ---
 
 ## 🌐 Production Deployment Readiness
 
-When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Heroku):
+When deploying to a traditional always-on server (e.g. AWS EC2, DigitalOcean, Render, a VPS):
 
 1. **Database Provisioning**:
    - Create a PostgreSQL database instance.
-   - Run `npm run migrate` to apply all 10 migrations sequentially.
+   - Run `npm run migrate` to apply all migrations sequentially.
    - Run `npm run seed` once to create the root Administrator.
 2. **Environment Variables**:
    - Provide high-entropy `JWT_SECRET` (`openssl rand -hex 32`).
@@ -339,6 +343,105 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 4. **HTTPS & Security**:
    - Ensure an SSL/TLS reverse proxy (e.g., Nginx, Caddy, Cloudflare) handles HTTPS termination.
    - Set cookie/token transport over secure headers.
+
+This path runs `node src/server.js` as one long-lived process — `npm start` — which holds the in-process `node-cron` scheduler (`src/jobs/leaveAccrualJob.js`) and a normal `pg.Pool`. Not what the sections below use.
+
+---
+
+## ▲ Vercel Deployment
+
+The backend deploys as a serverless function, not a long-lived process — a few things behave differently from the traditional path above, so this section calls them out explicitly rather than leaving them implicit.
+
+### What's different in serverless
+
+| Concern | Traditional server | On Vercel |
+|---|---|---|
+| Entry point | `src/server.js` (`app.listen()`) | `api/index.js` (exports the Express `app`; never calls `.listen()`) |
+| Scheduled leave-accrual job | In-process `node-cron`, runs inside the always-on process | **Vercel Cron** hits `POST /api/cron/leave-accrual` on a schedule (config in `vercel.json`) |
+| DB connections | One process, one pool — `DB_MAX_CLIENTS` can stay generous | Every function instance opens its own pool; **must** point at a pooled DB endpoint and cap `DB_MAX_CLIENTS` low |
+| HTTPS | Your reverse proxy's job | Automatic — Vercel terminates TLS for every deployment, nothing to configure |
+| `trust proxy` | Set to match your proxy's hop count | Already correct as `1` (`app.js`) — Vercel's edge is exactly one hop in front of the function |
+| `NODE_ENV` | You set it | Vercel sets `NODE_ENV=production` automatically for production deployments |
+
+### Setup steps
+
+1. **Database — provision a serverless-friendly Postgres.**
+   [Neon](https://vercel.com/marketplace) is the natural fit here (Vercel Marketplace: `vercel integration add neon`, or the dashboard) — it auto-provisions and injects env vars into the linked project, and its connection strings come in two forms:
+   - A **pooled** endpoint (hostname contains `-pooler`, PgBouncer-backed) — use this for `DB_HOST`. This app talks to Postgres with plain `pg.Pool` (not `@neondatabase/serverless`), so the fix for "many function instances, each with their own pool" is the pooler doing connection multiplexing on the DB side, not a driver swap.
+   - A **direct** endpoint — only needed for `npm run migrate` (see step 3), not for the app itself.
+
+   Any other managed Postgres with a pooled/PgBouncer connection mode works the same way — Neon is just the path with a one-click Vercel Marketplace integration.
+
+2. **Environment variables** — set these in the Vercel dashboard (`Project → Settings → Environment Variables`), scoped to Production (and Preview if you want preview deployments hitting a real DB):
+   - Everything in the table above, plus `JWT_SECRET`, `OTP_PEPPER`, `BCRYPT_SALT_ROUNDS`, SMTP vars — same requirements as the traditional path.
+   - `DB_HOST` / `DB_PORT` / `DB_NAME` / `DB_USER` / `DB_PASSWORD` from Neon's **pooled** connection string.
+   - `DB_MAX_CLIENTS=5` (or lower) — see the table above for why. `pool.js` reads this; it defaults to `20`, which is the traditional-server number, not the serverless one.
+   - `CRON_SECRET` — `openssl rand -hex 32`. Used only by the cron endpoint below.
+   - `FRONTEND_URL` — wherever the frontend ends up (its own Vercel project or elsewhere).
+   - Locally, `vercel env pull .env.local --yes` pulls whatever's configured on Vercel into a gitignored file for local testing against the same values.
+
+3. **Run migrations against the production database before the first deploy** (and after every deploy that adds one). Vercel doesn't run this automatically:
+   ```bash
+   vercel env pull .env.production.local --environment=production --yes
+   # DATABASE_URL from Neon's *direct* (non-pooled) endpoint is safer for
+   # a schema migration than the pooled one — set it in .env.production.local
+   # if Neon only injected the pooled form.
+   npm run migrate
+   ```
+
+4. **Link and deploy**:
+   ```bash
+   vercel link --yes --project ergo-backend   # first time only
+   vercel --prod
+   ```
+   Or connect the GitHub repo in the Vercel dashboard for git-push deploys — every push to a non-production branch gets a preview URL automatically, pushes to `main` (or whichever branch is configured as Production) deploy to production. This is independent of the GitHub Actions CI added in Phase 1 (`.github/workflows/ci.yml`); that workflow gates code quality via required-check branch protection, Vercel's git integration handles the actual deploy.
+
+5. **Scheduled job — verify Vercel Cron fired.** `vercel.json` schedules `POST /api/cron/leave-accrual` at `30 19 * * *`. **Vercel Cron always runs in UTC** (no per-job timezone setting, unlike the `node-cron` version this replaces) — `19:30 UTC` = `01:00 IST` the next calendar day, matching the original job's intent. The job is idempotent (safe to trigger more than once for the same period) and evaluates "the most recently completed period" rather than "exactly today," so a missed or delayed tick self-heals on the next run. Check `Vercel Dashboard → Project → Cron Jobs` for run history, or `vercel logs` for the `[leave-accrual] cron: ...` line.
+
+6. **Health checks + uptime monitoring.** `GET /api/health` and `GET /api/db-health` (both already exist) work unchanged on Vercel. Vercel's own dashboard shows deployment/function status but isn't an uptime monitor — point an external one (UptimeRobot, Better Uptime, Checkly, etc.) at `/api/health` if you want alerting on the API actually being reachable, not just "the last deploy succeeded."
+
+---
+
+## 💾 Database Backup & Restore
+
+Applies regardless of host — standard `pg_dump`/`pg_restore`, plus Neon's built-in option if that's where the database ends up.
+
+### Manual backup
+
+```bash
+# Full backup, compressed custom format (best for pg_restore)
+pg_dump --format=custom --file=ergo_backup_$(date +%Y%m%d).dump \
+  "postgresql://<user>:<password>@<host>:<port>/<database>"
+```
+Use the connection string from `.env` / `.env.production.local`. Store the resulting `.dump` file somewhere outside the app repo — a private S3/Blob bucket, not git.
+
+### Restore
+
+```bash
+# Into a fresh/empty database
+pg_restore --clean --if-exists --no-owner \
+  --dbname="postgresql://<user>:<password>@<host>:<port>/<database>" \
+  ergo_backup_YYYYMMDD.dump
+```
+`--clean --if-exists` drops existing objects first so a restore onto a non-empty database doesn't collide; `--no-owner` avoids failures when the restoring role doesn't match the original dump's owner (common when restoring into a different environment).
+
+### Restore drill — do this at least once, before you need it for real
+
+1. Take a backup of a non-production database (or a fresh copy of production data) with the command above.
+2. Provision a throwaway Postgres database (a second Neon branch is the fastest way — see below).
+3. Restore into it and run `npm test` / a manual login+dashboard check against that restored database's connection string.
+4. Confirm row counts on a couple of key tables (`users`, `attendance`, `payslips`) roughly match what you expect.
+5. Delete the throwaway database.
+
+If step 3 fails, that's the actual finding — better discovered during a drill than during a real incident.
+
+### If using Neon specifically
+
+Neon's branching feature (`Console → Branches → Create Branch`, or `neonctl branches create --parent main`) creates a copy-on-write clone of the database in seconds — useful both as a faster restore-drill substrate than steps 2-3 above, and as Neon's own point-in-time recovery mechanism (branch from any timestamp in the retention window) as an alternative to restoring a `pg_dump` file for a real incident. Confirm your plan's retention window (how far back you can branch from) matches how much data loss you're willing to tolerate.
+
+### Encryption at rest
+
+Not something to assume — confirm explicitly with whichever provider ends up hosting the database (Neon encrypts data at rest by default on their managed infrastructure; verify this holds for whatever plan/region gets selected, since guarantees can vary by tier).
 
 ---
 
@@ -356,3 +459,6 @@ When deploying to a production server (e.g. AWS EC2, DigitalOcean, Render, Herok
 - 2026-08-17: Password Resets flow verified end-to-end — employee request → admin temp password → forced change.
 - 2026-08-17: Employee-side dashboard, leave application, and check-in flows verified.
 - 2026-08-17: QA pass closed out — 2 confirmed bugs fixed and verified, all 184 backend tests green.
+- 2026-08-20: Security hardening Phase 0 — trust proxy, CSP, download rate limiting, strong temp-password generation.
+- 2026-08-20: Security hardening Phase 1 — audit logging on sensitive admin actions, per-account login lockout, GitHub Actions CI, frontend ESLint.
+- 2026-08-20: Security hardening Phase 2 — token-storage decision documented (kept `localStorage`); Vercel deployment path added (`api/index.js`, `vercel.json`, Vercel Cron for leave accrual, serverless-safe DB pooling); DB backup/restore drill documented. 193/193 backend tests green.

@@ -4,9 +4,17 @@ import axios from 'axios';
  * Axios instance for all backend API calls.
  * Automatically attaches the JWT from localStorage.
  * On 401, clears auth state and redirects to login.
+ *
+ * baseURL defaults to a relative '/api', which only resolves correctly when
+ * frontend and backend share an origin — true in dev via Vite's proxy
+ * (vite.config.js), but not once the backend is deployed separately (e.g. to
+ * its own Vercel project). Set VITE_API_BASE_URL to the backend's origin
+ * (e.g. https://ergo-backend.vercel.app, no trailing /api) wherever that's
+ * the case — .env.example already documented this var, nothing previously
+ * read it.
  */
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: `${import.meta.env.VITE_API_BASE_URL || ''}/api`,
   headers: { 'Content-Type': 'application/json' },
   timeout: 15000,
 });

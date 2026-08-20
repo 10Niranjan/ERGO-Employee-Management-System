@@ -13,6 +13,7 @@ const salaryRoutes     = require('./routes/salaryRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const leaveRoutes      = require('./routes/leaveRoutes');
 const reportRoutes     = require('./routes/reportRoutes');
+const cronRoutes       = require('./routes/cronRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate, blockUntilPasswordChanged } = require('./middleware/auth');
 
@@ -92,6 +93,10 @@ app.get('/api/db-health', async (_req, res, next) => {
 // password-change endpoints, which a first_login user must still be able to
 // reach in order to leave that state.
 app.use('/api/auth', authRoutes);
+
+// Vercel Cron's trigger, or any external scheduler — authenticated by a
+// shared CRON_SECRET checked inside the controller, not a user JWT.
+app.use('/api/cron', cronRoutes);
 
 // Every business route is blocked while a password change is outstanding, so
 // the mandatory reset screen can't be sidestepped by calling the API directly.

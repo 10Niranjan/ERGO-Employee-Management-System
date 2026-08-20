@@ -12,15 +12,23 @@ const { Pool, types } = require('pg');
 // caller actually needs.
 types.setTypeParser(types.builtins.DATE, (val) => val);
 
+// DB_MAX_CLIENTS matters a lot more than it looks: on a traditional
+// always-on server there's one process, so pg's default of 10 (or the 20
+// documented in .env.example) is fine. On Vercel each function instance
+// opens its own pool, and many can run concurrently — with no cap that
+// multiplies into far more Postgres connections than a small managed DB
+// (e.g. Neon) allows. Set this low (e.g. 1-5) in Vercel's env vars and point
+// DB_HOST at the provider's *pooled* connection endpoint (PgBouncer-backed on
+// Neon) rather than raising this number.
 const pool = new Pool({
   host: process.env.DB_HOST,
   port: parseInt(process.env.DB_PORT, 10),
   database: process.env.DB_NAME,
   user: process.env.DB_USER,
   password: process.env.DB_PASSWORD,
-  // Keep alive idle connections
-  idleTimeoutMillis: 30000,
-  connectionTimeoutMillis: 5000,
+  max: parseInt(process.env.DB_MAX_CLIENTS, 10) || 20,
+  idleTimeoutMillis: parseInt(process.env.DB_IDLE_TIMEOUT_MS, 10) || 30000,
+  connectionTimeoutMillis: parseInt(process.env.DB_CONN_TIMEOUT_MS, 10) || 5000,
 });
 
 pool.on('error', (err) => {
