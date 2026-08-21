@@ -130,6 +130,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
             { date: '2026-08-06', status: 'travel' },
             { date: '2026-08-07', status: 'half_day' },
             { date: '2026-08-10', status: 'absent' },
+            { date: '2026-08-11', status: 'wfh' },
           ],
         }), // 6. attendance
     };
@@ -141,14 +142,15 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.present_days).toBe(1); // Aug 05 (1000)
     expect(result.summary.travel_days).toBe(1); // Aug 06 (1000)
     expect(result.summary.half_days).toBe(1); // Aug 07 (500)
+    expect(result.summary.wfh_days).toBe(1); // Aug 11 (1000) — full paid day
     expect(result.summary.paid_leave_days).toBe(1); // Aug 03 (1000)
     expect(result.summary.unpaid_leave_days).toBe(1); // Aug 04 (0)
     expect(result.summary.holiday_count).toBe(1); // Aug 15 — also a Saturday, holiday wins
 
     // 9 weekend days (Aug 15 reclassified as holiday, not double-counted) @1000 = 9000
-    // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500
-    // + unpaid leave 0 + 15 unmarked-absent working days @ 0
-    expect(result.summary.net_salary).toBe(13500);
+    // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500 + wfh 1000
+    // + unpaid leave 0 + 14 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(14500);
   });
 
   // Scenario A: 8 Present, 1 Half-Day, 1 Unpaid Leave (with remaining 11 working days absent)
@@ -541,6 +543,7 @@ describe('GET /api/reports/payslips/:id/download', () => {
           present_days: 20,
           half_days: 0,
           travel_days: 0,
+          wfh_days: 0,
           paid_leave_days: 1,
           unpaid_leave_days: 0,
           absent_days: 0,

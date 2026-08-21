@@ -63,7 +63,7 @@ function generatePayslipPDF(data, options = {}) {
 
       // ─── Employee & Payroll Info Grid ───────────────────────────────────
       const totalDays = summary.working_days + summary.holiday_count + summary.weekend_count;
-      const attendedDays = summary.present_days + summary.travel_days + summary.half_days;
+      const attendedDays = summary.present_days + summary.travel_days + summary.wfh_days + summary.half_days;
       const leavesThisMonth = summary.paid_leave_days + summary.unpaid_leave_days;
 
       const leftRows = [
@@ -195,7 +195,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
   const sheet = workbook.addWorksheet(`Salary_${monthName}_${year}`);
 
   // Header Title Row
-  sheet.mergeCells('A1:O1');
+  sheet.mergeCells('A1:P1');
   const titleRow = sheet.getCell('A1');
   titleRow.value = `Ergo Management System — Consolidated Salary Report (${monthName} ${year})`;
   titleRow.font = { name: 'Arial', size: 14, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -215,6 +215,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
     'Present Days',
     'Half-Days',
     'Travel Days',
+    'WFH Days',
     'Paid Leave Days',
     'Unpaid Leave Days',
     'Absent Days',
@@ -254,6 +255,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
       item.summary.present_days,
       item.summary.half_days,
       item.summary.travel_days,
+      item.summary.wfh_days,
       item.summary.paid_leave_days,
       item.summary.unpaid_leave_days,
       item.summary.absent_days,
@@ -270,10 +272,10 @@ async function generateConsolidatedExcel(reportData, year, month) {
         bottom: { style: 'thin', color: { argb: 'FFE2E8F0' } },
         right: { style: 'thin', color: { argb: 'FFE2E8F0' } },
       };
-      if (colNumber === 5 || colNumber === 6 || colNumber === 15) {
+      if (colNumber === 5 || colNumber === 6 || colNumber === 16) {
         cell.numFmt = '₹#,##0.00';
         cell.alignment = { horizontal: 'right' };
-      } else if (colNumber >= 7 && colNumber <= 14) {
+      } else if (colNumber >= 7 && colNumber <= 15) {
         cell.alignment = { horizontal: 'center' };
       }
     });
@@ -295,16 +297,17 @@ async function generateConsolidatedExcel(reportData, year, month) {
     '',
     '',
     '',
+    '',
     grandTotal,
   ]);
   totalRow.height = 24;
-  sheet.mergeCells(`A${totalRow.number}:N${totalRow.number}`);
+  sheet.mergeCells(`A${totalRow.number}:O${totalRow.number}`);
   const totalLabelCell = sheet.getCell(`A${totalRow.number}`);
   totalLabelCell.value = 'GRAND TOTAL PAYROLL (INR)';
   totalLabelCell.font = { name: 'Arial', size: 10, bold: true };
   totalLabelCell.alignment = { horizontal: 'right', vertical: 'middle' };
 
-  const totalValueCell = sheet.getCell(`O${totalRow.number}`);
+  const totalValueCell = sheet.getCell(`P${totalRow.number}`);
   totalValueCell.numFmt = '₹#,##0.00';
   totalValueCell.font = { name: 'Arial', size: 11, bold: true, color: { argb: 'FF166534' } };
   totalValueCell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF0FDF4' } };
@@ -320,6 +323,7 @@ async function generateConsolidatedExcel(reportData, year, month) {
     { width: 14 },
     { width: 14 },
     { width: 12 },
+    { width: 14 },
     { width: 14 },
     { width: 16 },
     { width: 18 },

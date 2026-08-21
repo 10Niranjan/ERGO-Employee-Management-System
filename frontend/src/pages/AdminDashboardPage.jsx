@@ -8,6 +8,7 @@ import {
   ClipboardCheck,
   ClipboardList,
   Clock4,
+  Home,
   Plane,
   Tags,
   Users,
@@ -225,6 +226,7 @@ export default function AdminDashboardPage() {
     present: 0,
     half_day: 0,
     travel: 0,
+    wfh: 0,
     absent: 0,
     not_marked: 0,
     pending_corrections: 0,
@@ -314,6 +316,19 @@ export default function AdminDashboardPage() {
               {loading ? <span className="spinner" /> : todayStats.travel}
             </div>
             <span className="kpi-sub text-muted text-xs">Client duty</span>
+          </div>
+
+          <div className="kpi-card card">
+            <div className="kpi-header">
+              <span className="kpi-title text-muted text-xs">Work From Home</span>
+              <span className="icon-chip icon-chip-sm icon-chip-primary">
+                <Home size={15} aria-hidden="true" />
+              </span>
+            </div>
+            <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>
+              {loading ? <span className="spinner" /> : todayStats.wfh}
+            </div>
+            <span className="kpi-sub text-muted text-xs">Remote today</span>
           </div>
 
           <div className="kpi-card card bad">

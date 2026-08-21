@@ -379,6 +379,11 @@
   color: var(--color-primary);
 }
 
+.status-wfh {
+  background-color: var(--color-primary-light);
+  color: var(--color-primary);
+}
+
 .status-absent {
   background-color: var(--color-danger-light);
   color: var(--color-danger);

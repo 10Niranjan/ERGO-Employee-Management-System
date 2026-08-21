@@ -227,6 +227,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
   let presentDays = 0;
   let halfDays = 0;
   let travelDays = 0;
+  let wfhDays = 0;
   let paidLeaveDays = 0;
   let unpaidLeaveDays = 0;
   let absentDays = 0;
@@ -289,6 +290,11 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
           status = 'travel';
           payableFactor = 1.0;
           note = 'On Duty / Travel';
+        } else if (att.status === 'wfh') {
+          wfhDays++;
+          status = 'wfh';
+          payableFactor = 1.0;
+          note = 'Work From Home (Full Day)';
         } else if (att.status === 'half_day') {
           halfDays++;
           status = 'half_day';
@@ -347,6 +353,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
       present_days: presentDays,
       half_days: halfDays,
       travel_days: travelDays,
+      wfh_days: wfhDays,
       paid_leave_days: paidLeaveDays,
       unpaid_leave_days: unpaidLeaveDays,
       absent_days: absentDays,

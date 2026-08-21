@@ -519,6 +519,11 @@ export default function SalaryManagementPage() {
                 <span className="kpi-sub text-muted text-xs">100% per-day rate</span>
               </div>
               <div className="kpi-card card">
+                <span className="kpi-title text-muted text-xs">Work From Home</span>
+                <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{calcResult.summary.wfh_days}</div>
+                <span className="kpi-sub text-muted text-xs">100% per-day rate</span>
+              </div>
+              <div className="kpi-card card">
                 <span className="kpi-title text-muted text-xs">Paid Leaves</span>
                 <div className="kpi-value text-success">{calcResult.summary.paid_leave_days}</div>
                 <span className="kpi-sub text-muted text-xs">100% compensation</span>
@@ -627,7 +632,7 @@ export default function SalaryManagementPage() {
                     <tr>
                       <th>Employee</th>
                       <th>Working Days</th>
-                      <th>Present / Travel</th>
+                      <th>Present / Travel / WFH</th>
                       <th>Paid Leaves</th>
                       <th>Net Salary</th>
                       <th>Generated Timestamp</th>
@@ -646,7 +651,7 @@ export default function SalaryManagementPage() {
                           </div>
                         </td>
                         <td>{p.working_days} days</td>
-                        <td>{p.present_days + p.travel_days} days</td>
+                        <td>{p.present_days + p.travel_days + p.wfh_days} days</td>
                         <td>{p.paid_leave_days} days</td>
                         <td>
                           <strong className="salary-rate-highlight">

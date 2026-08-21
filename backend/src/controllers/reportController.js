@@ -98,16 +98,17 @@ async function generatePayslip(req, res, next) {
 
     const { rows } = await query(
       `INSERT INTO payslips
-         (user_id, month, year, working_days, present_days, half_days, travel_days,
+         (user_id, month, year, working_days, present_days, half_days, travel_days, wfh_days,
           paid_leave_days, unpaid_leave_days, absent_days, holiday_count, weekend_count,
           monthly_salary, per_day_salary, net_salary, breakdown, generated_by, generated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW())
        ON CONFLICT (user_id, month, year) DO UPDATE
        SET
          working_days      = EXCLUDED.working_days,
          present_days      = EXCLUDED.present_days,
          half_days         = EXCLUDED.half_days,
          travel_days       = EXCLUDED.travel_days,
+         wfh_days          = EXCLUDED.wfh_days,
          paid_leave_days   = EXCLUDED.paid_leave_days,
          unpaid_leave_days = EXCLUDED.unpaid_leave_days,
          absent_days       = EXCLUDED.absent_days,
@@ -129,6 +130,7 @@ async function generatePayslip(req, res, next) {
         calc.summary.present_days,
         calc.summary.half_days,
         calc.summary.travel_days,
+        calc.summary.wfh_days,
         calc.summary.paid_leave_days,
         calc.summary.unpaid_leave_days,
         calc.summary.absent_days,
@@ -182,7 +184,7 @@ async function listPayslips(req, res, next) {
 
     const { rows } = await query(
       `SELECT p.id, p.user_id, p.month, p.year, p.working_days, p.present_days,
-              p.half_days, p.travel_days, p.paid_leave_days, p.unpaid_leave_days,
+              p.half_days, p.travel_days, p.wfh_days, p.paid_leave_days, p.unpaid_leave_days,
               p.absent_days, p.holiday_count, p.weekend_count,
               p.monthly_salary, p.per_day_salary,
               p.net_salary, p.generated_at,
@@ -285,6 +287,7 @@ async function downloadPayslipPDF(req, res, next) {
         present_days: payslip.present_days,
         half_days: payslip.half_days,
         travel_days: payslip.travel_days,
+        wfh_days: payslip.wfh_days,
         paid_leave_days: payslip.paid_leave_days,
         unpaid_leave_days: payslip.unpaid_leave_days,
         absent_days: payslip.absent_days,

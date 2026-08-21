@@ -10,6 +10,7 @@ import {
   Download,
   FileText,
   History,
+  Home,
   Hourglass,
   Info,
   LogOut,
@@ -574,6 +575,14 @@ export default function EmployeeDashboardPage() {
                       >
                         <Plane size={15} aria-hidden="true" /> On Travel
                       </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={submittingToday}
+                        onClick={() => handleMarkAttendance('wfh')}
+                      >
+                        <Home size={15} aria-hidden="true" /> Work From Home
+                      </button>
                     </div>
                   )}
                 </div>
@@ -632,6 +641,11 @@ export default function EmployeeDashboardPage() {
                     <div className="kpi-card card">
                       <span className="kpi-title text-muted text-xs">Travel / On Duty</span>
                       <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{monthData.summary.travel_days}</div>
+                      <span className="kpi-sub text-muted text-xs">Full day rate</span>
+                    </div>
+                    <div className="kpi-card card">
+                      <span className="kpi-title text-muted text-xs">Work From Home</span>
+                      <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{monthData.summary.wfh_days}</div>
                       <span className="kpi-sub text-muted text-xs">Full day rate</span>
                     </div>
                     <div className="kpi-card card">
@@ -1228,6 +1242,11 @@ export default function EmployeeDashboardPage() {
                     <span className="kpi-sub text-muted text-xs">100% Rate</span>
                   </div>
                   <div className="kpi-card card">
+                    <span className="kpi-title text-muted text-xs">Work From Home</span>
+                    <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{mySalaryCalc.summary.wfh_days}</div>
+                    <span className="kpi-sub text-muted text-xs">100% Rate</span>
+                  </div>
+                  <div className="kpi-card card">
                     <span className="kpi-title text-muted text-xs">Paid Leaves</span>
                     <div className="kpi-value text-success">{mySalaryCalc.summary.paid_leave_days}</div>
                     <span className="kpi-sub text-muted text-xs">100% Rate</span>
@@ -1454,6 +1473,23 @@ export default function EmployeeDashboardPage() {
                 <span className="text-muted text-xs">Outstation or official company business travel</span>
               </div>
             </label>
+
+            <label className={`prompt-option-card ${selectedStatus === 'wfh' ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="promptStatus"
+                value="wfh"
+                checked={selectedStatus === 'wfh'}
+                onChange={() => setSelectedStatus('wfh')}
+              />
+              <span className="icon-chip icon-chip-md icon-chip-primary">
+                <Home size={17} aria-hidden="true" />
+              </span>
+              <div className="option-text">
+                <strong>Work From Home</strong>
+                <span className="text-muted text-xs">Remote work day (100% day compensation)</span>
+              </div>
+            </label>
           </div>
 
           <div className="modal-actions-row">
@@ -1514,6 +1550,7 @@ export default function EmployeeDashboardPage() {
               <option value="present">Present (Full Day)</option>
               <option value="half_day">Half-Day (50%)</option>
               <option value="travel">On Duty / Travel</option>
+              <option value="wfh">Work From Home</option>
               <option value="absent">Absent</option>
             </select>
           </div>
