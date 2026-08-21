@@ -84,17 +84,28 @@ async function sendAdminOtpEmail(to, otp, expiryMinutes) {
   });
 }
 
-/** Sent after ANY successful password change, to the account owner. */
+/**
+ * Sent after ANY successful password change, to the account owner.
+ * Best-effort: the password change itself has already committed by the time
+ * every caller invokes this, so a delivery failure (or SMTP being
+ * unconfigured) must not turn into a 500 for a request that already
+ * succeeded — log and swallow instead of throwing.
+ */
 async function sendPasswordChangedEmail(to, name) {
-  return sendMail({
-    to,
-    subject: 'Your ERGO password was changed',
-    text:
-      `Hi ${name || 'there'},\n\n` +
-      `Your ERGO account password was just changed, and you have been signed out on all devices.\n\n` +
-      `If this wasn't you, contact IT immediately at ${SUPPORT}.\n\n` +
-      `— ERGO Management System`,
-  });
+  try {
+    return await sendMail({
+      to,
+      subject: 'Your ERGO password was changed',
+      text:
+        `Hi ${name || 'there'},\n\n` +
+        `Your ERGO account password was just changed, and you have been signed out on all devices.\n\n` +
+        `If this wasn't you, contact IT immediately at ${SUPPORT}.\n\n` +
+        `— ERGO Management System`,
+    });
+  } catch (err) {
+    console.error(`[mailer] Failed to send password-changed notice to ${to}: ${err.message}`);
+    return { delivered: false, transport: 'error' };
+  }
 }
 
 module.exports = { sendMail, sendAdminOtpEmail, sendPasswordChangedEmail, SUPPORT };
