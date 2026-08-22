@@ -1,7 +1,8 @@
 'use strict';
 
 const { query, getClient } = require('../db/pool');
-const { getTodayIST, isWeekend, getDayOfWeek, getMonthDates } = require('../utils/time');
+const { getTodayIST, isWeekend, getDayOfWeek, getMonthDates, dbDateToStr } = require('../utils/time');
+const { audit, EVENTS } = require('../services/auditLog');
 
 // ─────────────────────────────────────────────────────────────────────────────
 // POST /api/attendance
@@ -11,11 +12,11 @@ async function markAttendance(req, res, next) {
   try {
     const userId = req.user.id;
     const { status } = req.body;
-    const validStatuses = ['present', 'half_day', 'travel'];
+    const validStatuses = ['present', 'half_day', 'travel', 'wfh'];
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
-        message: "Invalid status. Must be 'present', 'half_day', or 'travel'.",
+        message: "Invalid status. Must be 'present', 'half_day', 'travel', or 'wfh'.",
       });
     }
 
@@ -117,6 +118,7 @@ async function getTodayAttendance(req, res, next) {
     let presentCount = 0;
     let halfDayCount = 0;
     let travelCount = 0;
+    let wfhCount = 0;
     let absentCount = 0;
     let notMarkedCount = 0;
 
@@ -129,6 +131,7 @@ async function getTodayAttendance(req, res, next) {
         if (status === 'present') presentCount++;
         else if (status === 'half_day') halfDayCount++;
         else if (status === 'travel') travelCount++;
+        else if (status === 'wfh') wfhCount++;
         else if (status === 'absent') absentCount++;
       } else {
         notMarkedCount++;
@@ -156,6 +159,7 @@ async function getTodayAttendance(req, res, next) {
         present: presentCount,
         half_day: halfDayCount,
         travel: travelCount,
+        wfh: wfhCount,
         absent: absentCount,
         not_marked: notMarkedCount,
         pending_corrections: parseInt(pendingCorrections[0].count, 10),
@@ -213,7 +217,7 @@ async function getMonthlyAttendance(req, res, next) {
       [startDate, endDate]
     );
     const holidayMap = new Map(
-      holidays.map((h) => [new Date(h.date).toISOString().slice(0, 10), h.name])
+      holidays.map((h) => [dbDateToStr(h.date), h.name])
     );
 
     // Fetch attendance records for this user in this month
@@ -228,7 +232,7 @@ async function getMonthlyAttendance(req, res, next) {
       [targetUserId, startDate, endDate]
     );
     const attMap = new Map(
-      attRows.map((a) => [new Date(a.date).toISOString().slice(0, 10), a])
+      attRows.map((a) => [dbDateToStr(a.date), a])
     );
 
     const todayIST = getTodayIST();
@@ -236,6 +240,7 @@ async function getMonthlyAttendance(req, res, next) {
     let presentDays = 0;
     let halfDays = 0;
     let travelDays = 0;
+    let wfhDays = 0;
     let absentDays = 0;
     let notMarkedDays = 0;
     let weekendDays = 0;
@@ -263,6 +268,7 @@ async function getMonthlyAttendance(req, res, next) {
           if (att.status === 'present') presentDays++;
           else if (att.status === 'half_day') halfDays++;
           else if (att.status === 'travel') travelDays++;
+          else if (att.status === 'wfh') wfhDays++;
           else if (att.status === 'absent') absentDays++;
         } else if (dateStr < todayIST) {
           effectiveStatus = 'not_marked';
@@ -293,6 +299,7 @@ async function getMonthlyAttendance(req, res, next) {
         present_days: presentDays,
         half_days: halfDays,
         travel_days: travelDays,
+        wfh_days: wfhDays,
         absent_days: absentDays,
         not_marked_days: notMarkedDays,
         weekend_days: weekendDays,
@@ -375,11 +382,11 @@ async function requestCorrection(req, res, next) {
   try {
     const { id } = req.params;
     const { requested_status, reason } = req.body;
-    const validStatuses = ['present', 'half_day', 'travel', 'absent'];
+    const validStatuses = ['present', 'half_day', 'travel', 'wfh', 'absent'];
 
     if (!validStatuses.includes(requested_status)) {
       return res.status(400).json({
-        message: "Invalid requested status. Must be 'present', 'half_day', 'travel', or 'absent'.",
+        message: "Invalid requested status. Must be 'present', 'half_day', 'travel', 'wfh', or 'absent'.",
       });
     }
 
@@ -540,6 +547,15 @@ async function reviewCorrection(req, res, next) {
     }
 
     await client.query('COMMIT');
+
+    await audit({
+      event: EVENTS.ATTENDANCE_CORRECTION_REVIEWED,
+      actorUserId: req.user.id,
+      targetUserId: record.user_id,
+      req,
+      meta: { attendance_id: parseInt(id, 10), date: record.date, action },
+    });
+
     return res.status(200).json({
       message: `Correction request ${action === 'approve' ? 'approved' : 'declined'} successfully.`,
       attendance: updatedRow,
@@ -560,11 +576,11 @@ async function overrideAttendance(req, res, next) {
   try {
     const { id } = req.params;
     const { status, reason, user_id, date } = req.body;
-    const validStatuses = ['present', 'half_day', 'travel', 'absent'];
+    const validStatuses = ['present', 'half_day', 'travel', 'wfh', 'absent'];
 
     if (!validStatuses.includes(status)) {
       return res.status(400).json({
-        message: "Status must be 'present', 'half_day', 'travel', or 'absent'.",
+        message: "Status must be 'present', 'half_day', 'travel', 'wfh', or 'absent'.",
       });
     }
 
@@ -598,6 +614,14 @@ async function overrideAttendance(req, res, next) {
         [status, req.user.id, prev.status, reason.trim(), id]
       );
 
+      await audit({
+        event: EVENTS.ATTENDANCE_OVERRIDDEN,
+        actorUserId: req.user.id,
+        targetUserId: prev.user_id,
+        req,
+        meta: { attendance_id: parseInt(id, 10), date: prev.date, previous_status: prev.status, new_status: status, reason: reason.trim() },
+      });
+
       return res.status(200).json({
         message: 'Attendance overridden successfully.',
         attendance: rows[0],
@@ -625,6 +649,14 @@ async function overrideAttendance(req, res, next) {
        RETURNING *`,
       [user_id, date, status, req.user.id, reason.trim()]
     );
+
+    await audit({
+      event: EVENTS.ATTENDANCE_OVERRIDDEN,
+      actorUserId: req.user.id,
+      targetUserId: parseInt(user_id, 10),
+      req,
+      meta: { attendance_id: rows[0].id, date, new_status: status, reason: reason.trim() },
+    });
 
     return res.status(200).json({
       message: 'Attendance overridden successfully.',

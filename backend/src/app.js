@@ -13,13 +13,29 @@ const salaryRoutes     = require('./routes/salaryRoutes');
 const attendanceRoutes = require('./routes/attendanceRoutes');
 const leaveRoutes      = require('./routes/leaveRoutes');
 const reportRoutes     = require('./routes/reportRoutes');
+const cronRoutes       = require('./routes/cronRoutes');
 const { errorHandler } = require('./middleware/errorHandler');
 const { authenticate, blockUntilPasswordChanged } = require('./middleware/auth');
 
 const app = express();
 
+// Trust the first hop's X-Forwarded-For (the reverse proxy the README's
+// production guidance puts in front of this app — Nginx/Caddy/Cloudflare).
+// Without this, express-rate-limit keys off the proxy's IP instead of the
+// real client's, so every user shares one rate-limit bucket.
+app.set('trust proxy', 1);
+
 // ─── Security headers ─────────────────────────────────────────────────────────
-app.use(helmet());
+app.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'none'"],
+        frameAncestors: ["'none'"],
+      },
+    },
+  })
+);
 
 // ─── CORS ─────────────────────────────────────────────────────────────────────
 const allowedOrigins = [
@@ -77,6 +93,10 @@ app.get('/api/db-health', async (_req, res, next) => {
 // password-change endpoints, which a first_login user must still be able to
 // reach in order to leave that state.
 app.use('/api/auth', authRoutes);
+
+// Vercel Cron's trigger, or any external scheduler — authenticated by a
+// shared CRON_SECRET checked inside the controller, not a user JWT.
+app.use('/api/cron', cronRoutes);
 
 // Every business route is blocked while a password change is outstanding, so
 // the mandatory reset screen can't be sidestepped by calling the API directly.

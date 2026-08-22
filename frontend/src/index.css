@@ -101,7 +101,7 @@
 
 /* ─── Light theme ──────────────────────────────────────────── */
 :root[data-theme="light"] {
-  --color-bg:            #F4F6FA;
+  --color-bg:            #FFFFFF;
   --color-surface:       #FFFFFF;
   --color-surface-2:     #EEF1F8;
   --color-surface-hover: #E4E8F4;

@@ -292,7 +292,7 @@
 
 /* ─── RIGHT PANEL (Form Panel) ───────────────────────────────── */
 .login-form-panel {
-  --form-bg: #F5F7FB;
+  --form-bg: #FFFFFF;
   --form-text: #141E38;
   --form-muted: #8592AE;
   --form-border: #E7EBF4;

@@ -32,8 +32,8 @@ router.post(
   [
     body('status')
       .trim()
-      .isIn(['present', 'half_day', 'travel'])
-      .withMessage("Status must be 'present', 'half_day', or 'travel'."),
+      .isIn(['present', 'half_day', 'travel', 'wfh'])
+      .withMessage("Status must be 'present', 'half_day', 'travel', or 'wfh'."),
   ],
   validate,
   markAttendance
@@ -61,8 +61,8 @@ router.post(
     param('id').isInt({ min: 1 }).withMessage('Invalid attendance ID.'),
     body('requested_status')
       .trim()
-      .isIn(['present', 'half_day', 'travel', 'absent'])
-      .withMessage("Requested status must be 'present', 'half_day', 'travel', or 'absent'."),
+      .isIn(['present', 'half_day', 'travel', 'wfh', 'absent'])
+      .withMessage("Requested status must be 'present', 'half_day', 'travel', 'wfh', or 'absent'."),
     body('reason').trim().notEmpty().withMessage('Reason for correction is required.'),
   ],
   validate,
@@ -112,8 +112,8 @@ router.put(
   [
     body('status')
       .trim()
-      .isIn(['present', 'half_day', 'travel', 'absent'])
-      .withMessage("Status must be 'present', 'half_day', 'travel', or 'absent'."),
+      .isIn(['present', 'half_day', 'travel', 'wfh', 'absent'])
+      .withMessage("Status must be 'present', 'half_day', 'travel', 'wfh', or 'absent'."),
     body('reason').trim().notEmpty().withMessage('Override reason is required.'),
     body('user_id').optional().isInt({ min: 1 }).withMessage('Invalid user_id.'),
     body('date').optional().isISO8601().withMessage('Date must be in YYYY-MM-DD format.'),

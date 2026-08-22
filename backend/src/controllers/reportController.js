@@ -1,7 +1,7 @@
 'use strict';
 
 const { query } = require('../db/pool');
-const { calculateMonthlySalary } = require('../services/salaryService');
+const { calculateMonthlySalary, buildComponentSnapshot, getPayslipLeaveSummary } = require('../services/salaryService');
 const { generatePayslipPDF, generateConsolidatedExcel } = require('../services/reportService');
 
 const MONTH_NAMES = [
@@ -42,6 +42,47 @@ async function computeSalary(req, res, next) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// GET /api/reports/salary/compute/download
+// Downloads a PDF built straight from the live (non-snapshotted) calculation —
+// same RBAC as computeSalary. Marked "Provisional" since it can change until
+// an admin runs POST /payslips/generate to finalize the month.
+// ─────────────────────────────────────────────────────────────────────────────
+async function downloadLiveSalaryPDF(req, res, next) {
+  try {
+    const currentYear = new Date().getFullYear();
+    const currentMonth = new Date().getMonth() + 1;
+
+    const year = parseInt(req.query.year, 10) || currentYear;
+    const month = parseInt(req.query.month, 10) || currentMonth;
+
+    if (month < 1 || month > 12) {
+      return res.status(400).json({ message: 'Month must be between 1 and 12.' });
+    }
+
+    let targetUserId = req.user.id;
+    if (req.user.role === 'admin' && req.query.user_id) {
+      targetUserId = parseInt(req.query.user_id, 10);
+    } else if (req.user.role !== 'admin' && req.query.user_id) {
+      if (parseInt(req.query.user_id, 10) !== req.user.id) {
+        return res.status(403).json({ message: 'Access denied. You can only download your own salary computation.' });
+      }
+    }
+
+    const calc = await calculateMonthlySalary({ query }, targetUserId, year, month);
+    const leave = await getPayslipLeaveSummary({ query }, targetUserId, year, month);
+    const pdfBuffer = await generatePayslipPDF({ ...calc, leave }, { provisional: true });
+    const monthName = MONTH_NAMES[month - 1] || `Month_${month}`;
+    const filename = `Payslip_${calc.employee.employee_id}_${monthName}_${year}_Provisional.pdf`;
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    return res.send(pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // POST /api/reports/payslips/generate
 // Admin generates / snapshots a monthly payslip record
 // ─────────────────────────────────────────────────────────────────────────────
@@ -57,16 +98,17 @@ async function generatePayslip(req, res, next) {
 
     const { rows } = await query(
       `INSERT INTO payslips
-         (user_id, month, year, working_days, present_days, half_days, travel_days,
+         (user_id, month, year, working_days, present_days, half_days, travel_days, wfh_days,
           paid_leave_days, unpaid_leave_days, absent_days, holiday_count, weekend_count,
           monthly_salary, per_day_salary, net_salary, breakdown, generated_by, generated_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, NOW())
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, NOW())
        ON CONFLICT (user_id, month, year) DO UPDATE
        SET
          working_days      = EXCLUDED.working_days,
          present_days      = EXCLUDED.present_days,
          half_days         = EXCLUDED.half_days,
          travel_days       = EXCLUDED.travel_days,
+         wfh_days          = EXCLUDED.wfh_days,
          paid_leave_days   = EXCLUDED.paid_leave_days,
          unpaid_leave_days = EXCLUDED.unpaid_leave_days,
          absent_days       = EXCLUDED.absent_days,
@@ -88,6 +130,7 @@ async function generatePayslip(req, res, next) {
         calc.summary.present_days,
         calc.summary.half_days,
         calc.summary.travel_days,
+        calc.summary.wfh_days,
         calc.summary.paid_leave_days,
         calc.summary.unpaid_leave_days,
         calc.summary.absent_days,
@@ -141,7 +184,7 @@ async function listPayslips(req, res, next) {
 
     const { rows } = await query(
       `SELECT p.id, p.user_id, p.month, p.year, p.working_days, p.present_days,
-              p.half_days, p.travel_days, p.paid_leave_days, p.unpaid_leave_days,
+              p.half_days, p.travel_days, p.wfh_days, p.paid_leave_days, p.unpaid_leave_days,
               p.absent_days, p.holiday_count, p.weekend_count,
               p.monthly_salary, p.per_day_salary,
               p.net_salary, p.generated_at,
@@ -205,7 +248,11 @@ async function downloadPayslipPDF(req, res, next) {
 
     const { rows } = await query(
       `SELECT p.*,
-              u.name AS employee_name, u.employee_id, u.designation, u.email
+              u.name AS employee_name, u.employee_id, u.designation, u.email,
+              u.date_of_joining, u.pan, u.bank_name, u.bank_account_no,
+              u.basic, u.hra, u.education_allowance, u.conveyance, u.professional_development,
+              u.other_allowance, u.lta, u.employer_pf, u.bonus,
+              u.pf_deduction, u.professional_tax, u.tds
        FROM payslips p
        JOIN users u ON u.id = p.user_id
        WHERE p.id = $1`,
@@ -221,11 +268,17 @@ async function downloadPayslipPDF(req, res, next) {
       return res.status(403).json({ message: 'Access denied. You can only download your own payslips.' });
     }
 
+    const leave = await getPayslipLeaveSummary({ query }, payslip.user_id, payslip.year, payslip.month);
+
     const formattedData = {
       employee: {
         name: payslip.employee_name,
         employee_id: payslip.employee_id,
         designation: payslip.designation,
+        date_of_joining: payslip.date_of_joining,
+        pan: payslip.pan || null,
+        bank_name: payslip.bank_name || null,
+        bank_account_no: payslip.bank_account_no || null,
       },
       year: payslip.year,
       month: payslip.month,
@@ -234,6 +287,7 @@ async function downloadPayslipPDF(req, res, next) {
         present_days: payslip.present_days,
         half_days: payslip.half_days,
         travel_days: payslip.travel_days,
+        wfh_days: payslip.wfh_days,
         paid_leave_days: payslip.paid_leave_days,
         unpaid_leave_days: payslip.unpaid_leave_days,
         absent_days: payslip.absent_days,
@@ -243,6 +297,8 @@ async function downloadPayslipPDF(req, res, next) {
         per_day_salary: payslip.per_day_salary,
         net_salary: payslip.net_salary,
       },
+      components: buildComponentSnapshot(payslip),
+      leave,
       days: Array.isArray(payslip.breakdown) ? payslip.breakdown : JSON.parse(payslip.breakdown || '[]'),
     };
 
@@ -302,6 +358,7 @@ async function downloadConsolidatedExcel(req, res, next) {
 
 module.exports = {
   computeSalary,
+  downloadLiveSalaryPDF,
   generatePayslip,
   listPayslips,
   getPayslipById,

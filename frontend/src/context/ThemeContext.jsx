@@ -4,13 +4,13 @@ const ThemeContext = createContext(null);
 
 /**
  * ThemeProvider
- * Toggles the `data-theme` attribute on <html> between 'dark' (default) and 'light'.
+ * Toggles the `data-theme` attribute on <html> between 'light' (default) and 'dark'.
  * Persists the choice in localStorage. main.jsx applies the saved value synchronously
  * before React mounts, so there is no flash of the wrong theme on load.
  */
 export function ThemeProvider({ children }) {
   const [theme, setTheme] = useState(
-    () => document.documentElement.getAttribute('data-theme') || 'dark'
+    () => document.documentElement.getAttribute('data-theme') || 'light'
   );
 
   useEffect(() => {

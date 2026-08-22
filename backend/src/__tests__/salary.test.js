@@ -130,6 +130,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
             { date: '2026-08-06', status: 'travel' },
             { date: '2026-08-07', status: 'half_day' },
             { date: '2026-08-10', status: 'absent' },
+            { date: '2026-08-11', status: 'wfh' },
           ],
         }), // 6. attendance
     };
@@ -141,14 +142,15 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.present_days).toBe(1); // Aug 05 (1000)
     expect(result.summary.travel_days).toBe(1); // Aug 06 (1000)
     expect(result.summary.half_days).toBe(1); // Aug 07 (500)
+    expect(result.summary.wfh_days).toBe(1); // Aug 11 (1000) — full paid day
     expect(result.summary.paid_leave_days).toBe(1); // Aug 03 (1000)
     expect(result.summary.unpaid_leave_days).toBe(1); // Aug 04 (0)
     expect(result.summary.holiday_count).toBe(1); // Aug 15 — also a Saturday, holiday wins
 
     // 9 weekend days (Aug 15 reclassified as holiday, not double-counted) @1000 = 9000
-    // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500
-    // + unpaid leave 0 + 15 unmarked-absent working days @ 0
-    expect(result.summary.net_salary).toBe(13500);
+    // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500 + wfh 1000
+    // + unpaid leave 0 + 14 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(14500);
   });
 
   // Scenario A: 8 Present, 1 Half-Day, 1 Unpaid Leave (with remaining 11 working days absent)
@@ -352,6 +354,65 @@ describe('GET /api/reports/salary/compute', () => {
 });
 
 // =============================================================================
+// API Tests: GET /api/reports/salary/compute/download (live/provisional PDF)
+// =============================================================================
+describe('GET /api/reports/salary/compute/download', () => {
+  test('employee downloads own provisional PDF from the live calculation', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [SAMPLE_EMPLOYEE] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({
+        rows: [{ date: '2026-08-03', status: 'present' }],
+      })
+      // getPayslipLeaveSummary: leave types, balances, earned, taken
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '4' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+    expect(res.headers['content-disposition']).toMatch(/attachment; filename=.*Provisional/);
+    expect(res.body).toBeInstanceOf(Buffer);
+    expect(res.body.slice(0, 4).toString()).toBe('%PDF');
+  });
+
+  test('employee cannot download another employee\'s provisional PDF', async () => {
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8&user_id=3')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('admin downloads provisional PDF for any employee', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [SAMPLE_EMPLOYEE] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
+
+    const res = await request(app)
+      .get('/api/reports/salary/compute/download?year=2026&month=8&user_id=2')
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
+
+    expect(res.status).toBe(200);
+    expect(res.headers['content-type']).toBe('application/pdf');
+  });
+});
+
+// =============================================================================
 // API Tests: POST /api/reports/payslips/generate
 // =============================================================================
 describe('POST /api/reports/payslips/generate', () => {
@@ -482,6 +543,7 @@ describe('GET /api/reports/payslips/:id/download', () => {
           present_days: 20,
           half_days: 0,
           travel_days: 0,
+          wfh_days: 0,
           paid_leave_days: 1,
           unpaid_leave_days: 0,
           absent_days: 0,
@@ -494,9 +556,31 @@ describe('GET /api/reports/payslips/:id/download', () => {
           employee_name: 'John Doe',
           employee_id: 'EMP001',
           designation: 'Software Engineer',
+          date_of_joining: '2025-01-01',
+          pan: 'ABCDE1234F',
+          bank_name: 'HDFC Bank',
+          bank_account_no: '1234567890',
+          basic: '15000.00',
+          hra: '7500.00',
+          education_allowance: '1000.00',
+          conveyance: '1000.00',
+          professional_development: '500.00',
+          other_allowance: '500.00',
+          lta: '1000.00',
+          employer_pf: '1800.00',
+          bonus: '0.00',
+          pf_deduction: '1800.00',
+          professional_tax: '200.00',
+          tds: '0.00',
         },
       ],
     });
+    // getPayslipLeaveSummary: leave types, balances, earned, taken
+    query
+      .mockResolvedValueOnce({ rows: [{ id: 1 }, { id: 3 }] })
+      .mockResolvedValueOnce({ rows: [{ total: '4' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '1' }] })
+      .mockResolvedValueOnce({ rows: [{ total: '0' }] });
 
     const res = await request(app)
       .get('/api/reports/payslips/50/download')

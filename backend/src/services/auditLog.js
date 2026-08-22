@@ -21,6 +21,14 @@ const EVENTS = {
   EMPLOYEE_RESET_VIEWED: 'employee.reset.viewed',
   EMPLOYEE_TEMP_PASSWORD_ISSUED: 'employee.temp_password.issued',
   PASSWORD_CHANGED: 'password.changed',
+  LOGIN_FAILED: 'login.failed',
+  LOGIN_LOCKED: 'login.locked',
+  USER_DELETED: 'user.deleted',
+  USER_STATUS_CHANGED: 'user.status_changed',
+  SALARY_RATE_CHANGED: 'salary.rate_changed',
+  ATTENDANCE_CORRECTION_REVIEWED: 'attendance.correction_reviewed',
+  ATTENDANCE_OVERRIDDEN: 'attendance.overridden',
+  LEAVE_APPLICATION_REVIEWED: 'leave.application_reviewed',
 };
 
 /** Pulls the caller's IP and user agent off the request for the audit row. */

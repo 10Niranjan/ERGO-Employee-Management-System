@@ -16,14 +16,16 @@ const bcrypt = require('bcryptjs');
 // share the same mock instance.
 jest.mock('../db/pool', () => {
   const queryMock = jest.fn();
+  const mockClient = { query: jest.fn(), release: jest.fn() };
   return {
     query: queryMock,
-    getClient: jest.fn(),
+    getClient: jest.fn().mockResolvedValue(mockClient),
     pool: { query: jest.fn().mockResolvedValue({ rows: [{ status: 'active', first_login: false, password_changed_at: null }] }), end: jest.fn(), on: jest.fn() },
+    _mockClient: mockClient,
   };
 });
 
-const { query } = require('../db/pool');
+const { query, _mockClient: mockClient } = require('../db/pool');
 const { signToken } = require('../utils/jwt');
 const app = require('../app');
 
@@ -41,6 +43,7 @@ beforeAll(async () => {
 
 afterEach(() => {
   jest.clearAllMocks();
+  mockClient.query.mockReset();
 });
 
 // =============================================================================
@@ -58,6 +61,8 @@ describe('POST /api/auth/login', () => {
     password_hash: hashedPassword,
     first_login: true,
     status: 'active',
+    failed_login_attempts: 0,
+    login_locked_until: null,
     ...overrides,
   });
 
@@ -122,6 +127,44 @@ describe('POST /api/auth/login', () => {
     expect(res.body.token).toBeDefined();
   });
 
+  test('locks the account on the 5th failed attempt (per-account, not per-IP)', async () => {
+    query.mockResolvedValueOnce({ rows: [makeUser({ failed_login_attempts: 4 })] }); // SELECT user
+    query.mockResolvedValueOnce({}); // UPDATE failed_login_attempts + login_locked_until
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: 'WrongPass99' });
+    expect(res.status).toBe(429);
+    expect(res.body.message).toMatch(/too many failed login attempts/i);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['login.locked'])
+    );
+  });
+
+  test('rejects a locked account even with the correct password', async () => {
+    query.mockResolvedValueOnce({
+      rows: [makeUser({ login_locked_until: new Date(Date.now() + 10 * 60 * 1000).toISOString() })],
+    });
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: VALID_PASSWORD });
+    expect(res.status).toBe(429);
+    expect(res.body.message).toMatch(/too many failed login attempts/i);
+  });
+
+  test('a successful login clears any accumulated failed attempts', async () => {
+    query.mockResolvedValueOnce({ rows: [makeUser({ failed_login_attempts: 3 })] }); // SELECT user
+    query.mockResolvedValueOnce({}); // UPDATE reset counters
+    const res = await request(app)
+      .post(endpoint)
+      .send({ identifier: 'admin@ergo.com', password: VALID_PASSWORD });
+    expect(res.status).toBe(200);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('failed_login_attempts = 0'),
+      [1]
+    );
+  });
+
   test('employee login works and returns role=employee', async () => {
     query.mockResolvedValueOnce({
       rows: [
@@ -171,32 +214,69 @@ describe('POST /api/auth/reset-password', () => {
     expect(res.status).toBe(400);
   });
 
-  test('returns 400 if password has no number', async () => {
+  test('returns 400 if password has no number or symbol', async () => {
     const res = await request(app)
       .post(endpoint)
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
       .send({ new_password: 'NoNumbersHere' });
     expect(res.status).toBe(400);
-    expect(res.body.message).toMatch(/letter.*number|number.*letter/i);
+    expect(res.body.failed_rules).toEqual(expect.arrayContaining(['number', 'symbol']));
   });
 
-  test('returns 200 on valid password reset', async () => {
-    // Mock the UPDATE query inside resetPassword controller
-    query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+  test('returns 400 when reusing one of the last 3 passwords', async () => {
+    const reusedCandidate = 'OldSecure1!';
+    const reusedHash = await bcrypt.hash(reusedCandidate, 4);
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'System Admin', email: 'admin@ergo.com' }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [{ password_hash: reusedHash }] }); // isPasswordReused: matches
     const res = await request(app)
       .post(endpoint)
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
-      .send({ new_password: 'NewSecure1' });
+      .send({ new_password: reusedCandidate });
+    expect(res.status).toBe(400);
+    expect(res.body.message).toMatch(/cannot reuse/i);
+  });
+
+  test('returns 200 on valid password reset and invalidates other sessions', async () => {
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 1, name: 'System Admin', email: 'admin@ergo.com' }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // isPasswordReused: no match
+      .mockResolvedValueOnce({}) // UPDATE users (applyNewPassword)
+      .mockResolvedValueOnce({}) // INSERT password_history
+      .mockResolvedValueOnce({}) // DELETE prune old history
+      .mockResolvedValueOnce({}); // COMMIT
+
+    const res = await request(app)
+      .post(endpoint)
+      .set('Authorization', `Bearer ${ADMIN_TOKEN}`)
+      .send({ new_password: 'NewSecure1!' });
+
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/password updated/i);
+    // password_changed_at is what revokes every other issued token — the bug
+    // this rewrite fixes was this endpoint silently never setting it.
+    expect(mockClient.query).toHaveBeenCalledWith(
+      expect.stringContaining('password_changed_at = NOW()'),
+      expect.any(Array)
+    );
   });
 
   test('works for employee role too', async () => {
-    query.mockResolvedValueOnce({ rows: [], rowCount: 1 });
+    mockClient.query
+      .mockResolvedValueOnce({}) // BEGIN
+      .mockResolvedValueOnce({ rows: [{ id: 2, name: 'Test Employee', email: 'emp@ergo.com' }] }) // SELECT ... FOR UPDATE
+      .mockResolvedValueOnce({ rows: [] }) // isPasswordReused: no match
+      .mockResolvedValueOnce({}) // UPDATE users
+      .mockResolvedValueOnce({}) // INSERT password_history
+      .mockResolvedValueOnce({}) // DELETE prune old history
+      .mockResolvedValueOnce({}); // COMMIT
+
     const res = await request(app)
       .post(endpoint)
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
-      .send({ new_password: 'EmpNewPass1' });
+      .send({ new_password: 'EmpNewPass1!' });
     expect(res.status).toBe(200);
   });
 });

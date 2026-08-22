@@ -6,12 +6,14 @@ const {
   isWeekend,
   getDateRange,
   isPastSameDayLeaveCutoff,
+  dbDateToStr,
 } = require('../utils/time');
 const {
   applyLedgerEntry, recordInitialAllocation,
   evaluateEmployeeForPeriod, runAccrualForPeriod,
 } = require('../services/leaveAccrualService');
 const { getMostRecentlyCompletedPeriod } = require('../utils/time');
+const { audit, EVENTS } = require('../services/auditLog');
 
 /**
  * Ensures that leave balances exist for a user in the given year.
@@ -53,7 +55,7 @@ async function calculateWorkingDays(startDateStr, endDateStr) {
     [startDateStr, endDateStr]
   );
   const holidaySet = new Set(
-    holidays.map((h) => new Date(h.date).toISOString().slice(0, 10))
+    holidays.map((h) => dbDateToStr(h.date))
   );
 
   const workingDays = allDates.filter(
@@ -183,8 +185,8 @@ async function applyLeave(req, res, next) {
 
     if (overlaps.length > 0) {
       const o = overlaps[0];
-      const s = new Date(o.start_date).toISOString().slice(0, 10);
-      const e = new Date(o.end_date).toISOString().slice(0, 10);
+      const s = dbDateToStr(o.start_date);
+      const e = dbDateToStr(o.end_date);
       return res.status(409).json({
         message: `You already have an active leave request (${o.status.toUpperCase()}) overlapping with these dates (${s} to ${e}).`,
       });
@@ -377,7 +379,7 @@ async function approvePendingApplication(client, application, { reviewerId, admi
       year: leaveYear,
       entryType: 'LEAVE_TAKEN',
       amount: application.working_days_count,
-      note: `${application.leave_type_name}: ${new Date(application.start_date).toISOString().slice(0, 10)} to ${new Date(application.end_date).toISOString().slice(0, 10)}`,
+      note: `${application.leave_type_name}: ${dbDateToStr(application.start_date)} to ${dbDateToStr(application.end_date)}`,
       createdBy: reviewerId,
     });
   }
@@ -476,6 +478,14 @@ async function reviewLeaveApplication(req, res, next) {
     }
 
     await client.query('COMMIT');
+
+    await audit({
+      event: EVENTS.LEAVE_APPLICATION_REVIEWED,
+      actorUserId: req.user.id,
+      targetUserId: application.user_id,
+      req,
+      meta: { application_id: parseInt(id, 10), leave_type: application.leave_type_name, status },
+    });
 
     return res.status(200).json({
       message: `Leave application ${status} successfully.`,
@@ -585,7 +595,7 @@ async function runAccrualManually(req, res, next) {
         const result = await evaluateEmployeeForPeriod(client, {
           userId: userRows[0].id,
           dateOfJoining: userRows[0].date_of_joining
-            ? new Date(userRows[0].date_of_joining).toISOString().slice(0, 10)
+            ? dbDateToStr(userRows[0].date_of_joining)
             : null,
           period: targetPeriod,
           createdBy: req.user.id,

@@ -91,11 +91,25 @@ describe('POST /api/attendance', () => {
     expect(res.body.attendance.status).toBe('travel');
   });
 
-  test('returns 400 for invalid status string', async () => {
+  test('employee marks attendance as wfh', async () => {
+    query
+      .mockResolvedValueOnce({ rows: [] })
+      .mockResolvedValueOnce({ rows: [{ ...SAMPLE_ATTENDANCE, status: 'wfh' }] });
+
     const res = await request(app)
       .post('/api/attendance')
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
       .send({ status: 'wfh' });
+
+    expect(res.status).toBe(201);
+    expect(res.body.attendance.status).toBe('wfh');
+  });
+
+  test('returns 400 for invalid status string', async () => {
+    const res = await request(app)
+      .post('/api/attendance')
+      .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
+      .send({ status: 'sick_leave' });
 
     expect(res.status).toBe(400);
   });
@@ -354,6 +368,10 @@ describe('Admin: Corrections & Overrides', () => {
     expect(res.status).toBe(200);
     expect(res.body.attendance.status).toBe('half_day');
     expect(res.body.attendance.correction_status).toBe('approved');
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['attendance.correction_reviewed'])
+    );
   });
 
   test('admin declines correction request with reason', async () => {
@@ -426,6 +444,10 @@ describe('Admin: Corrections & Overrides', () => {
     expect(res.status).toBe(200);
     expect(res.body.attendance.status).toBe('travel');
     expect(res.body.attendance.is_admin_override).toBe(true);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['attendance.overridden'])
+    );
   });
 
   test('employee cannot perform admin override', async () => {

@@ -6,7 +6,6 @@ import {
   Eye,
   EyeOff,
   ArrowRight,
-  CreditCard,
   Menu,
   CheckCircle,
   Globe,

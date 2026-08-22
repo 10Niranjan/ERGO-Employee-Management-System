@@ -10,6 +10,7 @@ import {
   Download,
   FileText,
   History,
+  Home,
   Hourglass,
   Info,
   LogOut,
@@ -42,12 +43,14 @@ import {
   computeSalary,
   listPayslips,
   downloadPayslipPDF,
+  downloadLiveSalaryPDF,
 } from '../api/reportApi';
 import { getMySalaryComponents } from '../api/salaryApi';
 import { getHolidays } from '../api/holidayApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
 import ThemeToggle from '../components/ThemeToggle';
+import HeaderUserMenu from '../components/HeaderUserMenu';
 import './EmployeeDashboardPage.css';
 
 export default function EmployeeDashboardPage() {
@@ -116,6 +119,7 @@ export default function EmployeeDashboardPage() {
   const [salaryYear, setSalaryYear] = useState(now.getFullYear());
   const [mySalaryCalc, setMySalaryCalc] = useState(null);
   const [salaryCalcLoading, setSalaryCalcLoading] = useState(false);
+  const [liveDownloading, setLiveDownloading] = useState(false);
   const [myPayslips, setMyPayslips] = useState([]);
   const [myPayslipsLoading, setMyPayslipsLoading] = useState(false);
   const [mySalaryComponents, setMySalaryComponents] = useState(null);
@@ -125,11 +129,6 @@ export default function EmployeeDashboardPage() {
   const [holidays, setHolidays] = useState([]);
   const [holidaysLoading, setHolidaysLoading] = useState(false);
   const [holidayYear, setHolidayYear] = useState(now.getFullYear());
-
-  function handleLogout() {
-    logout();
-    navigate('/login', { replace: true });
-  }
 
   // Fetch today's status
   const fetchTodayStatus = useCallback(async () => {
@@ -218,6 +217,22 @@ export default function EmployeeDashboardPage() {
       setSalaryCalcLoading(false);
     }
   }, [salaryYear, salaryMonth]);
+
+  // Download a PDF of the live (provisional) calculation currently on screen
+  const handleDownloadLivePDF = useCallback(async () => {
+    setLiveDownloading(true);
+    try {
+      await downloadLiveSalaryPDF(
+        { year: salaryYear, month: salaryMonth },
+        `Payslip_${user?.employee_id || 'employee'}_${monthNames[salaryMonth - 1]}_${salaryYear}_Provisional.pdf`
+      );
+    } catch (err) {
+      console.error('Failed to download provisional payslip', err);
+      showToast('Could not generate the provisional PDF. Please try again.', 'error');
+    } finally {
+      setLiveDownloading(false);
+    }
+  }, [salaryYear, salaryMonth, user, showToast]);
 
   // Fetch saved payslips
   const fetchMyPayslips = useCallback(async () => {
@@ -480,22 +495,7 @@ export default function EmployeeDashboardPage() {
 
           <div className="employee-header-right">
             <ThemeToggle />
-            <div className="user-profile-badge">
-              <div className="user-avatar-circle">{user?.name?.charAt(0) || 'E'}</div>
-              <div className="user-info-text">
-                <span className="user-name">{user?.name}</span>
-                <span className="user-meta">{user?.employee_id} • {user?.designation || 'Staff'}</span>
-              </div>
-            </div>
-            <button
-              type="button"
-              id="employee-logout-btn"
-              className="btn btn-ghost btn-sm"
-              onClick={handleLogout}
-            >
-              <LogOut size={14} aria-hidden="true" />
-              <span className="logout-btn-label">Log out</span>
-            </button>
+            <HeaderUserMenu user={user} logout={logout} />
           </div>
         </header>
 
@@ -575,6 +575,14 @@ export default function EmployeeDashboardPage() {
                       >
                         <Plane size={15} aria-hidden="true" /> On Travel
                       </button>
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        disabled={submittingToday}
+                        onClick={() => handleMarkAttendance('wfh')}
+                      >
+                        <Home size={15} aria-hidden="true" /> Work From Home
+                      </button>
                     </div>
                   )}
                 </div>
@@ -633,6 +641,11 @@ export default function EmployeeDashboardPage() {
                     <div className="kpi-card card">
                       <span className="kpi-title text-muted text-xs">Travel / On Duty</span>
                       <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{monthData.summary.travel_days}</div>
+                      <span className="kpi-sub text-muted text-xs">Full day rate</span>
+                    </div>
+                    <div className="kpi-card card">
+                      <span className="kpi-title text-muted text-xs">Work From Home</span>
+                      <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{monthData.summary.wfh_days}</div>
                       <span className="kpi-sub text-muted text-xs">Full day rate</span>
                     </div>
                     <div className="kpi-card card">
@@ -1116,6 +1129,17 @@ export default function EmployeeDashboardPage() {
                     onChange={(e) => setSalaryYear(parseInt(e.target.value, 10))}
                   />
                 </div>
+
+                <button
+                  type="button"
+                  className="btn btn-secondary btn-sm"
+                  style={{ marginLeft: 'auto' }}
+                  disabled={liveDownloading || !mySalaryCalc?.summary}
+                  onClick={handleDownloadLivePDF}
+                >
+                  <Download size={13} aria-hidden="true" />
+                  {liveDownloading ? ' Generating…' : ' Download Provisional PDF'}
+                </button>
               </div>
 
               {/* My Salary Breakdown */}
@@ -1215,6 +1239,11 @@ export default function EmployeeDashboardPage() {
                   <div className="kpi-card card">
                     <span className="kpi-title text-muted text-xs">Travel / On Duty</span>
                     <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{mySalaryCalc.summary.travel_days}</div>
+                    <span className="kpi-sub text-muted text-xs">100% Rate</span>
+                  </div>
+                  <div className="kpi-card card">
+                    <span className="kpi-title text-muted text-xs">Work From Home</span>
+                    <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{mySalaryCalc.summary.wfh_days}</div>
                     <span className="kpi-sub text-muted text-xs">100% Rate</span>
                   </div>
                   <div className="kpi-card card">
@@ -1444,6 +1473,23 @@ export default function EmployeeDashboardPage() {
                 <span className="text-muted text-xs">Outstation or official company business travel</span>
               </div>
             </label>
+
+            <label className={`prompt-option-card ${selectedStatus === 'wfh' ? 'selected' : ''}`}>
+              <input
+                type="radio"
+                name="promptStatus"
+                value="wfh"
+                checked={selectedStatus === 'wfh'}
+                onChange={() => setSelectedStatus('wfh')}
+              />
+              <span className="icon-chip icon-chip-md icon-chip-primary">
+                <Home size={17} aria-hidden="true" />
+              </span>
+              <div className="option-text">
+                <strong>Work From Home</strong>
+                <span className="text-muted text-xs">Remote work day (100% day compensation)</span>
+              </div>
+            </label>
           </div>
 
           <div className="modal-actions-row">
@@ -1504,6 +1550,7 @@ export default function EmployeeDashboardPage() {
               <option value="present">Present (Full Day)</option>
               <option value="half_day">Half-Day (50%)</option>
               <option value="travel">On Duty / Travel</option>
+              <option value="wfh">Work From Home</option>
               <option value="absent">Absent</option>
             </select>
           </div>

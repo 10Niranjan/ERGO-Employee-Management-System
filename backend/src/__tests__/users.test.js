@@ -252,6 +252,10 @@ describe('PATCH /api/users/:id/status', () => {
       .send({ status: 'inactive' });
     expect(res.status).toBe(200);
     expect(res.body.user.status).toBe('inactive');
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['user.status_changed'])
+    );
   });
 
   test('reactivates an employee', async () => {
@@ -303,6 +307,10 @@ describe('DELETE /api/users/:id', () => {
       .set('Authorization', `Bearer ${ADMIN_TOKEN}`);
     expect(res.status).toBe(200);
     expect(res.body.message).toMatch(/EMP001/);
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['user.deleted'])
+    );
   });
 
   test('returns 404 if employee not found', async () => {

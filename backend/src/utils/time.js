@@ -109,6 +109,23 @@ function getMonthDates(year, month) {
 }
 
 /**
+ * Converts a JS Date to 'YYYY-MM-DD' using its LOCAL calendar components.
+ * Use this (never `.toISOString().slice(0, 10)`) for Dates that came from a
+ * Postgres `date` column: `pg` parses those via `new Date(year, month-1, day)`
+ * in the server's local timezone, so round-tripping through `.toISOString()`
+ * (UTC) rolls the date back a day whenever the server runs ahead of UTC (e.g.
+ * TZ=Asia/Kolkata, UTC+5:30).
+ * @param {Date} d
+ */
+function dbDateToStr(d) {
+  const dt = new Date(d);
+  const y = dt.getFullYear();
+  const m = String(dt.getMonth() + 1).padStart(2, '0');
+  const day = String(dt.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+/**
  * Returns the 'YYYY-MM' immediately after the given 'YYYY-MM' period.
  * @param {string} period - 'YYYY-MM'
  */
@@ -136,6 +153,7 @@ module.exports = {
   getDayOfWeek,
   getDateRange,
   getMonthDates,
+  dbDateToStr,
   getNextPeriod,
   getMostRecentlyCompletedPeriod,
 };

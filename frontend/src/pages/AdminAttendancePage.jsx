@@ -205,7 +205,7 @@ export default function AdminAttendancePage() {
       acc[emp.status] = (acc[emp.status] || 0) + 1;
       return acc;
     },
-    { present: 0, half_day: 0, travel: 0, absent: 0, not_marked: 0 }
+    { present: 0, half_day: 0, travel: 0, wfh: 0, absent: 0, not_marked: 0 }
   );
 
   return (
@@ -291,6 +291,7 @@ export default function AdminAttendancePage() {
                 <option value="present">Present Only</option>
                 <option value="half_day">Half-Day Only</option>
                 <option value="travel">Travel Only</option>
+                <option value="wfh">Work From Home Only</option>
                 <option value="absent">Absent Only</option>
                 <option value="not_marked">Not Marked</option>
               </select>
@@ -314,6 +315,10 @@ export default function AdminAttendancePage() {
             <div className="kpi-card card">
               <span className="kpi-title text-muted text-xs">On Travel</span>
               <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{counts.travel || 0}</div>
+            </div>
+            <div className="kpi-card card">
+              <span className="kpi-title text-muted text-xs">Work From Home</span>
+              <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{counts.wfh || 0}</div>
             </div>
             <div className="kpi-card card">
               <span className="kpi-title text-muted text-xs">Not Marked / Absent</span>
@@ -590,6 +595,7 @@ export default function AdminAttendancePage() {
               <option value="present">Present (Full Day)</option>
               <option value="half_day">Half-Day (50%)</option>
               <option value="travel">On Duty / Travel</option>
+              <option value="wfh">Work From Home</option>
               <option value="absent">Absent / Unmarked</option>
             </select>
           </div>
@@ -696,6 +702,10 @@ export default function AdminAttendancePage() {
                 <div className="kpi-card card">
                   <span className="kpi-title text-muted text-xs">Travel</span>
                   <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{employeeMonthData.summary.travel_days}</div>
+                </div>
+                <div className="kpi-card card">
+                  <span className="kpi-title text-muted text-xs">WFH</span>
+                  <div className="kpi-value" style={{ color: 'var(--color-primary)' }}>{employeeMonthData.summary.wfh_days}</div>
                 </div>
                 <div className="kpi-card card">
                   <span className="kpi-title text-muted text-xs">Absent/Unmarked</span>

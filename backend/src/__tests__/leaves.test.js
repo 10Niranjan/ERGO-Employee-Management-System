@@ -467,6 +467,10 @@ describe('PUT /api/leaves/:id/status', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.application.status).toBe('approved');
+    expect(query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO auth_audit_log'),
+      expect.arrayContaining(['leave.application_reviewed'])
+    );
   });
 
   test('admin declines leave with mandatory reason without balance deduction', async () => {

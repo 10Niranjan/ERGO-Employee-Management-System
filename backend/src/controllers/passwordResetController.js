@@ -1,13 +1,12 @@
 'use strict';
 
-const bcrypt = require('bcryptjs');
 const { query, getClient } = require('../db/pool');
 const {
   generateOtp, hashOtp, verifyOtp,
   generateResetToken, hashResetToken, generateTempPassword,
 } = require('../utils/secureTokens');
 const {
-  validatePassword, isPasswordReused, recordPasswordHistory,
+  validatePassword, isPasswordReused, applyNewPassword,
 } = require('../utils/passwordPolicy');
 const { sendAdminOtpEmail, sendPasswordChangedEmail } = require('../services/mailer');
 const { audit, EVENTS } = require('../services/auditLog');
@@ -25,31 +24,6 @@ const GENERIC_OTP_RESPONSE = { message: 'If an admin account matches, a code has
 const GENERIC_REQUEST_RESPONSE = {
   message: 'If an account matches, your request has been sent to your administrator.',
 };
-
-const saltRounds = () => parseInt(process.env.BCRYPT_SALT_ROUNDS, 10) || 12;
-
-/**
- * Applies a new password to a user and terminates every existing session.
- * Shared by both flows so the security-critical steps can't drift apart:
- * hash → bump password_changed_at (invalidates all issued JWTs) → clear the
- * first-login flag → record history.
- */
-async function applyNewPassword(db, userId, plainPassword, { firstLogin = false } = {}) {
-  const passwordHash = await bcrypt.hash(plainPassword, saltRounds());
-
-  await db.query(
-    `UPDATE users
-     SET password_hash = $1,
-         first_login = $2,
-         password_changed_at = NOW(),
-         updated_at = NOW()
-     WHERE id = $3`,
-    [passwordHash, firstLogin, userId]
-  );
-
-  await recordPasswordHistory(db, userId, passwordHash);
-  return passwordHash;
-}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // FLOW 1 — ADMIN: email OTP self-service reset

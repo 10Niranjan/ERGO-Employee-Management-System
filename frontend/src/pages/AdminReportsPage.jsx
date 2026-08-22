@@ -194,6 +194,7 @@ export default function AdminReportsPage() {
                   <th>Present</th>
                   <th>Half-Day</th>
                   <th>Travel</th>
+                  <th>WFH</th>
                   <th>Paid Leave</th>
                   <th>Unpaid Leave</th>
                   <th>Absent</th>
@@ -227,6 +228,9 @@ export default function AdminReportsPage() {
                     </td>
                     <td>
                       <span style={{ color: 'var(--color-primary)' }}>{r.summary.travel_days}</span>
+                    </td>
+                    <td>
+                      <span style={{ color: 'var(--color-primary)' }}>{r.summary.wfh_days}</span>
                     </td>
                     <td>
                       <span className="text-success">{r.summary.paid_leave_days}</span>
