@@ -19,7 +19,7 @@
 
 const { query, getClient } = require('../db/pool');
 const { calculateMonthlySalary } = require('./salaryService');
-const { getNextPeriod, getMostRecentlyCompletedPeriod } = require('../utils/time');
+const { getNextPeriod, getMostRecentlyCompletedPeriod, dbDateToStr } = require('../utils/time');
 
 const ATTENDANCE_BONUS_THRESHOLD = 70;
 const DEFAULT_BASE_QUOTA = 6;
@@ -286,7 +286,7 @@ async function runAccrualForPeriod(period, { createdBy = null } = {}) {
       await client.query('BEGIN');
       const result = await evaluateEmployeeForPeriod(client, {
         userId: emp.id,
-        dateOfJoining: emp.date_of_joining ? new Date(emp.date_of_joining).toISOString().slice(0, 10) : null,
+        dateOfJoining: emp.date_of_joining ? dbDateToStr(emp.date_of_joining) : null,
         period,
         createdBy,
       });

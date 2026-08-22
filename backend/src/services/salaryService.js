@@ -1,6 +1,6 @@
 'use strict';
 
-const { getMonthDates, isWeekend } = require('../utils/time');
+const { getMonthDates, isWeekend, dbDateToStr } = require('../utils/time');
 
 /**
  * Shapes a raw `users` row (or any row carrying the same 13 component
@@ -185,7 +185,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     [startDate, endDate]
   );
   const holidayMap = new Map(
-    holidays.map((h) => [new Date(h.date).toISOString().slice(0, 10), h.name])
+    holidays.map((h) => [dbDateToStr(h.date), h.name])
   );
 
   // 5. Fetch approved leaves for this employee overlapping this month
@@ -202,8 +202,8 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
   // Build map of approved leave per date
   const leaveMap = new Map();
   for (const l of approvedLeaves) {
-    const lStart = new Date(l.start_date).toISOString().slice(0, 10);
-    const lEnd = new Date(l.end_date).toISOString().slice(0, 10);
+    const lStart = dbDateToStr(l.start_date);
+    const lEnd = dbDateToStr(l.end_date);
     for (const d of monthDates) {
       if (d >= lStart && d <= lEnd) {
         leaveMap.set(d, l);
@@ -219,7 +219,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     [userId, startDate, endDate]
   );
   const attendanceMap = new Map(
-    attendanceRows.map((a) => [new Date(a.date).toISOString().slice(0, 10), a])
+    attendanceRows.map((a) => [dbDateToStr(a.date), a])
   );
 
   // 7. Day-by-day evaluation

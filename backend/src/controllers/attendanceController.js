@@ -1,7 +1,7 @@
 'use strict';
 
 const { query, getClient } = require('../db/pool');
-const { getTodayIST, isWeekend, getDayOfWeek, getMonthDates } = require('../utils/time');
+const { getTodayIST, isWeekend, getDayOfWeek, getMonthDates, dbDateToStr } = require('../utils/time');
 const { audit, EVENTS } = require('../services/auditLog');
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -217,7 +217,7 @@ async function getMonthlyAttendance(req, res, next) {
       [startDate, endDate]
     );
     const holidayMap = new Map(
-      holidays.map((h) => [new Date(h.date).toISOString().slice(0, 10), h.name])
+      holidays.map((h) => [dbDateToStr(h.date), h.name])
     );
 
     // Fetch attendance records for this user in this month
@@ -232,7 +232,7 @@ async function getMonthlyAttendance(req, res, next) {
       [targetUserId, startDate, endDate]
     );
     const attMap = new Map(
-      attRows.map((a) => [new Date(a.date).toISOString().slice(0, 10), a])
+      attRows.map((a) => [dbDateToStr(a.date), a])
     );
 
     const todayIST = getTodayIST();
