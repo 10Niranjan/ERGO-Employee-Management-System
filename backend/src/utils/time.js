@@ -44,14 +44,28 @@ function isPastSameDayLeaveCutoff(cutoffHour = 9, cutoffMinute = 0) {
 }
 
 /**
- * Returns true if the given YYYY-MM-DD date is a Saturday (6) or Sunday (0) in IST.
+ * Returns true if the given YYYY-MM-DD date is a non-working weekend day under the
+ * company's attendance policy:
+ *   - Every Sunday is a weekend (paid, no attendance required).
+ *   - Only the 2nd and 4th Saturday of each calendar month are weekends.
+ *   - The 1st, 3rd, and 5th Saturdays are working days.
+ *
+ * Occurrence is derived as Math.ceil(day / 7):
+ *   days 1-7  → 1st occurrence, 8-14 → 2nd, 15-21 → 3rd, 22-28 → 4th, 29-31 → 5th.
+ *
  * @param {string} dateStr - 'YYYY-MM-DD'
  */
 function isWeekend(dateStr) {
   const [year, month, day] = dateStr.split('-').map(Number);
   const d = new Date(Date.UTC(year, month - 1, day, 12, 0, 0));
   const dayOfWeek = d.getUTCDay();
-  return dayOfWeek === 0 || dayOfWeek === 6; // 0 = Sunday, 6 = Saturday
+
+  if (dayOfWeek === 0) return true;  // Sunday — always a weekend
+  if (dayOfWeek !== 6) return false; // Mon–Fri — never a weekend
+
+  // Saturday: only the 2nd and 4th occurrence in the month are weekends
+  const occurrence = Math.ceil(day / 7);
+  return occurrence === 2 || occurrence === 4;
 }
 
 /**

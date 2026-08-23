@@ -27,10 +27,12 @@ import {
 } from '../api/reportApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 import './SalaryManagementPage.css';
 
 export default function SalaryManagementPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('rates'); // 'rates' | 'compute'
 
@@ -548,8 +550,8 @@ export default function SalaryManagementPage() {
             </div>
           )}
 
-          {/* Day by Day Itemized Calculation Breakdown Table */}
-          {calcResult?.days && (
+          {/* Day-by-Day Audit Log — admin only */}
+          {calcResult?.days && user?.role === 'admin' && (
             <div className="table-card card" style={{ marginTop: 'var(--space-6)' }}>
               <div className="card-header-bar" style={{ padding: 'var(--space-4)', borderBottom: '1px solid var(--color-border)' }}>
                 <h3 className="section-title" style={{ fontSize: 'var(--font-size-md)' }}>

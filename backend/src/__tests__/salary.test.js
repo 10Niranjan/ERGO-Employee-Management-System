@@ -91,13 +91,18 @@ describe('Salary Engine: getApplicableMonthlySalary', () => {
 // =============================================================================
 // Unit Tests: calculateMonthlySalary
 // =============================================================================
-// All scenarios below use August 2026 (31 days, Aug 1 = Saturday), so
-// weekends fall on 1,2,8,9,15,16,22,23,29,30 — 10 weekend days unless one
-// coincides with a holiday, in which case the holiday takes precedence
-// (matches the engine's classification order) and isn't double-counted.
+// All scenarios below use August 2026 (31 days, Aug 1 = 1st Saturday).
+//
+// Weekend policy: every Sunday + only the 2nd and 4th Saturday of each month.
+// August 2026 weekends: Aug 2(Sun), 8(2nd Sat), 9(Sun), 16(Sun), 22(4th Sat),
+//   23(Sun), 30(Sun) — 7 weekends.
+// Aug 1 (1st Sat) and Aug 29 (5th Sat) are working days under the new policy.
+// Aug 15 (3rd Sat) is a working day when no holiday is present; a paid holiday
+//   when Independence Day is mocked (holiday classification takes precedence).
+//
 // With SAMPLE_EMPLOYEE's monthly_salary of 31000, the derived rate is a
-// clean 1000/day, and — per the confirmed formula — weekends and holidays
-// are now paid days, so every scenario's expected total includes them.
+// clean 1000/day. Weekends and company holidays are paid at 1.0 factor;
+// absent/unmarked working days are 0.
 describe('Salary Engine: calculateMonthlySalary', () => {
   test('calculates salary with mixed statuses (Present, Travel, Half-Day, Paid Leave, Unpaid Leave, Absent, Weekend, Holiday)', async () => {
     const mockDb = {
@@ -145,12 +150,15 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.wfh_days).toBe(1); // Aug 11 (1000) — full paid day
     expect(result.summary.paid_leave_days).toBe(1); // Aug 03 (1000)
     expect(result.summary.unpaid_leave_days).toBe(1); // Aug 04 (0)
-    expect(result.summary.holiday_count).toBe(1); // Aug 15 — also a Saturday, holiday wins
+    expect(result.summary.holiday_count).toBe(1); // Aug 15 — 3rd Sat, holiday takes precedence
+    // Under new policy Aug 1 (1st Sat) and Aug 29 (5th Sat) are working days.
+    // Weekends: Aug 2,8,9,16,22,23,30 = 7 (Aug 15 is holiday, not double-counted as weekend)
+    expect(result.summary.weekend_count).toBe(7);
 
-    // 9 weekend days (Aug 15 reclassified as holiday, not double-counted) @1000 = 9000
+    // 7 weekend days @1000 = 7000
     // + holiday 1000 + paid leave 1000 + present 1000 + travel 1000 + half-day 500 + wfh 1000
-    // + unpaid leave 0 + 14 unmarked-absent working days @ 0
-    expect(result.summary.net_salary).toBe(14500);
+    // + unpaid leave 0 + 16 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(12500);
   });
 
   // Scenario A: 8 Present, 1 Half-Day, 1 Unpaid Leave (with remaining 11 working days absent)
@@ -188,9 +196,10 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.present_days).toBe(8);
     expect(result.summary.half_days).toBe(1);
     expect(result.summary.unpaid_leave_days).toBe(1);
-    // 10 weekend days @1000 = 10000, + (8 * 1000) present + (1 * 500) half-day
-    // + (1 * 0) unpaid + 11 unmarked-absent working days @ 0
-    expect(result.summary.net_salary).toBe(18500);
+    // No holidays. Weekends: Aug 2,8,9,16,22,23,30 = 7. Working days = 24.
+    // 7 weekend days @1000 = 7000, + (8 * 1000) present + (1 * 500) half-day
+    // + (1 * 0) unpaid + 14 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(15500);
   });
 
   // Scenario B: 6 Present, 1 Half-Day, 1 Travel, 1 Paid Leave, 1 Unpaid Leave
@@ -227,9 +236,10 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     expect(result.summary.half_days).toBe(1);
     expect(result.summary.paid_leave_days).toBe(1);
     expect(result.summary.unpaid_leave_days).toBe(1);
-    // 10 weekend days @1000 = 10000, + (6*1000) present + (1*1000) travel
-    // + (0.5*1000) half-day + (1*1000) paid leave + 0 unpaid + 11 unmarked @ 0
-    expect(result.summary.net_salary).toBe(18500);
+    // No holidays. Weekends: Aug 2,8,9,16,22,23,30 = 7. Working days = 24.
+    // 7 weekend days @1000 = 7000, + (6*1000) present + (1*1000) travel
+    // + (0.5*1000) half-day + (1*1000) paid leave + 0 unpaid + 14 unmarked @ 0
+    expect(result.summary.net_salary).toBe(15500);
   });
 
   // Scenario C: Mid-Month Salary Revision — monthly figures chosen so the
@@ -264,11 +274,13 @@ describe('Salary Engine: calculateMonthlySalary', () => {
 
     const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
     expect(result.summary.present_days).toBe(2);
-    // Present: Aug14 (1000) + Aug17 (2000) = 3000
-    // Weekends (10 days total) split by the revision boundary: Aug 1,2,8,9,15
-    // (before, @1000) = 5000; Aug 16,22,23,29,30 (on/after, @2000) = 10000
-    // Total = 3000 + 5000 + 10000 = 18000
-    expect(result.summary.net_salary).toBe(18000);
+    // No holidays. New weekend policy — weekends split by revision boundary (Aug 16):
+    //   Before Aug 16: Aug 2(Sun), 8(2nd Sat), 9(Sun) = 3 weekends @1000 = 3000
+    //   On/after Aug 16: Aug 16(Sun), 22(4th Sat), 23(Sun), 30(Sun) = 4 weekends @2000 = 8000
+    //   Aug 1 (1st Sat) and Aug 29 (5th Sat) are working days (absent, 0).
+    // Present: Aug14 (before, @1000) + Aug17 (after, @2000) = 3000
+    // Total = 3000 + 8000 + 1000 + 2000 = 14000
+    expect(result.summary.net_salary).toBe(14000);
   });
 
   // Scenario D: Weekend + Company Holiday + Approved Leave
@@ -295,12 +307,15 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     };
 
     const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
-    expect(result.summary.holiday_count).toBe(1); // Aug 14 is holiday
-    // Working days in leave range: Aug 13 (Thu) & Aug 17 (Mon) = 2 paid leave days
-    expect(result.summary.paid_leave_days).toBe(2);
-    // 10 weekend days @1000 = 10000, + 1 holiday @1000 = 1000, + 2 paid-leave
-    // days @1000 = 2000, + 18 unmarked-absent working days @ 0
-    expect(result.summary.net_salary).toBe(13000);
+    expect(result.summary.holiday_count).toBe(1); // Aug 14 (Fri) is the company holiday
+    // Under new policy Aug 15 (3rd Sat) is a working day — it falls inside the leave
+    // range (Aug 13–17), so it is counted as a paid leave day along with Aug 13 & Aug 17.
+    // Working days in leave range: Aug 13 (Thu) + Aug 15 (3rd Sat) + Aug 17 (Mon) = 3
+    expect(result.summary.paid_leave_days).toBe(3);
+    // Weekends: Aug 2,8,9,16,22,23,30 = 7. Holiday: Aug 14. Working days = 23.
+    // 7 weekend days @1000 = 7000, + 1 holiday @1000 = 1000, + 3 paid-leave
+    // days @1000 = 3000, + 20 unmarked-absent working days @ 0
+    expect(result.summary.net_salary).toBe(11000);
   });
 });
 
@@ -324,8 +339,9 @@ describe('GET /api/reports/salary/compute', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.summary.present_days).toBe(1);
-    // 10 weekend days @1000 + 1 present day @1000, rest unmarked-absent @ 0
-    expect(res.body.summary.net_salary).toBe(11000);
+    // No holidays. Weekends: Aug 2,8,9,16,22,23,30 = 7. Working days = 24.
+    // 7 weekend days @1000 = 7000 + 1 present day @1000 = 1000, rest absent @ 0
+    expect(res.body.summary.net_salary).toBe(8000);
   });
 
   test('employee cannot compute salary for another employee', async () => {
