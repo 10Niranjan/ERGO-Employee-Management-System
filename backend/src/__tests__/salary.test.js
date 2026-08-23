@@ -140,7 +140,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         }), // 6. attendance
     };
 
-    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-31');
 
     expect(result.summary.monthly_salary).toBe(31000);
     expect(result.summary.per_day_salary).toBe(1000); // derived: 31000 / 31 days
@@ -192,7 +192,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         .mockResolvedValueOnce({ rows: attendanceRecords }),
     };
 
-    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-31');
     expect(result.summary.present_days).toBe(8);
     expect(result.summary.half_days).toBe(1);
     expect(result.summary.unpaid_leave_days).toBe(1);
@@ -230,7 +230,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         }),
     };
 
-    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-31');
     expect(result.summary.present_days).toBe(6);
     expect(result.summary.travel_days).toBe(1);
     expect(result.summary.half_days).toBe(1);
@@ -272,7 +272,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         }),
     };
 
-    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-31');
     expect(result.summary.present_days).toBe(2);
     // No holidays. New weekend policy — weekends split by revision boundary (Aug 16):
     //   Before Aug 16: Aug 2(Sun), 8(2nd Sat), 9(Sun) = 3 weekends @1000 = 3000
@@ -306,7 +306,7 @@ describe('Salary Engine: calculateMonthlySalary', () => {
         .mockResolvedValueOnce({ rows: [] }),
     };
 
-    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8);
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-31');
     expect(result.summary.holiday_count).toBe(1); // Aug 14 (Fri) is the company holiday
     // Under new policy Aug 15 (3rd Sat) is a working day — it falls inside the leave
     // range (Aug 13–17), so it is counted as a paid leave day along with Aug 13 & Aug 17.
@@ -316,6 +316,48 @@ describe('Salary Engine: calculateMonthlySalary', () => {
     // 7 weekend days @1000 = 7000, + 1 holiday @1000 = 1000, + 3 paid-leave
     // days @1000 = 3000, + 20 unmarked-absent working days @ 0
     expect(result.summary.net_salary).toBe(11000);
+  });
+
+  // Scenario E: Mid-Month Salary Calculation (Pro-rated up to current date)
+  test('Scenario E: pro-rates salary to asOfDate — does not pay future weekends or holidays ahead of time', async () => {
+    const mockDb = {
+      query: jest
+        .fn()
+        .mockResolvedValueOnce({ rows: [SAMPLE_EMPLOYEE] }) // 1000/day
+        .mockResolvedValueOnce({ rows: [] }) // no revisions
+        .mockResolvedValueOnce({
+          rows: [{ date: '2026-08-15', name: 'Independence Day' }],
+        }) // Aug 15 holiday
+        .mockResolvedValueOnce({ rows: [] }) // no leaves
+        .mockResolvedValueOnce({
+          rows: [{ date: '2026-08-05', status: 'present' }],
+        }), // 1 present day
+    };
+
+    // Evaluated as of Aug 24:
+    // Accrued days up to Aug 24:
+    //   1 present day (Aug 05) = 1000
+    //   1 holiday (Aug 15) = 1000
+    //   6 weekends (Aug 2, 8, 9, 16, 22, 23) = 6000
+    //   Future weekend Aug 30 is NOT credited (0).
+    // Total = 1000 + 1000 + 6000 = 8000
+    const result = await calculateMonthlySalary(mockDb, 2, 2026, 8, '2026-08-24');
+
+    expect(result.summary.present_days).toBe(1);
+    expect(result.summary.holiday_count).toBe(1);
+    expect(result.summary.weekend_count).toBe(6);
+    expect(result.summary.net_salary).toBe(8000);
+
+    const aug30 = result.days.find((d) => d.date === '2026-08-30');
+    expect(aug30.status).toBe('weekend');
+    expect(aug30.payable_factor).toBe(0);
+    expect(aug30.daily_amount).toBe(0);
+    expect(aug30.note).toMatch(/upcoming weekend/i);
+
+    const aug25 = result.days.find((d) => d.date === '2026-08-25');
+    expect(aug25.status).toBe('upcoming');
+    expect(aug25.payable_factor).toBe(0);
+    expect(aug25.daily_amount).toBe(0);
   });
 });
 
@@ -334,7 +376,7 @@ describe('GET /api/reports/salary/compute', () => {
       });
 
     const res = await request(app)
-      .get('/api/reports/salary/compute?year=2026&month=8')
+      .get('/api/reports/salary/compute?year=2026&month=8&as_of_date=2026-08-31')
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
 
     expect(res.status).toBe(200);
@@ -389,7 +431,7 @@ describe('GET /api/reports/salary/compute/download', () => {
       .mockResolvedValueOnce({ rows: [{ total: '0' }] });
 
     const res = await request(app)
-      .get('/api/reports/salary/compute/download?year=2026&month=8')
+      .get('/api/reports/salary/compute/download?year=2026&month=8&as_of_date=2026-08-31')
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`);
 
     expect(res.status).toBe(200);

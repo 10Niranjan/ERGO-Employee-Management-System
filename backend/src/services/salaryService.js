@@ -1,6 +1,6 @@
 'use strict';
 
-const { getMonthDates, isWeekend, dbDateToStr } = require('../utils/time');
+const { getMonthDates, isWeekend, dbDateToStr, getTodayIST } = require('../utils/time');
 
 /**
  * Shapes a raw `users` row (or any row carrying the same 13 component
@@ -145,7 +145,7 @@ function getApplicableMonthlySalary(dateStr, currentMonthlySalary, salaryHistory
  * rate always divided by the *same* month's total day count regardless of
  * which side of the revision it falls on.
  */
-async function calculateMonthlySalary(dbClient, userId, year, month) {
+async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = getTodayIST()) {
   // 1. Fetch employee details
   const { rows: userRows } = await dbClient.query(
     `SELECT id, employee_id, name, designation, email, monthly_salary, date_of_joining, status,
@@ -241,6 +241,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     const holidayName = holidayMap.get(d) || null;
     const leave = leaveMap.get(d) || null;
     const att = attendanceMap.get(d) || null;
+    const isFuture = d > asOfDate;
 
     const monthlySalaryForDay = getApplicableMonthlySalary(d, currentMonthlySalary, salaryHistory);
     const rate = daysInMonth > 0 ? monthlySalaryForDay / daysInMonth : 0;
@@ -249,69 +250,89 @@ async function calculateMonthlySalary(dbClient, userId, year, month) {
     let payableFactor = 0;
     let note = '';
 
-    // Weekends and company holidays are paid days — they aren't
-    // attendance-tracked, so they're classified but never deducted.
-    if (isHol) {
-      holidayCount++;
-      status = 'holiday';
-      payableFactor = 1.0;
-      note = `Public Holiday: ${holidayName}`;
-    } else if (isWeekendDay) {
-      weekendCount++;
-      status = 'weekend';
-      payableFactor = 1.0;
-      note = 'Weekend';
-    } else {
-      // Working day
-      workingDays++;
-
-      // Precedence 1: Approved Leave
-      if (leave) {
-        if (leave.is_paid) {
-          paidLeaveDays++;
-          status = 'paid_leave';
-          payableFactor = 1.0;
-          note = `Approved Paid Leave: ${leave.leave_type_name}`;
+    if (isFuture) {
+      // Future date — compensation has not accrued yet (0% factor)
+      payableFactor = 0;
+      if (isHol) {
+        status = 'holiday';
+        note = `Upcoming Public Holiday: ${holidayName} (Accrues on date)`;
+      } else if (isWeekendDay) {
+        status = 'weekend';
+        note = 'Upcoming Weekend (Accrues on date)';
+      } else {
+        workingDays++;
+        if (leave) {
+          status = leave.is_paid ? 'paid_leave' : 'unpaid_leave';
+          note = `Upcoming Approved Leave: ${leave.leave_type_name} (Accrues on date)`;
         } else {
-          unpaidLeaveDays++;
-          status = 'unpaid_leave';
-          payableFactor = 0;
-          note = `Approved Unpaid Leave: ${leave.leave_type_name}`;
+          status = 'upcoming';
+          note = 'Upcoming (Not yet reached)';
         }
-      } else if (att) {
-        // Precedence 2: Attendance
-        if (att.status === 'present') {
-          presentDays++;
-          status = 'present';
-          payableFactor = 1.0;
-          note = 'Present (Full Day)';
-        } else if (att.status === 'travel') {
-          travelDays++;
-          status = 'travel';
-          payableFactor = 1.0;
-          note = 'On Duty / Travel';
-        } else if (att.status === 'wfh') {
-          wfhDays++;
-          status = 'wfh';
-          payableFactor = 1.0;
-          note = 'Work From Home (Full Day)';
-        } else if (att.status === 'half_day') {
-          halfDays++;
-          status = 'half_day';
-          payableFactor = 0.5;
-          note = 'Half-Day (50% Rate)';
+      }
+    } else {
+      // Past or current date — evaluated for accrual
+      if (isHol) {
+        holidayCount++;
+        status = 'holiday';
+        payableFactor = 1.0;
+        note = `Public Holiday: ${holidayName}`;
+      } else if (isWeekendDay) {
+        weekendCount++;
+        status = 'weekend';
+        payableFactor = 1.0;
+        note = 'Weekend';
+      } else {
+        // Working day
+        workingDays++;
+
+        // Precedence 1: Approved Leave
+        if (leave) {
+          if (leave.is_paid) {
+            paidLeaveDays++;
+            status = 'paid_leave';
+            payableFactor = 1.0;
+            note = `Approved Paid Leave: ${leave.leave_type_name}`;
+          } else {
+            unpaidLeaveDays++;
+            status = 'unpaid_leave';
+            payableFactor = 0;
+            note = `Approved Unpaid Leave: ${leave.leave_type_name}`;
+          }
+        } else if (att) {
+          // Precedence 2: Attendance
+          if (att.status === 'present') {
+            presentDays++;
+            status = 'present';
+            payableFactor = 1.0;
+            note = 'Present (Full Day)';
+          } else if (att.status === 'travel') {
+            travelDays++;
+            status = 'travel';
+            payableFactor = 1.0;
+            note = 'On Duty / Travel';
+          } else if (att.status === 'wfh') {
+            wfhDays++;
+            status = 'wfh';
+            payableFactor = 1.0;
+            note = 'Work From Home (Full Day)';
+          } else if (att.status === 'half_day') {
+            halfDays++;
+            status = 'half_day';
+            payableFactor = 0.5;
+            note = 'Half-Day (50% Rate)';
+          } else {
+            absentDays++;
+            status = 'absent';
+            payableFactor = 0;
+            note = 'Recorded Absent';
+          }
         } else {
+          // Precedence 3: No record on working day
           absentDays++;
           status = 'absent';
           payableFactor = 0;
-          note = 'Recorded Absent';
+          note = 'Unmarked / Absent';
         }
-      } else {
-        // Precedence 3: No record on working day
-        absentDays++;
-        status = 'absent';
-        payableFactor = 0;
-        note = 'Unmarked / Absent';
       }
     }
 

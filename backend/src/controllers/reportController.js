@@ -34,7 +34,8 @@ async function computeSalary(req, res, next) {
       }
     }
 
-    const result = await calculateMonthlySalary({ query }, targetUserId, year, month);
+    const asOfDate = req.query.as_of_date || undefined;
+    const result = await calculateMonthlySalary({ query }, targetUserId, year, month, asOfDate);
     return res.status(200).json(result);
   } catch (err) {
     next(err);
@@ -68,7 +69,8 @@ async function downloadLiveSalaryPDF(req, res, next) {
       }
     }
 
-    const calc = await calculateMonthlySalary({ query }, targetUserId, year, month);
+    const asOfDate = req.query.as_of_date || undefined;
+    const calc = await calculateMonthlySalary({ query }, targetUserId, year, month, asOfDate);
     const leave = await getPayslipLeaveSummary({ query }, targetUserId, year, month);
     const pdfBuffer = await generatePayslipPDF({ ...calc, leave }, { provisional: true });
     const monthName = MONTH_NAMES[month - 1] || `Month_${month}`;
