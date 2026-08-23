@@ -9,4 +9,24 @@
 require('dotenv').config();
 process.env.TZ = 'Asia/Kolkata';
 
-module.exports = require('../src/app');
+const app = require('../src/app');
+const { runMigrations } = require('../src/db/migrate');
+
+// Safely execute pending migrations on cold boot in non-test environments
+let migrationPromise = null;
+if (process.env.NODE_ENV !== 'test') {
+  migrationPromise = runMigrations().catch((err) => {
+    console.error('[Startup Migration Error]:', err.message);
+  });
+}
+
+module.exports = async (req, res) => {
+  if (migrationPromise) {
+    try {
+      await migrationPromise;
+    } catch (_) {
+      // Ignored: failure logged inside runMigrations catch
+    }
+  }
+  return app(req, res);
+};

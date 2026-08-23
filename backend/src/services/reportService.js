@@ -31,6 +31,9 @@ function generatePayslipPDF(data, options = {}) {
         const pdfData = Buffer.concat(buffers);
         resolve(pdfData);
       });
+      doc.on('error', (err) => {
+        reject(err);
+      });
 
       const { employee, year, month, summary, components = {}, leave = {} } = data;
       const monthName = MONTH_NAMES[month - 1] || `Month ${month}`;
@@ -49,7 +52,7 @@ function generatePayslipPDF(data, options = {}) {
       if (options.provisional) {
         doc.rect(40, y, 515, 16).fill('#fef3c7');
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#92400e')
-          .text('PROVISIONAL — LIVE CALCULATION, SUBJECT TO CHANGE UNTIL FINALIZED BY ADMIN', 40, y + 4, {
+          .text('PROVISIONAL - LIVE CALCULATION, SUBJECT TO CHANGE UNTIL FINALIZED BY ADMIN', 40, y + 4, {
             align: 'center',
             width: 515,
           });
@@ -62,20 +65,20 @@ function generatePayslipPDF(data, options = {}) {
       y += 18;
 
       // ─── Employee & Payroll Info Grid ───────────────────────────────────
-      const totalDays = summary.working_days + summary.holiday_count + summary.weekend_count;
-      const attendedDays = summary.present_days + summary.travel_days + summary.wfh_days + summary.half_days;
-      const leavesThisMonth = summary.paid_leave_days + summary.unpaid_leave_days;
+      const totalDays = (summary.working_days || 0) + (summary.holiday_count || 0) + (summary.weekend_count || 0);
+      const attendedDays = (summary.present_days || 0) + (summary.travel_days || 0) + (summary.wfh_days || 0) + (summary.half_days || 0);
+      const leavesThisMonth = (summary.paid_leave_days || 0) + (summary.unpaid_leave_days || 0);
 
       const leftRows = [
-        ['Employee Name', employee.name],
-        ['Employee Code', employee.employee_id],
+        ['Employee Name', employee.name || '-'],
+        ['Employee Code', employee.employee_id || '-'],
         ['Designation', employee.designation || 'Staff'],
-        ['PAN Number', employee.pan || '—'],
-        ['Bank Account Number', employee.bank_account_no || '—'],
-        ['Bank Name', employee.bank_name || '—'],
+        ['PAN Number', employee.pan || '-'],
+        ['Bank Account Number', employee.bank_account_no || '-'],
+        ['Bank Name', employee.bank_name || '-'],
       ];
       const rightRows = [
-        ['Date of Joining', employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN') : '—'],
+        ['Date of Joining', employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN') : '-'],
         ['Total No. of Days', String(totalDays)],
         ['No. of Days Attended', String(attendedDays)],
         ['Leaves', String(leavesThisMonth)],

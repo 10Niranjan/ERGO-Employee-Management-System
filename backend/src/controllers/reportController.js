@@ -96,7 +96,8 @@ async function generatePayslip(req, res, next) {
       return res.status(400).json({ message: 'user_id, year, and month are required.' });
     }
 
-    const calc = await calculateMonthlySalary({ query }, user_id, parseInt(year, 10), parseInt(month, 10));
+    const asOfDate = req.body.as_of_date || req.query.as_of_date || undefined;
+    const calc = await calculateMonthlySalary({ query }, user_id, parseInt(year, 10), parseInt(month, 10), asOfDate);
 
     const { rows } = await query(
       `INSERT INTO payslips
@@ -128,20 +129,20 @@ async function generatePayslip(req, res, next) {
         user_id,
         parseInt(month, 10),
         parseInt(year, 10),
-        calc.summary.working_days,
-        calc.summary.present_days,
-        calc.summary.half_days,
-        calc.summary.travel_days,
-        calc.summary.wfh_days,
-        calc.summary.paid_leave_days,
-        calc.summary.unpaid_leave_days,
-        calc.summary.absent_days,
-        calc.summary.holiday_count,
-        calc.summary.weekend_count,
-        calc.summary.monthly_salary,
-        calc.summary.per_day_salary,
-        calc.summary.net_salary,
-        JSON.stringify(calc.days),
+        calc.summary.working_days || 0,
+        calc.summary.present_days || 0,
+        calc.summary.half_days || 0,
+        calc.summary.travel_days || 0,
+        calc.summary.wfh_days || 0,
+        calc.summary.paid_leave_days || 0,
+        calc.summary.unpaid_leave_days || 0,
+        calc.summary.absent_days || 0,
+        calc.summary.holiday_count || 0,
+        calc.summary.weekend_count || 0,
+        calc.summary.monthly_salary || 0,
+        calc.summary.per_day_salary || 0,
+        calc.summary.net_salary || 0,
+        JSON.stringify(calc.days || []),
         req.user.id,
       ]
     );
@@ -151,6 +152,7 @@ async function generatePayslip(req, res, next) {
       payslip: rows[0],
     });
   } catch (err) {
+    console.error('[generatePayslip Error]:', err);
     next(err);
   }
 }
