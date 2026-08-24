@@ -110,7 +110,10 @@ function generatePayslipPDF(data, options = {}) {
 
       // ─── Income / Deductions Table ──────────────────────────────────────
       doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text('Earnings & Deductions', 40, y);
-      y += 18;
+      y += 14;
+      doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#64748b')
+        .text('Income figures below are pro-rated to reflect only what has actually accrued this period.', 40, y);
+      y += 14;
 
       const tableTop = y;
       doc.rect(40, tableTop, 515, 20).fill('#e0e7ff');
@@ -120,16 +123,25 @@ function generatePayslipPDF(data, options = {}) {
       doc.text('DEDUCTIONS PARTICULARS', 300, tableTop + 5, { width: 150 });
       doc.text('AMOUNT (INR)', 460, tableTop + 5, { width: 85, align: 'right' });
 
+      // Income heads are stored as full monthly figures; scale each by the same
+      // accrual ratio the net salary was derived from so the slip shows what was
+      // actually earned this period, not the full-month entitlement.
+      const monthlySalaryForRatio = parseFloat(summary.monthly_salary) || 0;
+      const prorationRatio = monthlySalaryForRatio > 0
+        ? (parseFloat(summary.net_salary) || 0) / monthlySalaryForRatio
+        : 0;
+      const prorate = (v) => Math.round((parseFloat(v) || 0) * prorationRatio * 100) / 100;
+
       const incomeRows = [
-        ['Basic Pay', components.basic],
-        ['House Rent Allowance', components.hra],
-        ['Education Allowance', components.education_allowance],
-        ['Conveyance Allowance', components.conveyance],
-        ['Professional Development Allowance', components.professional_development],
-        ['Other Allowance', components.other_allowance],
-        ['Leave Travel Allowance (LTA)', components.lta],
-        ['PF (Employer Contribution)', components.employer_pf],
-        ['Bonus', components.bonus],
+        ['Basic Pay', prorate(components.basic)],
+        ['House Rent Allowance', prorate(components.hra)],
+        ['Education Allowance', prorate(components.education_allowance)],
+        ['Conveyance Allowance', prorate(components.conveyance)],
+        ['Professional Development Allowance', prorate(components.professional_development)],
+        ['Other Allowance', prorate(components.other_allowance)],
+        ['Leave Travel Allowance (LTA)', prorate(components.lta)],
+        ['PF (Employer Contribution)', prorate(components.employer_pf)],
+        ['Bonus', prorate(components.bonus)],
       ];
       const deductionRows = [
         ['PF', components.pf_deduction],
