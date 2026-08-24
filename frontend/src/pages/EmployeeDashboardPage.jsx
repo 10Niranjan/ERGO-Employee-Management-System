@@ -1090,7 +1090,7 @@ export default function EmployeeDashboardPage() {
                 <div>
                   <h2 className="section-title">Salary Statements & Payslip Downloads</h2>
                   <p className="text-muted text-sm">
-                    Review your transparent day-by-day salary calculations and download official PDF payslips.
+                    Review your monthly salary summary and download official PDF payslips.
                   </p>
                 </div>
               </div>
@@ -1267,58 +1267,6 @@ export default function EmployeeDashboardPage() {
                       ₹{parseFloat(mySalaryCalc.summary.monthly_salary).toLocaleString('en-IN', { minimumFractionDigits: 2 })}/mo
                       {' '}(₹{parseFloat(mySalaryCalc.summary.per_day_salary).toFixed(2)}/day this month)
                     </span>
-                  </div>
-                </div>
-              )}
-
-              {/* Day-by-Day Statement Table */}
-              {mySalaryCalc?.days && (
-                <div className="table-card card" style={{ marginTop: 'var(--space-6)' }}>
-                  <div className="card-header-bar" style={{ padding: 'var(--space-4)', borderBottom: '1px solid var(--color-border)' }}>
-                    <h3 className="section-title" style={{ fontSize: 'var(--font-size-md)' }}>
-                      Itemized Daily Calculation Breakdown ({monthNames[salaryMonth - 1]} {salaryYear})
-                    </h3>
-                  </div>
-
-                  <div className="table-responsive">
-                    <table className="data-table">
-                      <thead>
-                        <tr>
-                          <th>Date</th>
-                          <th>Status</th>
-                          <th>Day Rate (₹)</th>
-                          <th>Payable Factor</th>
-                          <th>Earned Amount (₹)</th>
-                          <th>Calculation Note</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {mySalaryCalc.days.map((d) => (
-                          <tr key={d.date} className={d.status === 'weekend' ? 'row-weekend' : d.status === 'holiday' ? 'row-holiday' : ''}>
-                            <td>
-                              <strong className="calendar-date-cell">
-                                {new Date(d.date).toLocaleDateString('en-IN', { weekday: 'short', day: '2-digit', month: 'short' })}
-                              </strong>
-                            </td>
-                            <td>
-                              <span className={`status-pill status-${d.status}`}>
-                                {d.status.toUpperCase()}
-                              </span>
-                            </td>
-                            <td>₹{parseFloat(d.rate).toFixed(2)}</td>
-                            <td>{d.payable_factor * 100}%</td>
-                            <td>
-                              <strong className="salary-rate-text">
-                                ₹{parseFloat(d.daily_amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
-                              </strong>
-                            </td>
-                            <td>
-                              <span className="text-muted text-sm">{d.note}</span>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
                   </div>
                 </div>
               )}

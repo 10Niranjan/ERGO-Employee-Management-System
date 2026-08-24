@@ -27,10 +27,12 @@ import {
 } from '../api/reportApi';
 import { useToast } from '../components/Toast';
 import Modal from '../components/Modal';
+import { useAuth } from '../context/AuthContext';
 import './SalaryManagementPage.css';
 
 export default function SalaryManagementPage() {
   const { showToast } = useToast();
+  const { user } = useAuth();
 
   const [activeTab, setActiveTab] = useState('rates'); // 'rates' | 'compute'
 
@@ -282,7 +284,7 @@ export default function SalaryManagementPage() {
           <div className="policy-banner card">
             <Wallet className="policy-icon" size={20} aria-hidden="true" />
             <div className="policy-text">
-              <strong>Calendar-Days Salary Model:</strong> Each employee has one monthly salary figure. The per-day rate is derived from it each month — <code>Monthly Salary ÷ Days in That Month</code> — so it floats slightly with month length. Weekends, holidays, present, travel, and paid-leave days are all paid at the full derived rate; half-days pay 50%; unpaid leave and unmarked/absent working days pay 0%.
+              <strong>Pay-Window Salary Model:</strong> Each employee has one monthly salary figure; the per-day rate is derived from it each month — <code>Monthly Salary ÷ Days in That Month</code>. Pay only accrues between the employee's first and last worked day (present/travel/wfh/half-day) that month — everything outside that window is unpaid. Inside the window, weekends and holidays are paid at the full derived rate by default, present/travel/paid-leave pay full rate, half-days pay 50%, and unpaid leave/absent days pay 0% — except a weekend or holiday run flanked by absence on the working day immediately before <em>and</em> after it, which is unpaid too. PF, Professional Tax, and TDS are then subtracted from the accrued gross to produce net salary.
             </div>
           </div>
 
@@ -548,8 +550,8 @@ export default function SalaryManagementPage() {
             </div>
           )}
 
-          {/* Day by Day Itemized Calculation Breakdown Table */}
-          {calcResult?.days && (
+          {/* Day-by-Day Audit Log — admin only */}
+          {calcResult?.days && user?.role === 'admin' && (
             <div className="table-card card" style={{ marginTop: 'var(--space-6)' }}>
               <div className="card-header-bar" style={{ padding: 'var(--space-4)', borderBottom: '1px solid var(--color-border)' }}>
                 <h3 className="section-title" style={{ fontSize: 'var(--font-size-md)' }}>

@@ -31,6 +31,9 @@ function generatePayslipPDF(data, options = {}) {
         const pdfData = Buffer.concat(buffers);
         resolve(pdfData);
       });
+      doc.on('error', (err) => {
+        reject(err);
+      });
 
       const { employee, year, month, summary, components = {}, leave = {} } = data;
       const monthName = MONTH_NAMES[month - 1] || `Month ${month}`;
@@ -49,7 +52,7 @@ function generatePayslipPDF(data, options = {}) {
       if (options.provisional) {
         doc.rect(40, y, 515, 16).fill('#fef3c7');
         doc.fontSize(8).font('Helvetica-Bold').fillColor('#92400e')
-          .text('PROVISIONAL — LIVE CALCULATION, SUBJECT TO CHANGE UNTIL FINALIZED BY ADMIN', 40, y + 4, {
+          .text('PROVISIONAL - LIVE CALCULATION, SUBJECT TO CHANGE UNTIL FINALIZED BY ADMIN', 40, y + 4, {
             align: 'center',
             width: 515,
           });
@@ -62,20 +65,20 @@ function generatePayslipPDF(data, options = {}) {
       y += 18;
 
       // ─── Employee & Payroll Info Grid ───────────────────────────────────
-      const totalDays = summary.working_days + summary.holiday_count + summary.weekend_count;
-      const attendedDays = summary.present_days + summary.travel_days + summary.wfh_days + summary.half_days;
-      const leavesThisMonth = summary.paid_leave_days + summary.unpaid_leave_days;
+      const totalDays = (summary.working_days || 0) + (summary.holiday_count || 0) + (summary.weekend_count || 0);
+      const attendedDays = (summary.present_days || 0) + (summary.travel_days || 0) + (summary.wfh_days || 0) + (summary.half_days || 0);
+      const leavesThisMonth = (summary.paid_leave_days || 0) + (summary.unpaid_leave_days || 0);
 
       const leftRows = [
-        ['Employee Name', employee.name],
-        ['Employee Code', employee.employee_id],
+        ['Employee Name', employee.name || '-'],
+        ['Employee Code', employee.employee_id || '-'],
         ['Designation', employee.designation || 'Staff'],
-        ['PAN Number', employee.pan || '—'],
-        ['Bank Account Number', employee.bank_account_no || '—'],
-        ['Bank Name', employee.bank_name || '—'],
+        ['PAN Number', employee.pan || '-'],
+        ['Bank Account Number', employee.bank_account_no || '-'],
+        ['Bank Name', employee.bank_name || '-'],
       ];
       const rightRows = [
-        ['Date of Joining', employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN') : '—'],
+        ['Date of Joining', employee.date_of_joining ? new Date(employee.date_of_joining).toLocaleDateString('en-IN') : '-'],
         ['Total No. of Days', String(totalDays)],
         ['No. of Days Attended', String(attendedDays)],
         ['Leaves', String(leavesThisMonth)],
@@ -107,7 +110,10 @@ function generatePayslipPDF(data, options = {}) {
 
       // ─── Income / Deductions Table ──────────────────────────────────────
       doc.fontSize(11).font('Helvetica-Bold').fillColor('#1e293b').text('Earnings & Deductions', 40, y);
-      y += 18;
+      y += 14;
+      doc.fontSize(7.5).font('Helvetica-Oblique').fillColor('#64748b')
+        .text('Income figures below are pro-rated to reflect only what has actually accrued this period.', 40, y);
+      y += 14;
 
       const tableTop = y;
       doc.rect(40, tableTop, 515, 20).fill('#e0e7ff');
@@ -117,24 +123,41 @@ function generatePayslipPDF(data, options = {}) {
       doc.text('DEDUCTIONS PARTICULARS', 300, tableTop + 5, { width: 150 });
       doc.text('AMOUNT (INR)', 460, tableTop + 5, { width: 85, align: 'right' });
 
-      const incomeRows = [
-        ['Basic Pay', components.basic],
-        ['House Rent Allowance', components.hra],
-        ['Education Allowance', components.education_allowance],
-        ['Conveyance Allowance', components.conveyance],
-        ['Professional Development Allowance', components.professional_development],
-        ['Other Allowance', components.other_allowance],
-        ['Leave Travel Allowance (LTA)', components.lta],
-        ['PF (Employer Contribution)', components.employer_pf],
-        ['Bonus', components.bonus],
-      ];
       const deductionRows = [
         ['PF', components.pf_deduction],
         ['Professional Tax', components.professional_tax],
         ['TDS', components.tds],
       ];
-      const totalIncome = incomeRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
       const totalDeductions = deductionRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
+
+      // Income heads are stored as full monthly figures; scale each by the same
+      // accrual ratio the net salary was derived from so the slip shows what was
+      // actually earned this period, not the full-month entitlement. Ratio is
+      // based on gross (pre-deduction) earnings — net_salary already has
+      // PF/tax/TDS subtracted, so using it directly would double-shrink these
+      // lines. Live calculations carry gross_salary; persisted payslips don't
+      // store it, so it's added back from the saved net_salary.
+      const monthlySalaryForRatio = parseFloat(summary.monthly_salary) || 0;
+      const grossForRatio = summary.gross_salary !== undefined
+        ? summary.gross_salary
+        : (parseFloat(summary.net_salary) || 0) + totalDeductions;
+      const prorationRatio = monthlySalaryForRatio > 0
+        ? (parseFloat(grossForRatio) || 0) / monthlySalaryForRatio
+        : 0;
+      const prorate = (v) => Math.round((parseFloat(v) || 0) * prorationRatio * 100) / 100;
+
+      const incomeRows = [
+        ['Basic Pay', prorate(components.basic)],
+        ['House Rent Allowance', prorate(components.hra)],
+        ['Education Allowance', prorate(components.education_allowance)],
+        ['Conveyance Allowance', prorate(components.conveyance)],
+        ['Professional Development Allowance', prorate(components.professional_development)],
+        ['Other Allowance', prorate(components.other_allowance)],
+        ['Leave Travel Allowance (LTA)', prorate(components.lta)],
+        ['PF (Employer Contribution)', prorate(components.employer_pf)],
+        ['Bonus', prorate(components.bonus)],
+      ];
+      const totalIncome = incomeRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
 
       let cy = tableTop + 20;
       incomeRows.forEach((row, idx) => {

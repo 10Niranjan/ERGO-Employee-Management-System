@@ -40,4 +40,19 @@ router.post(
   resolveResetRequest
 );
 
+// POST /api/admin/system/migrate (Trigger pending schema migrations)
+router.post('/system/migrate', async (req, res, next) => {
+  try {
+    const { runMigrations } = require('../db/migrate');
+    const result = await runMigrations();
+    return res.status(200).json({
+      message: 'Migrations completed successfully.',
+      applied: result.applied,
+      files: result.files,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

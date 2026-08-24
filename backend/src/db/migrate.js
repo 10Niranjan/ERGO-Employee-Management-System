@@ -13,8 +13,8 @@ const { pool } = require('./pool');
 
 const MIGRATIONS_DIR = path.join(__dirname, 'migrations');
 
-async function migrate() {
-  const client = await pool.connect();
+async function runMigrations(customPool = pool) {
+  const client = await customPool.connect();
 
   try {
     // Ensure the tracking table exists
@@ -39,9 +39,9 @@ async function migrate() {
       .sort();
 
     let ran = 0;
+    const appliedFiles = [];
     for (const file of files) {
       if (executedSet.has(file)) {
-        console.log(`  [skip] ${file}`);
         continue;
       }
 
@@ -56,20 +56,32 @@ async function migrate() {
         );
         await client.query('COMMIT');
         ran++;
+        appliedFiles.push(file);
       } catch (err) {
         await client.query('ROLLBACK');
         throw new Error(`Migration failed on ${file}: ${err.message}`);
       }
     }
 
-    console.log(`\nMigrations complete. ${ran} new migration(s) applied.`);
+    if (ran > 0) {
+      console.log(`Migrations complete. ${ran} new migration(s) applied.`);
+    }
+    return { applied: ran, files: appliedFiles };
   } finally {
     client.release();
-    await pool.end();
   }
 }
 
-migrate().catch((err) => {
-  console.error('Migration error:', err.message);
-  process.exit(1);
-});
+if (require.main === module) {
+  runMigrations()
+    .then((res) => {
+      console.log(`Finished migrations. Applied: ${res.applied}`);
+      return pool.end();
+    })
+    .catch((err) => {
+      console.error('Migration error:', err.message);
+      process.exit(1);
+    });
+}
+
+module.exports = { runMigrations, migrate: runMigrations };

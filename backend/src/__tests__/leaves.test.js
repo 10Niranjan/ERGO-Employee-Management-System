@@ -217,14 +217,14 @@ describe('POST /api/leaves', () => {
       .mockResolvedValueOnce({ rows: [SAMPLE_LEAVE_TYPE_PAID] })
       .mockResolvedValueOnce({ rows: [] }); // holidays check
 
-    // 2026-09-05 is Saturday, 2026-09-06 is Sunday
+    // 2026-09-12 is 2nd Saturday (weekend), 2026-09-13 is Sunday (weekend)
     const res = await request(app)
       .post('/api/leaves')
       .set('Authorization', `Bearer ${EMPLOYEE_TOKEN}`)
       .send({
         leave_type_id: 1,
-        start_date: '2026-09-05',
-        end_date: '2026-09-06',
+        start_date: '2026-09-12',
+        end_date: '2026-09-13',
         reason: 'Weekend leave',
       });
 
