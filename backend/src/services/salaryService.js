@@ -131,19 +131,27 @@ function getApplicableMonthlySalary(dateStr, currentMonthlySalary, salaryHistory
 }
 
 /**
- * Pure, deterministic salary computation engine — calendar-days-prorated
- * monthly salary model:
+ * Pure, deterministic salary computation engine — attendance-window model:
  *
+ *   Pay Window   = [first worked day, last worked day] for the month, where
+ *                  "worked" means attendance status present/travel/wfh/half_day.
+ *                  Days outside that window are never paid — this is what
+ *                  stops pre-joining or post-departure weekends/holidays
+ *                  from being silently paid just because they fall in the
+ *                  calendar month.
  *   Per-Day Rate = Monthly Salary ÷ Actual Days in That Calendar Month
- *   Paid Days    = every day EXCEPT unpaid leave, absent/unmarked working
- *                  days, and half-days count at 50%
- *   Final Salary = sum of (rate × payable factor) across all days
+ *   Sandwich Rule = a run of consecutive weekend/holiday days inside the
+ *                  window is unpaid only when the working days immediately
+ *                  before AND after the whole run are both 'absent';
+ *                  otherwise weekends/holidays inside the window are paid
+ *                  (factor 1.0) by default.
+ *   Final Salary = sum of (rate × payable factor) across the window, minus
+ *                  flat statutory deductions (PF + Professional Tax + TDS),
+ *                  floored at 0.
  *
- * Weekends and company holidays are paid days (factor 1.0) — they simply
- * aren't attendance-tracked, so they can never be "absent". Mid-month
- * revisions resolve day-by-day via getApplicableMonthlySalary, each day's
- * rate always divided by the *same* month's total day count regardless of
- * which side of the revision it falls on.
+ * Mid-month revisions resolve day-by-day via getApplicableMonthlySalary, each
+ * day's rate always divided by the *same* month's total day count regardless
+ * of which side of the revision it falls on.
  */
 async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = getTodayIST()) {
   // 1. Fetch employee details
@@ -222,7 +230,71 @@ async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = 
     attendanceRows.map((a) => [dbDateToStr(a.date), a])
   );
 
-  // 7. Day-by-day evaluation
+  // 7. Determine the pay window — first/last working day with a "worked"
+  // attendance status. Never looks past asOfDate: an admin override with a
+  // future date (a known gap elsewhere) shouldn't be able to skew the window.
+  const WORKED_STATUSES = new Set(['present', 'travel', 'wfh', 'half_day']);
+  let windowStart = null;
+  let windowEnd = null;
+  for (const d of monthDates) {
+    if (d > asOfDate) break;
+    if (isWeekend(d) || holidayMap.has(d)) continue;
+    const att = attendanceMap.get(d);
+    if (att && WORKED_STATUSES.has(att.status)) {
+      if (windowStart === null) windowStart = d;
+      windowEnd = d;
+    }
+  }
+
+  // 8. Evaluate every working day's status once (leave > attendance > absent).
+  // Needed both for in-window payout and to know what bounds each
+  // weekend/holiday run for the sandwich rule below.
+  const workingDayEval = new Map();
+  for (const d of monthDates) {
+    if (isWeekend(d) || holidayMap.has(d)) continue;
+    const leave = leaveMap.get(d) || null;
+    const att = attendanceMap.get(d) || null;
+
+    if (leave) {
+      workingDayEval.set(d, leave.is_paid
+        ? { status: 'paid_leave', payableFactor: 1.0, note: `Approved Paid Leave: ${leave.leave_type_name}` }
+        : { status: 'unpaid_leave', payableFactor: 0, note: `Approved Unpaid Leave: ${leave.leave_type_name}` });
+    } else if (att && att.status === 'present') {
+      workingDayEval.set(d, { status: 'present', payableFactor: 1.0, note: 'Present (Full Day)' });
+    } else if (att && att.status === 'travel') {
+      workingDayEval.set(d, { status: 'travel', payableFactor: 1.0, note: 'On Duty / Travel' });
+    } else if (att && att.status === 'wfh') {
+      workingDayEval.set(d, { status: 'wfh', payableFactor: 1.0, note: 'Work From Home (Full Day)' });
+    } else if (att && att.status === 'half_day') {
+      workingDayEval.set(d, { status: 'half_day', payableFactor: 0.5, note: 'Half-Day (50% Rate)' });
+    } else if (att) {
+      workingDayEval.set(d, { status: 'absent', payableFactor: 0, note: 'Recorded Absent' });
+    } else {
+      workingDayEval.set(d, { status: 'absent', payableFactor: 0, note: 'Unmarked / Absent' });
+    }
+  }
+
+  // 9. Sandwich rule — a run of consecutive weekend/holiday days is unpaid
+  // when the working days immediately bounding the whole run are both absent.
+  const sandwichedDates = new Set();
+  for (let i = 0; i < monthDates.length; i++) {
+    const d = monthDates[i];
+    if (!(isWeekend(d) || holidayMap.has(d))) continue;
+    let j = i;
+    while (j < monthDates.length && (isWeekend(monthDates[j]) || holidayMap.has(monthDates[j]))) j++;
+    const before = monthDates[i - 1];
+    const after = monthDates[j];
+    const beforeAbsent = before ? workingDayEval.get(before)?.status === 'absent' : false;
+    const afterAbsent = after ? workingDayEval.get(after)?.status === 'absent' : false;
+    if (beforeAbsent && afterAbsent) {
+      for (let k = i; k < j; k++) sandwichedDates.add(monthDates[k]);
+    }
+    i = j - 1;
+  }
+
+  // 10. Day-by-day assembly — only days inside the pay window accrue pay or
+  // count toward the summary tallies; everything else is 0 with a note
+  // explaining why.
   let workingDays = 0;
   let presentDays = 0;
   let halfDays = 0;
@@ -239,101 +311,41 @@ async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = 
     const isWeekendDay = isWeekend(d);
     const isHol = holidayMap.has(d);
     const holidayName = holidayMap.get(d) || null;
-    const leave = leaveMap.get(d) || null;
-    const att = attendanceMap.get(d) || null;
-    const isFuture = d > asOfDate;
+    const inWindow = windowStart !== null && d >= windowStart && d <= windowEnd;
 
     const monthlySalaryForDay = getApplicableMonthlySalary(d, currentMonthlySalary, salaryHistory);
     const rate = daysInMonth > 0 ? monthlySalaryForDay / daysInMonth : 0;
 
-    let status = 'absent';
-    let payableFactor = 0;
-    let note = '';
+    let status, payableFactor, note;
 
-    if (isFuture) {
-      // Future date — compensation has not accrued yet (0% factor)
+    if (!inWindow) {
+      status = isHol ? 'holiday' : isWeekendDay ? 'weekend' : 'outside_period';
       payableFactor = 0;
-      if (isHol) {
-        status = 'holiday';
-        note = `Upcoming Public Holiday: ${holidayName} (Accrues on date)`;
-      } else if (isWeekendDay) {
-        status = 'weekend';
-        note = 'Upcoming Weekend (Accrues on date)';
-      } else {
-        workingDays++;
-        if (leave) {
-          status = leave.is_paid ? 'paid_leave' : 'unpaid_leave';
-          note = `Upcoming Approved Leave: ${leave.leave_type_name} (Accrues on date)`;
-        } else {
-          status = 'upcoming';
-          note = 'Upcoming (Not yet reached)';
-        }
-      }
+      note = windowStart === null
+        ? 'No attendance recorded this month — pay period undefined'
+        : (d < windowStart ? 'Before first present day — outside pay period' : 'After last present day — outside pay period');
+    } else if (isHol || isWeekendDay) {
+      if (isHol) holidayCount++;
+      else weekendCount++;
+      const unpaid = sandwichedDates.has(d);
+      status = isHol ? 'holiday' : 'weekend';
+      payableFactor = unpaid ? 0 : 1.0;
+      note = unpaid
+        ? `${isHol ? `Public Holiday: ${holidayName}` : 'Weekend'} — unpaid (sandwiched between absences)`
+        : (isHol ? `Public Holiday: ${holidayName}` : 'Weekend');
     } else {
-      // Past or current date — evaluated for accrual
-      if (isHol) {
-        holidayCount++;
-        status = 'holiday';
-        payableFactor = 1.0;
-        note = `Public Holiday: ${holidayName}`;
-      } else if (isWeekendDay) {
-        weekendCount++;
-        status = 'weekend';
-        payableFactor = 1.0;
-        note = 'Weekend';
-      } else {
-        // Working day
-        workingDays++;
-
-        // Precedence 1: Approved Leave
-        if (leave) {
-          if (leave.is_paid) {
-            paidLeaveDays++;
-            status = 'paid_leave';
-            payableFactor = 1.0;
-            note = `Approved Paid Leave: ${leave.leave_type_name}`;
-          } else {
-            unpaidLeaveDays++;
-            status = 'unpaid_leave';
-            payableFactor = 0;
-            note = `Approved Unpaid Leave: ${leave.leave_type_name}`;
-          }
-        } else if (att) {
-          // Precedence 2: Attendance
-          if (att.status === 'present') {
-            presentDays++;
-            status = 'present';
-            payableFactor = 1.0;
-            note = 'Present (Full Day)';
-          } else if (att.status === 'travel') {
-            travelDays++;
-            status = 'travel';
-            payableFactor = 1.0;
-            note = 'On Duty / Travel';
-          } else if (att.status === 'wfh') {
-            wfhDays++;
-            status = 'wfh';
-            payableFactor = 1.0;
-            note = 'Work From Home (Full Day)';
-          } else if (att.status === 'half_day') {
-            halfDays++;
-            status = 'half_day';
-            payableFactor = 0.5;
-            note = 'Half-Day (50% Rate)';
-          } else {
-            absentDays++;
-            status = 'absent';
-            payableFactor = 0;
-            note = 'Recorded Absent';
-          }
-        } else {
-          // Precedence 3: No record on working day
-          absentDays++;
-          status = 'absent';
-          payableFactor = 0;
-          note = 'Unmarked / Absent';
-        }
-      }
+      workingDays++;
+      const ev = workingDayEval.get(d);
+      status = ev.status;
+      payableFactor = ev.payableFactor;
+      note = ev.note;
+      if (status === 'present') presentDays++;
+      else if (status === 'travel') travelDays++;
+      else if (status === 'wfh') wfhDays++;
+      else if (status === 'half_day') halfDays++;
+      else if (status === 'paid_leave') paidLeaveDays++;
+      else if (status === 'unpaid_leave') unpaidLeaveDays++;
+      else absentDays++;
     }
 
     const dailyAmount = Math.round(rate * payableFactor * 100) / 100;
@@ -349,7 +361,13 @@ async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = 
     };
   });
 
-  const netSalary = Math.round(totalPayableAmount * 100) / 100;
+  const grossSalary = Math.round(totalPayableAmount * 100) / 100;
+  const totalDeductions = Math.round((
+    (parseFloat(employee.pf_deduction) || 0) +
+    (parseFloat(employee.professional_tax) || 0) +
+    (parseFloat(employee.tds) || 0)
+  ) * 100) / 100;
+  const netSalary = Math.max(0, Math.round((grossSalary - totalDeductions) * 100) / 100);
   const derivedPerDayRate = daysInMonth > 0 ? Math.round((currentMonthlySalary / daysInMonth) * 100) / 100 : 0;
 
   return {
@@ -369,7 +387,7 @@ async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = 
     year,
     month,
     summary: {
-      total_days: monthDates.length,
+      total_days: windowStart !== null ? (workingDays + holidayCount + weekendCount) : 0,
       working_days: workingDays,
       present_days: presentDays,
       half_days: halfDays,
@@ -382,7 +400,11 @@ async function calculateMonthlySalary(dbClient, userId, year, month, asOfDate = 
       weekend_count: weekendCount,
       monthly_salary: currentMonthlySalary,
       per_day_salary: derivedPerDayRate,
+      gross_salary: grossSalary,
+      total_deductions: totalDeductions,
       net_salary: netSalary,
+      pay_period_start: windowStart,
+      pay_period_end: windowEnd,
     },
     days,
   };

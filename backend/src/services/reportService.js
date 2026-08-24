@@ -123,12 +123,26 @@ function generatePayslipPDF(data, options = {}) {
       doc.text('DEDUCTIONS PARTICULARS', 300, tableTop + 5, { width: 150 });
       doc.text('AMOUNT (INR)', 460, tableTop + 5, { width: 85, align: 'right' });
 
+      const deductionRows = [
+        ['PF', components.pf_deduction],
+        ['Professional Tax', components.professional_tax],
+        ['TDS', components.tds],
+      ];
+      const totalDeductions = deductionRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
+
       // Income heads are stored as full monthly figures; scale each by the same
       // accrual ratio the net salary was derived from so the slip shows what was
-      // actually earned this period, not the full-month entitlement.
+      // actually earned this period, not the full-month entitlement. Ratio is
+      // based on gross (pre-deduction) earnings — net_salary already has
+      // PF/tax/TDS subtracted, so using it directly would double-shrink these
+      // lines. Live calculations carry gross_salary; persisted payslips don't
+      // store it, so it's added back from the saved net_salary.
       const monthlySalaryForRatio = parseFloat(summary.monthly_salary) || 0;
+      const grossForRatio = summary.gross_salary !== undefined
+        ? summary.gross_salary
+        : (parseFloat(summary.net_salary) || 0) + totalDeductions;
       const prorationRatio = monthlySalaryForRatio > 0
-        ? (parseFloat(summary.net_salary) || 0) / monthlySalaryForRatio
+        ? (parseFloat(grossForRatio) || 0) / monthlySalaryForRatio
         : 0;
       const prorate = (v) => Math.round((parseFloat(v) || 0) * prorationRatio * 100) / 100;
 
@@ -143,13 +157,7 @@ function generatePayslipPDF(data, options = {}) {
         ['PF (Employer Contribution)', prorate(components.employer_pf)],
         ['Bonus', prorate(components.bonus)],
       ];
-      const deductionRows = [
-        ['PF', components.pf_deduction],
-        ['Professional Tax', components.professional_tax],
-        ['TDS', components.tds],
-      ];
       const totalIncome = incomeRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
-      const totalDeductions = deductionRows.reduce((s, [, v]) => s + (parseFloat(v) || 0), 0);
 
       let cy = tableTop + 20;
       incomeRows.forEach((row, idx) => {
